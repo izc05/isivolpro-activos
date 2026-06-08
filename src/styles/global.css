@@ -107,22 +107,47 @@ a { color: inherit; text-decoration: none; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { color: var(--muted); font-size: 13px; font-weight: 700; }
-.entity-identity { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+.entity-identity { display: flex; align-items: center; gap: 14px; min-width: 260px; }
 .entity-thumb {
-  width: 54px;
-  height: 54px;
+  width: 92px;
+  height: 66px;
   border-radius: 8px;
-  flex: 0 0 54px;
+  flex: 0 0 92px;
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #e7f6fb;
+  background:
+    linear-gradient(135deg, rgba(6, 168, 216, .12), rgba(16, 42, 67, .08)),
+    #e7f6fb;
   color: #075985;
   border: 1px solid #c9e8f2;
 }
 .entity-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .entity-identity strong { display: block; color: var(--primary); }
 .entity-identity span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.entity-identity-hero {
+  align-items: center;
+  min-width: 0;
+}
+.entity-identity-hero .entity-thumb {
+  width: clamp(140px, 22vw, 240px);
+  height: clamp(96px, 14vw, 150px);
+  flex-basis: clamp(140px, 22vw, 240px);
+}
+.entity-identity-hero strong { font-size: clamp(24px, 3vw, 34px); }
+.entity-identity-hero span { font-size: 15px; }
+.entity-identity-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.entity-identity-card .entity-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  flex-basis: auto;
+}
+.entity-identity-card strong { font-size: 18px; }
 .badge { display: inline-flex; align-items: center; min-height: 26px; border-radius: 999px; padding: 0 10px; background: #e7f6fb; color: #075985; font-size: 12px; font-weight: 700; }
 .badge.danger { background: #fee4e2; color: var(--danger); }
 .badge.ok { background: #dcfce7; color: var(--ok); }
@@ -438,7 +463,14 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
     text-transform: uppercase;
   }
   .entity-identity { min-width: 0; }
-  .entity-thumb { width: 46px; height: 46px; flex-basis: 46px; }
+  .entity-thumb { width: 82px; height: 62px; flex-basis: 82px; }
+  .entity-identity-hero { align-items: stretch; display: grid; }
+  .entity-identity-hero .entity-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    flex-basis: auto;
+  }
   .mobile-nav {
     position: fixed;
     left: 0;

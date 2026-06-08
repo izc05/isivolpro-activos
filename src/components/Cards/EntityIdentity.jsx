@@ -2,7 +2,7 @@ import { ImageIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { signedEntityImageUrl } from '../../services/imageService';
 
-export default function EntityIdentity({ row, entityType, title, subtitle }) {
+export default function EntityIdentity({ row, entityType, title, subtitle, size = 'default' }) {
   const [src, setSrc] = useState('');
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function EntityIdentity({ row, entityType, title, subtitle }) {
   }, [row?.id, row?.image_path, entityType]);
 
   return (
-    <div className="entity-identity">
+    <div className={`entity-identity ${size !== 'default' ? `entity-identity-${size}` : ''}`}>
       <div className="entity-thumb">
         {src ? <img src={src} alt={title} /> : <ImageIcon size={22} />}
       </div>

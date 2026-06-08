@@ -123,7 +123,7 @@ export default function InstallationDetail() {
         action={<Link className="secondary-button" to="/instalaciones">Volver a instalaciones</Link>}
       />
       <div className="installation-hero">
-        <EntityIdentity row={row} entityType="instalacion" title={row.nombre} subtitle={row.tenants?.nombre || row.direccion || row.tipo} />
+        <EntityIdentity row={row} entityType="instalacion" title={row.nombre} subtitle={row.tenants?.nombre || row.direccion || row.tipo} size="hero" />
         <div className="quick-actions">
           <button className="secondary-button" onClick={() => setLocationModalOpen(true)}><MapPin size={17} /> Nueva ubicacion</button>
           <button className="secondary-button" onClick={() => setAssetModalOpen(true)}><Wrench size={17} /> Nuevo activo</button>
@@ -379,7 +379,7 @@ function InstallationMap({ assetsByLocation, onCreateLocation, onCreateAsset }) 
         {assetsByLocation.map((location) => (
           <article className="location-card" key={location.id}>
             <header>
-              <EntityIdentity row={location} entityType="ubicacion" title={location.nombre} subtitle={location.tipo || location.zona} />
+              <EntityIdentity row={location} entityType="ubicacion" title={location.nombre} subtitle={location.tipo || location.zona} size="card" />
               <span className="badge">QR zona {shortId(location.qr_token)}</span>
             </header>
             <div className="location-assets">
