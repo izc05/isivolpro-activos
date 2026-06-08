@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 170" role="img" aria-labelledby="logoTitle logoDesc">
-  <title id="logoTitle">Language School</title>
-  <desc id="logoDesc">Logo original de Language School</desc>
-  <rect x="8" y="14" width="92" height="92" rx="22" fill="#0f2d52"/>
-  <path d="M34 86V38h14l12 12 12-12h14v48H74V62L60 75 46 62v24z" fill="#ffffff"/>
-  <text x="124" y="62" font-family="Montserrat, Arial, sans-serif" font-size="34" letter-spacing="6" fill="#0f2d52">LANGUAGE</text>
-  <text x="124" y="121" font-family="Merriweather, Georgia, serif" font-size="62" font-weight="700" fill="#143f73">School</text>
-  <path d="M124 133h286" stroke="#d79b34" stroke-width="4" stroke-linecap="round"/>
-</svg>
