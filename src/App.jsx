@@ -25,12 +25,14 @@ import Settings from './pages/Settings';
 import AccessDenied from './pages/AccessDenied';
 import InvalidQr from './pages/InvalidQr';
 import PrivacyNotice from './pages/PrivacyNotice';
+import PublicIncidentReport from './pages/PublicIncidentReport';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<InvitationRegister />} />
+      <Route path="/aviso/:token" element={<PublicIncidentReport />} />
       <Route path="/qr/:token" element={<ProtectedRoute><QRResolver /></ProtectedRoute>} />
       <Route path="/denegado" element={<AccessDenied />} />
       <Route path="/qr-no-valido" element={<InvalidQr />} />

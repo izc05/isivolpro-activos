@@ -3,17 +3,28 @@ import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 
 export function qrPathFromToken(token) {
-  return `/qr/${encodeURIComponent(token)}`;
+  return `#/qr/${encodeURIComponent(token)}`;
+}
+
+export function publicIncidentPathFromToken(token) {
+  return `#/aviso/${encodeURIComponent(token)}`;
+}
+
+function appBaseUrl() {
+  const path = window.location.pathname.endsWith('/') ? window.location.pathname : `${window.location.pathname}/`;
+  return `${window.location.origin}${path}`;
 }
 
 export function tokenFromQrValue(value) {
   if (!value) return '';
   try {
     const parsed = new URL(value);
+    const hashParts = parsed.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+    if (hashParts[0] === 'qr' || hashParts[0] === 'aviso') return hashParts[1] || '';
     const parts = parsed.pathname.split('/').filter(Boolean);
-    return parts[0] === 'qr' ? parts[1] : value;
+    return parts[0] === 'qr' || parts[0] === 'aviso' ? parts[1] : value;
   } catch {
-    return value.replace(/^\/?qr\//, '').trim();
+    return value.replace(/^#?\/?(qr|aviso)\//, '').trim();
   }
 }
 
@@ -35,10 +46,39 @@ export async function resolveQr(rawValue) {
   return resolved;
 }
 
-export async function qrDataUrl(token, baseUrl = window.location.origin) {
-  return QRCode.toDataURL(`${baseUrl}${qrPathFromToken(token)}`, {
+export async function qrDataUrl(token, baseUrl = appBaseUrl(), kind = 'internal') {
+  const path = kind === 'public-incident' ? publicIncidentPathFromToken(token) : qrPathFromToken(token);
+  return QRCode.toDataURL(`${baseUrl}${path}`, {
     errorCorrectionLevel: 'M',
     margin: 2,
     width: 512
   });
+}
+
+export async function publicQrContext(token) {
+  const { data, error } = await supabase.rpc('public_qr_context', { qr_token_text: tokenFromQrValue(token) });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+export async function submitPublicIncident(token, payload) {
+  const fingerprint = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width,
+    screen.height,
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  ].join('|');
+
+  const { data, error } = await supabase.rpc('submit_public_incident', {
+    qr_token_text: tokenFromQrValue(token),
+    reporter_name: payload.nombre,
+    reporter_contact: payload.contacto,
+    report_title: payload.titulo,
+    report_description: payload.descripcion,
+    report_priority: payload.prioridad || 'media',
+    browser_fingerprint: fingerprint
+  });
+  if (error) throw error;
+  return data?.[0] || data;
 }

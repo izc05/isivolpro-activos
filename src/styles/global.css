@@ -52,6 +52,60 @@ a { color: inherit; text-decoration: none; }
 .login-panel { background: var(--surface); padding: 48px 36px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
 .login-panel h2 { margin: 0; color: var(--primary); }
 .login-actions { display: grid; gap: 10px; margin-top: 8px; }
+.public-report-page {
+  min-height: 100vh;
+  background: #eef4f8;
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(320px, 520px);
+}
+.public-report-hero {
+  color: white;
+  padding: 48px;
+  display: flex;
+  align-items: flex-end;
+  background:
+    linear-gradient(rgba(16, 42, 67, .7), rgba(16, 42, 67, .94)),
+    url('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80') center/cover;
+}
+.public-report-hero h1 {
+  margin: 18px 0 10px;
+  font-size: clamp(34px, 5vw, 56px);
+  letter-spacing: 0;
+}
+.public-report-hero p {
+  margin: 0;
+  max-width: 620px;
+  color: #d9edf5;
+  font-size: 18px;
+}
+.public-report-panel {
+  background: white;
+  padding: 42px 34px;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+}
+.public-target-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid #c9e8f2;
+  background: #f7fbfd;
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--primary);
+}
+.public-target-card svg { color: var(--accent); flex: 0 0 auto; }
+.public-target-card span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.success-state {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
 .segmented {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -514,6 +568,9 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   @media (max-width: 920px) {
   .login-page { grid-template-columns: 1fr; }
   .login-visual { min-height: 36vh; padding: 32px; }
+  .public-report-page { grid-template-columns: 1fr; }
+  .public-report-hero { min-height: 260px; padding: 32px 24px; }
+  .public-report-panel { padding: 28px 20px; align-content: start; }
   .app-shell { grid-template-columns: 1fr; padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
   .sidebar { display: none; }
   .topbar { align-items: stretch; flex-wrap: wrap; padding: 12px 16px; }

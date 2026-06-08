@@ -15,6 +15,7 @@ export default function QRGenerator() {
   const { rows: assets } = useTenantRows('activos', '*, instalaciones(nombre), ubicaciones(nombre)', { order: 'nombre', ascending: true });
   const [level, setLevel] = useState('instalacion');
   const [selectedId, setSelectedId] = useState('');
+  const [qrKind, setQrKind] = useState('internal');
 
   const options = useMemo(() => {
     if (level === 'instalacion') return installations;
@@ -31,13 +32,13 @@ export default function QRGenerator() {
       ...installationLocations.map((location) => ({
         id: location.id,
         title: location.nombre,
-        subtitle: 'QR ubicacion',
+        subtitle: qrKind === 'public-incident' ? 'Aviso externo ubicacion' : 'QR ubicacion',
         token: location.qr_token
       })),
       ...installationAssets.map((asset) => ({
         id: asset.id,
         title: asset.nombre,
-        subtitle: `QR activo${asset.ubicaciones?.nombre ? ` - ${asset.ubicaciones.nombre}` : ''}`,
+        subtitle: `${qrKind === 'public-incident' ? 'Aviso externo activo' : 'QR activo'}${asset.ubicaciones?.nombre ? ` - ${asset.ubicaciones.nombre}` : ''}`,
         token: asset.qr_token
       }))
     ];
@@ -50,9 +51,10 @@ export default function QRGenerator() {
 
   function subtitleFor(item) {
     if (!item) return '';
-    if (level === 'instalacion') return 'QR general de instalacion';
-    if (level === 'ubicacion') return item.instalaciones?.nombre || 'QR de ubicacion';
-    return [item.instalaciones?.nombre, item.ubicaciones?.nombre].filter(Boolean).join(' - ') || 'QR de activo';
+    const prefix = qrKind === 'public-incident' ? 'Aviso externo' : 'QR interno';
+    if (level === 'instalacion') return `${prefix} de instalacion`;
+    if (level === 'ubicacion') return `${prefix} - ${item.instalaciones?.nombre || 'ubicacion'}`;
+    return `${prefix} - ${[item.instalaciones?.nombre, item.ubicaciones?.nombre].filter(Boolean).join(' - ') || 'activo'}`;
   }
 
   return (
@@ -72,6 +74,13 @@ export default function QRGenerator() {
             </select>
           </label>
           <label className="form-field">
+            <span>Uso del QR</span>
+            <select value={qrKind} onChange={(event) => setQrKind(event.target.value)}>
+              <option value="internal">Acceso interno con permisos</option>
+              <option value="public-incident">Aviso externo sin documentos</option>
+            </select>
+          </label>
+          <label className="form-field">
             <span>Tamano etiqueta</span>
             <select defaultValue="medio">
               <option value="pequeno">Pequeno</option>
@@ -79,9 +88,9 @@ export default function QRGenerator() {
               <option value="grande">Grande</option>
             </select>
           </label>
-          <p className="muted">Escanear instalacion abre la ficha completa con ubicaciones y activos. Escanear ubicacion abre la zona. Escanear activo abre su ficha tecnica.</p>
+          <p className="muted">{qrKind === 'public-incident' ? 'Este QR permite reportar un aviso sin entrar a documentos ni fichas privadas. Se limita un aviso por contacto y QR durante un tiempo.' : 'Escanear instalacion abre la ficha completa con ubicaciones y activos. Escanear ubicacion abre la zona. Escanear activo abre su ficha tecnica.'}</p>
         </div>
-        {selected && <QRCodeCard token={selected.qr_token} title={selected.nombre} subtitle={subtitleFor(selected)} />}
+        {selected && <QRCodeCard token={selected.qr_token} title={selected.nombre} subtitle={subtitleFor(selected)} kind={qrKind} />}
       </div>
 
       {level === 'instalacion' && selected && (
@@ -90,9 +99,9 @@ export default function QRGenerator() {
             <h2>Cascada QR de {selected.nombre}</h2>
           </div>
           <div className="qr-grid">
-            <QRCodeCard token={selected.qr_token} title={selected.nombre} subtitle="QR general instalacion" compact />
+            <QRCodeCard token={selected.qr_token} title={selected.nombre} subtitle={qrKind === 'public-incident' ? 'Aviso externo instalacion' : 'QR general instalacion'} compact kind={qrKind} />
             {cascade.map((item) => (
-              <QRCodeCard key={item.id} token={item.token} title={item.title} subtitle={item.subtitle} compact />
+              <QRCodeCard key={item.id} token={item.token} title={item.title} subtitle={item.subtitle} compact kind={qrKind} />
             ))}
           </div>
         </section>
