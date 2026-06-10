@@ -123,6 +123,16 @@ export async function createAsset(tenantId, payload) {
     .single();
 
   if (error) throw error;
+  if (payload.image_file) {
+    const imageData = await uploadEntityImage({ tenantId: data.tenant_id, entityType: 'activo', entityId: data.id, file: payload.image_file });
+    const update = await supabase.from('activos').update(imageData).eq('id', data.id).select().single();
+    if (update.error) throw update.error;
+    await logAudit({ tenantId: data.tenant_id, action: 'update_asset_image', entityType: 'activo', entityId: data.id });
+    data.image_bucket = update.data.image_bucket;
+    data.image_path = update.data.image_path;
+    data.image_file_name = update.data.image_file_name;
+    data.image_mime_type = update.data.image_mime_type;
+  }
   await logAudit({ tenantId, action: 'create_asset', entityType: 'activo', entityId: data.id });
   return data;
 }
@@ -153,6 +163,14 @@ export async function updateAsset(row, payload) {
     .single();
 
   if (error) throw error;
+
+  if (payload.image_file) {
+    const imageData = await uploadEntityImage({ tenantId: row.tenant_id, entityType: 'activo', entityId: row.id, file: payload.image_file });
+    const update = await supabase.from('activos').update(imageData).eq('id', row.id).select().single();
+    if (update.error) throw update.error;
+    Object.assign(data, update.data);
+  }
+
   await logAudit({ tenantId: row.tenant_id, action: 'update_asset', entityType: 'activo', entityId: row.id });
   return data;
 }

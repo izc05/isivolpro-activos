@@ -41,6 +41,7 @@ Ejecuta los SQL en este orden desde SQL Editor o migraciones:
 4. `src/sql/004_seed_demo.sql` opcional
 5. `src/sql/005_demo_signup.sql` opcional solo para registro demo
 6. `src/sql/006_installation_location_images.sql` si ya habias creado la base antes de anadir imagenes
+7. `src/sql/020_asset_images.sql` si ya habias creado la base antes de anadir imagenes a activos
 
 El seed crea datos demo sin usuarios. Para probar con un usuario real:
 

@@ -4,6 +4,7 @@ import QRCodeCard from '../components/QR/QRCodeCard';
 import DataTable from '../components/Cards/DataTable';
 import { useRowById } from '../hooks/useRowById';
 import { useTenantRows } from '../hooks/useTenantRows';
+import EntityImageViewer from '../components/Media/EntityImageViewer';
 
 export default function LocationDetail() {
   const { id } = useParams();
@@ -18,6 +19,7 @@ export default function LocationDetail() {
       <PageHeader title={row.nombre} subtitle={row.instalaciones?.nombre} />
       <div className="grid two">
         <div className="card">
+          <EntityImageViewer row={row} entityType="ubicacion" title={row.nombre} className="location-detail-image" />
           <p><strong>Tipo:</strong> {row.tipo || '-'}</p>
           <p><strong>Planta:</strong> {row.planta || '-'}</p>
           <p><strong>Zona:</strong> {row.zona || '-'}</p>

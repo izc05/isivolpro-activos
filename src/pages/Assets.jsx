@@ -8,6 +8,7 @@ import { useTenantRows } from '../hooks/useTenantRows';
 import { formatDate } from '../utils/dateUtils';
 import { createAsset, softDeleteEntity, updateAsset } from '../services/entityService';
 import { usePermissions } from '../hooks/usePermissions';
+import EntityIdentity from '../components/Cards/EntityIdentity';
 
 export default function Assets() {
   const { rows, activeTenantId, refresh } = useTenantRows('activos', '*, instalaciones(nombre), ubicaciones(nombre)', { order: 'created_at' });
@@ -29,7 +30,8 @@ export default function Assets() {
     fecha_instalacion: '',
     fecha_ultima_revision: '',
     fecha_proxima_revision: '',
-    observaciones: ''
+    observaciones: '',
+    image_file: null
   };
   const [form, setForm] = useState(emptyForm);
   const [editingRow, setEditingRow] = useState(null);
@@ -51,6 +53,7 @@ export default function Assets() {
 
   async function submit(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setError('');
     try {
       if (editingRow) {
@@ -60,6 +63,7 @@ export default function Assets() {
       }
       setForm(emptyForm);
       setEditingRow(null);
+      formElement.reset();
       setOpen(false);
       refresh();
     } catch (err) {
@@ -96,7 +100,8 @@ export default function Assets() {
       fecha_instalacion: row.fecha_instalacion || '',
       fecha_ultima_revision: row.fecha_ultima_revision || '',
       fecha_proxima_revision: row.fecha_proxima_revision || '',
-      observaciones: row.observaciones || ''
+      observaciones: row.observaciones || '',
+      image_file: null
     });
     setError('');
     setOpen(true);
@@ -113,7 +118,7 @@ export default function Assets() {
     <>
       <PageHeader title="Activos/equipos" subtitle="Ficha tecnica, estado, revisiones, documentos y QR por activo." action={canManage ? <button className="primary-button" onClick={startCreate}>Nuevo activo</button> : null} />
       <DataTable columns={[
-        { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}>{row.nombre}</Link> },
+        { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}><EntityIdentity row={row} entityType="activo" title={row.nombre} subtitle={row.tipo || row.modelo} /></Link> },
         { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || '-' },
         { key: 'ubicacion', label: 'Ubicacion', render: (row) => row.ubicaciones?.nombre || '-' },
         { key: 'tipo', label: 'Tipo' },
@@ -173,6 +178,9 @@ export default function Assets() {
             <FormField label="Proxima revision"><input type="date" value={form.fecha_proxima_revision} onChange={(event) => updateField('fecha_proxima_revision', event.target.value)} /></FormField>
           </div>
           <FormField label="Observaciones"><textarea rows="3" value={form.observaciones} onChange={(event) => updateField('observaciones', event.target.value)} /></FormField>
+          <FormField label="Foto del activo">
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateField('image_file', event.target.files?.[0] || null)} />
+          </FormField>
           {error && <p className="error-text">{error}</p>}
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={closeModal}>Cancelar</button>

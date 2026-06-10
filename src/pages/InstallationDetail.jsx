@@ -36,7 +36,8 @@ export default function InstallationDetail() {
     fecha_instalacion: '',
     fecha_ultima_revision: '',
     fecha_proxima_revision: '',
-    observaciones: ''
+    observaciones: '',
+    image_file: null
   };
   const [locationForm, setLocationForm] = useState(emptyLocationForm);
   const [assetForm, setAssetForm] = useState(emptyAssetForm);
@@ -344,6 +345,7 @@ export default function InstallationDetail() {
             <FormField label="Proxima revision"><input type="date" value={assetForm.fecha_proxima_revision} onChange={(event) => updateAssetField('fecha_proxima_revision', event.target.value)} /></FormField>
           </div>
           <FormField label="Observaciones"><textarea rows="3" value={assetForm.observaciones} onChange={(event) => updateAssetField('observaciones', event.target.value)} /></FormField>
+          <FormField label="Foto del activo"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateAssetField('image_file', event.target.files?.[0] || null)} /></FormField>
           {error && <p className="error-text">{error}</p>}
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={() => setAssetModalOpen(false)}>Cancelar</button>

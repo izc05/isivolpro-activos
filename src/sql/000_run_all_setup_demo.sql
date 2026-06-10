@@ -137,6 +137,10 @@ create table public.activos (
   fecha_proxima_revision date,
   descripcion text,
   observaciones text,
+  image_bucket text,
+  image_path text,
+  image_file_name text,
+  image_mime_type text,
   qr_token text unique not null default public.secure_token(),
   created_by uuid references public.profiles(id),
   created_at timestamptz default now(),
@@ -1051,6 +1055,12 @@ alter table public.instalaciones
   add column if not exists image_mime_type text;
 
 alter table public.ubicaciones
+  add column if not exists image_bucket text,
+  add column if not exists image_path text,
+  add column if not exists image_file_name text,
+  add column if not exists image_mime_type text;
+
+alter table public.activos
   add column if not exists image_bucket text,
   add column if not exists image_path text,
   add column if not exists image_file_name text,

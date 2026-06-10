@@ -8,6 +8,7 @@ import { useTenantRows } from '../hooks/useTenantRows';
 import { formatDate } from '../utils/dateUtils';
 import { exportAssetPdf } from '../utils/pdfExport';
 import { qrDataUrl } from '../services/qrService';
+import EntityImageViewer from '../components/Media/EntityImageViewer';
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -48,9 +49,7 @@ export default function AssetDetail() {
 
       <section className="asset-hero">
         <div className="asset-hero-main">
-          <div className="asset-icon-panel">
-            <Wrench size={42} />
-          </div>
+          <EntityImageViewer row={asset} entityType="activo" title={asset.nombre} className="asset-image-panel" />
           <div>
             <div className="inline-actions">
               <span className={`badge ${statusClass}`}>{asset.estado}</span>
