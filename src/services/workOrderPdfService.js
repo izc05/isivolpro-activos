@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import { supabase } from './supabaseClient';
 import { buildStoragePath, createSignedUrl, uploadPrivateFile } from './fileService';
 import { logAudit } from './auditService';
@@ -54,6 +54,13 @@ function imageDimensions(dataUrl) {
   });
 }
 
+function imageFormat(dataUrl) {
+  if (typeof dataUrl !== 'string') return 'PNG';
+  if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) return 'JPEG';
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+  return 'PNG';
+}
+
 function addPageIfNeeded(doc, y, needed = 12) {
   if (y + needed <= PAGE.height - PAGE.margin) return y;
   doc.addPage();
@@ -106,7 +113,7 @@ async function addImageBlock(doc, y, dataUrl, caption, maxWidth = 82, maxHeight 
   const ratio = Math.min(maxWidth / dimensions.width, maxHeight / dimensions.height);
   const width = dimensions.width * ratio;
   const height = dimensions.height * ratio;
-  doc.addImage(dataUrl, 'PNG', PAGE.margin, y, width, height, undefined, 'FAST');
+  doc.addImage(dataUrl, imageFormat(dataUrl), PAGE.margin, y, width, height, undefined, 'FAST');
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   const captionLines = doc.splitTextToSize(safeText(caption), 170);
