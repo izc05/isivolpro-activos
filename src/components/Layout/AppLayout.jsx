@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { BarChart3, Building2, ChevronDown, FileText, Home, MapPin, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video } from 'lucide-react';
+import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, MapPin, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -23,6 +23,7 @@ const inventoryNavItems = [
 ];
 
 const operationsNavItems = [
+  { to: '/ots', label: 'Ordenes OT', icon: ClipboardCheck },
   { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck },
   { to: '/usuarios', label: 'Usuarios', icon: Users },
