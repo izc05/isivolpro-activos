@@ -17,6 +17,18 @@ export const WORK_ORDER_STATUSES = [
 
 export const WORK_ORDER_PRIORITIES = ['baja', 'media', 'alta', 'urgente'];
 export const WORK_ORDER_TYPES = ['averia', 'mantenimiento', 'revision', 'instalacion', 'inspeccion', 'otro'];
+export const CHECKLIST_RESULTS = ['pendiente', 'ok', 'no_ok', 'no_aplica'];
+
+export const DEFAULT_CHECKLIST_ITEMS = [
+  { punto: '1', descripcion: 'Comprobar acceso seguro a la zona de trabajo', requiere_foto: false },
+  { punto: '2', descripcion: 'Identificar instalacion, ubicacion y activo intervenido', requiere_foto: true },
+  { punto: '3', descripcion: 'Revisar estado visual general del equipo o instalacion', requiere_foto: true },
+  { punto: '4', descripcion: 'Comprobar protecciones, alimentacion o elementos de seguridad aplicables', requiere_foto: false },
+  { punto: '5', descripcion: 'Realizar prueba funcional tras la intervencion', requiere_foto: false },
+  { punto: '6', descripcion: 'Registrar material utilizado o material pendiente', requiere_foto: false },
+  { punto: '7', descripcion: 'Dejar la zona limpia, segura y operativa', requiere_foto: false },
+  { punto: '8', descripcion: 'Informar al cliente o responsable de la actuacion realizada', requiere_foto: false }
+];
 
 function normalizePayload(payload) {
   return {
@@ -197,5 +209,92 @@ export async function finishWorkOrderVisit(visit, finalObservations = '') {
   }
 
   await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id } });
+  return data;
+}
+
+export async function listWorkOrderChecklist(tenantId, workOrderId) {
+  const { data, error } = await supabase
+    .from('ot_checklist_respuestas')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('ot_id', workOrderId)
+    .order('orden', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function ensureDefaultChecklist(row) {
+  const existing = await listWorkOrderChecklist(row.tenant_id, row.id);
+  if (existing.length > 0) return existing;
+
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id || null;
+  const payload = DEFAULT_CHECKLIST_ITEMS.map((item, index) => ({
+    tenant_id: row.tenant_id,
+    ot_id: row.id,
+    orden: index + 1,
+    punto: item.punto,
+    descripcion: item.descripcion,
+    resultado: 'pendiente',
+    requiere_foto: item.requiere_foto,
+    created_by: userId
+  }));
+
+  const { data, error } = await supabase
+    .from('ot_checklist_respuestas')
+    .insert(payload)
+    .select()
+    .order('orden', { ascending: true });
+
+  if (error) throw error;
+  await logAudit({ tenantId: row.tenant_id, action: 'create_default_work_order_checklist', entityType: 'orden_trabajo', entityId: row.id });
+  return data || [];
+}
+
+export async function createChecklistItem(row, payload) {
+  const { data: userData } = await supabase.auth.getUser();
+  const current = await listWorkOrderChecklist(row.tenant_id, row.id);
+  const nextOrder = current.length + 1;
+
+  const { data, error } = await supabase
+    .from('ot_checklist_respuestas')
+    .insert({
+      tenant_id: row.tenant_id,
+      ot_id: row.id,
+      visita_id: payload.visita_id || null,
+      orden: payload.orden || nextOrder,
+      punto: payload.punto || String(nextOrder),
+      descripcion: payload.descripcion,
+      resultado: payload.resultado || 'pendiente',
+      observacion: payload.observacion || null,
+      requiere_foto: Boolean(payload.requiere_foto),
+      created_by: userData.user?.id || null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: row.tenant_id, action: 'create_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: data.id, metadata: { otId: row.id } });
+  return data;
+}
+
+export async function updateChecklistItem(item, payload) {
+  const { data, error } = await supabase
+    .from('ot_checklist_respuestas')
+    .update({
+      visita_id: payload.visita_id || item.visita_id || null,
+      resultado: payload.resultado || item.resultado || 'pendiente',
+      observacion: payload.observacion || null,
+      requiere_foto: Boolean(payload.requiere_foto),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', item.id)
+    .eq('tenant_id', item.tenant_id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: item.tenant_id, action: 'update_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: item.id, metadata: { otId: item.ot_id, result: payload.resultado } });
   return data;
 }
