@@ -10,9 +10,12 @@ import {
   createChecklistItem,
   ensureDefaultChecklist,
   getWorkOrder,
+  listChecklistPhotos,
   listWorkOrderChecklist,
   listWorkOrderVisits,
-  updateChecklistItem
+  signedChecklistPhotoUrl,
+  updateChecklistItem,
+  uploadChecklistPhoto
 } from '../services/workOrderService';
 
 const RESULT_LABELS = {
@@ -147,7 +150,7 @@ export default function WorkOrderChecklist() {
           </div>
           <div>
             <h2 className="section-heading">Visita asociada</h2>
-            <FormField label="Asignar respuestas a visita">
+            <FormField label="Asignar respuestas y fotos a visita">
               <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
                 <option value="">Sin visita concreta</option>
                 {visits.map((visit) => (
@@ -155,7 +158,7 @@ export default function WorkOrderChecklist() {
                 ))}
               </select>
             </FormField>
-            <p className="muted">Si el tecnico ha iniciado visita, las respuestas del checklist quedaran vinculadas a esa visita.</p>
+            <p className="muted">Si el tecnico ha iniciado visita, las respuestas y fotos quedaran vinculadas a esa visita.</p>
             <div className="quick-actions">
               <button className="secondary-button" type="button" onClick={generateDefaultChecklist}>Generar checklist base</button>
               <button className="primary-button" type="button" onClick={() => setOpen(true)}>Añadir punto</button>
@@ -171,16 +174,23 @@ export default function WorkOrderChecklist() {
           </section>
         )}
         {items.map((item) => (
-          <ChecklistItemCard key={item.id} item={item} saving={savingId === item.id} onUpdate={updateItem} />
+          <ChecklistItemCard
+            key={item.id}
+            item={item}
+            workOrder={workOrder}
+            selectedVisitId={selectedVisitId}
+            saving={savingId === item.id}
+            onUpdate={updateItem}
+          />
         ))}
       </div>
 
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-heading">Siguiente bloque</h2>
-        <p className="muted">El siguiente paso sera añadir fotos reales por punto del checklist, usando el campo “requiere foto” como control.</p>
+        <p className="muted">Ya puedes guardar fotos por punto. El siguiente paso sera firma del cliente y generacion de PDF.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
-          <button className="secondary-button" disabled>Fotos proximamente</button>
+          <button className="secondary-button" disabled>Firma/PDF proximamente</button>
         </div>
       </section>
 
@@ -203,19 +213,67 @@ export default function WorkOrderChecklist() {
   );
 }
 
-function ChecklistItemCard({ item, saving, onUpdate }) {
+function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate }) {
   const [observation, setObservation] = useState(item.observacion || '');
+  const [photos, setPhotos] = useState([]);
+  const [photoUrls, setPhotoUrls] = useState({});
+  const [file, setFile] = useState(null);
+  const [comment, setComment] = useState('');
+  const [photoError, setPhotoError] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setObservation(item.observacion || '');
   }, [item.observacion]);
+
+  async function refreshPhotos() {
+    try {
+      const data = await listChecklistPhotos(item.tenant_id, item.id);
+      setPhotos(data);
+      const entries = await Promise.all(data.map(async (photo) => [photo.id, await signedChecklistPhotoUrl(photo)]));
+      setPhotoUrls(Object.fromEntries(entries));
+    } catch (err) {
+      setPhotoError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    refreshPhotos();
+  }, [item.id]);
+
+  async function submitPhoto(event) {
+    event.preventDefault();
+    setPhotoError('');
+    if (!file) {
+      setPhotoError('Selecciona una foto antes de subir.');
+      return;
+    }
+    setUploading(true);
+    try {
+      await uploadChecklistPhoto({
+        workOrder,
+        checklistItem: item,
+        visitId: selectedVisitId || item.visita_id || null,
+        file,
+        comentario: comment
+      });
+      setFile(null);
+      setComment('');
+      event.target.reset();
+      await refreshPhotos();
+    } catch (err) {
+      setPhotoError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <section className="card">
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="section-heading">{item.punto}. {item.descripcion}</h2>
-          <p className="muted">{item.requiere_foto ? 'Foto requerida en el siguiente paso' : 'Foto opcional'}</p>
+          <p className="muted">{item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · {photos.length} foto(s)</p>
         </div>
         <span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>
       </div>
@@ -235,6 +293,39 @@ function ChecklistItemCard({ item, saving, onUpdate }) {
         <div className="form-actions">
           <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation })}>Guardar punto</button>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <h3 className="section-heading">Fotos del punto</h3>
+        <form className="form-grid" onSubmit={submitPhoto}>
+          <FormField label="Foto">
+            <input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+          </FormField>
+          <FormField label="Comentario de la foto">
+            <input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Ej. Estado inicial, defecto, reparacion realizada" />
+          </FormField>
+          {photoError && <p className="error-text">{photoError}</p>}
+          <div className="form-actions">
+            <button className="primary-button" type="submit" disabled={uploading}>{uploading ? 'Subiendo...' : 'Subir foto'}</button>
+          </div>
+        </form>
+
+        {photos.length > 0 && (
+          <div className="grid" style={{ marginTop: 12 }}>
+            {photos.map((photo) => (
+              <div className="card" key={photo.id}>
+                {photoUrls[photo.id] ? (
+                  <img src={photoUrls[photo.id]} alt={photo.comentario || photo.file_name || 'Foto OT'} style={{ width: '100%', borderRadius: 12, maxHeight: 260, objectFit: 'cover' }} />
+                ) : (
+                  <p className="muted">Cargando foto...</p>
+                )}
+                <p><strong>{photo.comentario || 'Sin comentario'}</strong></p>
+                <p className="muted">{photo.file_name || 'foto'} · {new Date(photo.created_at).toLocaleString()}</p>
+                {photo.created_by_profile && <p className="muted">Subida por {photo.created_by_profile.nombre || photo.created_by_profile.email}</p>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
