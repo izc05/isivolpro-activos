@@ -102,13 +102,14 @@ export default function WorkOrderDetail() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Siguientes pasos</h2>
-        <p className="muted">Este es el primer bloque funcional. En el siguiente paso se añadira la visita del tecnico, checklist con fotos, firma del cliente y generacion de PDF.</p>
+        <h2 className="section-heading">Trabajo en campo</h2>
+        <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist y preparar el informe final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          <button className="secondary-button" disabled>Checklist proximamente</button>
-          <button className="secondary-button" disabled>Firma proximamente</button>
-          <button className="secondary-button" disabled>PDF proximamente</button>
+          <Link className="secondary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>
+          <Link className="primary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>
+          <button className="secondary-button" disabled>Fotos proximamente</button>
+          <button className="secondary-button" disabled>Firma/PDF proximamente</button>
         </div>
       </section>
     </>
