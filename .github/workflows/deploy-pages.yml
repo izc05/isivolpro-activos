@@ -1,6 +1,7 @@
 name: Deploy GitHub Pages
 
-# Deployment workflow for IsiVoltPro Activos QR
+# Builds the Vite application and supports both GitHub Pages sources:
+# GitHub Actions and publication from the root of the main branch.
 on:
   push:
     branches:
@@ -8,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -22,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -40,7 +43,25 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_ENABLE_DEMO_SIGNUP: ${{ vars.VITE_ENABLE_DEMO_SIGNUP || 'false' }}
 
-      - name: Upload artifact
+      - name: Synchronize built site with repository root
+        if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[pages-build]')
+        run: |
+          rm -rf assets
+          cp -R dist/assets ./assets
+          cp dist/index.html ./index.html
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html assets
+
+          if git diff --cached --quiet; then
+            echo "The published files are already current."
+          else
+            git commit -m "chore: publish current application [pages-build]"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
