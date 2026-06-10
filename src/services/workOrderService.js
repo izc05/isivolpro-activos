@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
+import { buildStoragePath, createSignedUrl, uploadPrivateFile } from './fileService';
 
 export const WORK_ORDER_STATUSES = [
   'BORRADOR',
@@ -297,4 +298,74 @@ export async function updateChecklistItem(item, payload) {
   if (error) throw error;
   await logAudit({ tenantId: item.tenant_id, action: 'update_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: item.id, metadata: { otId: item.ot_id, result: payload.resultado } });
   return data;
+}
+
+export async function listChecklistPhotos(tenantId, checklistItemId) {
+  const { data, error } = await supabase
+    .from('ot_fotos')
+    .select('*, created_by_profile:profiles!ot_fotos_created_by_fkey(nombre,email)')
+    .eq('tenant_id', tenantId)
+    .eq('checklist_respuesta_id', checklistItemId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function uploadChecklistPhoto({ workOrder, checklistItem, visitId = null, file, comentario = '' }) {
+  if (!file) throw new Error('Selecciona una foto.');
+
+  const { data: userData } = await supabase.auth.getUser();
+  const path = buildStoragePath({
+    tenantId: workOrder.tenant_id,
+    scope: 'ordenes-trabajo',
+    scopeId: workOrder.id,
+    folder: `checklist/${checklistItem.id}`,
+    file
+  });
+
+  await uploadPrivateFile({
+    tenantId: workOrder.tenant_id,
+    bucket: 'photos-private',
+    path,
+    file,
+    metadata: {
+      auditAction: 'upload_work_order_checklist_photo',
+      entityType: 'ot_checklist_respuesta',
+      entityId: checklistItem.id
+    }
+  });
+
+  const { data, error } = await supabase
+    .from('ot_fotos')
+    .insert({
+      tenant_id: workOrder.tenant_id,
+      ot_id: workOrder.id,
+      visita_id: visitId || checklistItem.visita_id || null,
+      checklist_respuesta_id: checklistItem.id,
+      bucket: 'photos-private',
+      path,
+      file_name: file.name,
+      mime_type: file.type,
+      comentario: comentario || null,
+      created_by: userData.user?.id || null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: workOrder.tenant_id, action: 'register_work_order_checklist_photo', entityType: 'ot_foto', entityId: data.id, metadata: { otId: workOrder.id, checklistItemId: checklistItem.id } });
+  return data;
+}
+
+export async function signedChecklistPhotoUrl(photo, expiresIn = 600) {
+  if (!photo?.bucket || !photo?.path) return '';
+  return createSignedUrl({
+    tenantId: photo.tenant_id,
+    bucket: photo.bucket,
+    path: photo.path,
+    entityType: 'ot_foto',
+    entityId: photo.id,
+    expiresIn
+  });
 }
