@@ -112,3 +112,90 @@ export async function updateWorkOrderStatus(row, status) {
   await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_status', entityType: 'orden_trabajo', entityId: row.id, metadata: { status } });
   return data;
 }
+
+export async function listWorkOrderVisits(tenantId, workOrderId) {
+  const { data, error } = await supabase
+    .from('ot_visitas')
+    .select('*, tecnico:profiles!ot_visitas_tecnico_id_fkey(nombre,email)')
+    .eq('tenant_id', tenantId)
+    .eq('ot_id', workOrderId)
+    .order('fecha_inicio', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function startWorkOrderVisit(row, location = {}) {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id || null;
+
+  const { data, error } = await supabase
+    .from('ot_visitas')
+    .insert({
+      tenant_id: row.tenant_id,
+      ot_id: row.id,
+      tecnico_id: userId,
+      estado: 'EN_CURSO',
+      latitud: location.latitude || null,
+      longitud: location.longitude || null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  if (row.estado !== 'EN_CURSO') {
+    await updateWorkOrderStatus(row, 'EN_CURSO');
+  }
+
+  await logAudit({ tenantId: row.tenant_id, action: 'start_work_order_visit', entityType: 'ot_visita', entityId: data.id, metadata: { otId: row.id } });
+  return data;
+}
+
+export async function updateWorkOrderVisit(row, payload) {
+  const { data, error } = await supabase
+    .from('ot_visitas')
+    .update({
+      observaciones: payload.observaciones || null,
+      latitud: payload.latitud || row.latitud || null,
+      longitud: payload.longitud || row.longitud || null
+    })
+    .eq('id', row.id)
+    .eq('tenant_id', row.tenant_id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_visit', entityType: 'ot_visita', entityId: row.id, metadata: { otId: row.ot_id } });
+  return data;
+}
+
+export async function finishWorkOrderVisit(visit, finalObservations = '') {
+  const { data, error } = await supabase
+    .from('ot_visitas')
+    .update({
+      estado: 'FINALIZADA',
+      fecha_fin: new Date().toISOString(),
+      observaciones: finalObservations || visit.observaciones || null
+    })
+    .eq('id', visit.id)
+    .eq('tenant_id', visit.tenant_id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  const { data: workOrder } = await supabase
+    .from('ordenes_trabajo')
+    .select('*')
+    .eq('tenant_id', visit.tenant_id)
+    .eq('id', visit.ot_id)
+    .single();
+
+  if (workOrder && !['FIRMADA', 'INFORME_GENERADO', 'CERRADA'].includes(workOrder.estado)) {
+    await updateWorkOrderStatus(workOrder, 'FINALIZADA');
+  }
+
+  await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id } });
+  return data;
+}
