@@ -21,6 +21,7 @@ import WorkOrders from './pages/WorkOrders';
 import MyWorkOrders from './pages/MyWorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
 import WorkOrderVisit from './pages/WorkOrderVisit';
+import WorkOrderChecklist from './pages/WorkOrderChecklist';
 import Incidents from './pages/Incidents';
 import QRGenerator from './pages/QRGenerator';
 import AuditLogs from './pages/AuditLogs';
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="mis-ots" element={<MyWorkOrders />} />
         <Route path="ots/:id" element={<WorkOrderDetail />} />
         <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
+        <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />
         <Route path="incidencias" element={<Incidents />} />
         <Route path="qr" element={<QRGenerator />} />
         <Route path="auditoria" element={<AuditLogs />} />
