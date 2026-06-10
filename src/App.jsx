@@ -23,6 +23,7 @@ import WorkOrderDetail from './pages/WorkOrderDetail';
 import WorkOrderVisit from './pages/WorkOrderVisit';
 import WorkOrderChecklist from './pages/WorkOrderChecklist';
 import WorkOrderSignature from './pages/WorkOrderSignature';
+import WorkOrderReport from './pages/WorkOrderReport';
 import Incidents from './pages/Incidents';
 import QRGenerator from './pages/QRGenerator';
 import AuditLogs from './pages/AuditLogs';
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
         <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />
         <Route path="ots/:id/firma" element={<WorkOrderSignature />} />
+        <Route path="ots/:id/informe" element={<WorkOrderReport />} />
         <Route path="incidencias" element={<Incidents />} />
         <Route path="qr" element={<QRGenerator />} />
         <Route path="auditoria" element={<AuditLogs />} />
