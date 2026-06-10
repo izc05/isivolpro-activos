@@ -21,6 +21,9 @@ export default function InstallationDetail() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [assetModalOpen, setAssetModalOpen] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [savingAsset, setSavingAsset] = useState(false);
   const emptyLocationForm = { instalacion_id: id, nombre: '', tipo: '', planta: '', zona: '', descripcion: '', image_file: null };
   const emptyAssetForm = {
     instalacion_id: id,
@@ -81,8 +84,11 @@ export default function InstallationDetail() {
 
   async function submitLocation(event) {
     event.preventDefault();
+    if (savingLocation) return;
     const formElement = event.currentTarget;
     setError('');
+    setSuccess('');
+    setSavingLocation(true);
     try {
       await createLocation(activeTenantId, { ...locationForm, instalacion_id: id });
       setLocationForm(emptyLocationForm);
@@ -90,15 +96,21 @@ export default function InstallationDetail() {
       setLocationModalOpen(false);
       refreshLocations();
       setActiveTab('ubicaciones');
+      setSuccess('Ubicacion creada correctamente.');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSavingLocation(false);
     }
   }
 
   async function submitAsset(event) {
     event.preventDefault();
+    if (savingAsset) return;
     const formElement = event.currentTarget;
     setError('');
+    setSuccess('');
+    setSavingAsset(true);
     try {
       await createAsset(activeTenantId, { ...assetForm, instalacion_id: id });
       setAssetForm(emptyAssetForm);
@@ -106,8 +118,11 @@ export default function InstallationDetail() {
       setAssetModalOpen(false);
       refreshAssets();
       setActiveTab('activos');
+      setSuccess('Activo creado correctamente.');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSavingAsset(false);
     }
   }
 
@@ -169,6 +184,7 @@ export default function InstallationDetail() {
           <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{label}</button>
         ))}
       </div>
+      {success && <p className="success-text">{success}</p>}
       {error && <p className="error-text">{error}</p>}
 
       <section className="section-stack">
@@ -290,7 +306,7 @@ export default function InstallationDetail() {
         )}
       </section>
 
-      <Modal title="Nueva ubicacion de esta instalacion" open={locationModalOpen} onClose={() => setLocationModalOpen(false)}>
+      <Modal title="Nueva ubicacion de esta instalacion" open={locationModalOpen} onClose={() => !savingLocation && setLocationModalOpen(false)}>
         <form className="form-grid" onSubmit={submitLocation}>
           <div className="locked-field">
             <span>Instalacion</span>
@@ -303,16 +319,17 @@ export default function InstallationDetail() {
           </div>
           <FormField label="Zona"><input value={locationForm.zona} onChange={(event) => updateLocationField('zona', event.target.value)} /></FormField>
           <FormField label="Descripcion"><textarea rows="3" value={locationForm.descripcion} onChange={(event) => updateLocationField('descripcion', event.target.value)} /></FormField>
-          <FormField label="Imagen de zona"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateLocationField('image_file', event.target.files?.[0] || null)} /></FormField>
+          <FormField label="Imagen de zona"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateLocationField('image_file', event.target.files?.[0] || null)} disabled={savingLocation} /></FormField>
+          {savingLocation && <p className="muted">Guardando ubicacion y subiendo imagen. No cierres esta ventana.</p>}
           {error && <p className="error-text">{error}</p>}
           <div className="form-actions">
-            <button className="ghost-button" type="button" onClick={() => setLocationModalOpen(false)}>Cancelar</button>
-            <button className="primary-button" type="submit">Crear ubicacion</button>
+            <button className="ghost-button" type="button" onClick={() => setLocationModalOpen(false)} disabled={savingLocation}>Cancelar</button>
+            <button className="primary-button" type="submit" disabled={savingLocation}>{savingLocation ? 'Guardando...' : 'Crear ubicacion'}</button>
           </div>
         </form>
       </Modal>
 
-      <Modal title="Nuevo activo de esta instalacion" open={assetModalOpen} onClose={() => setAssetModalOpen(false)}>
+      <Modal title="Nuevo activo de esta instalacion" open={assetModalOpen} onClose={() => !savingAsset && setAssetModalOpen(false)}>
         <form className="form-grid" onSubmit={submitAsset}>
           <div className="locked-field">
             <span>Instalacion</span>
@@ -345,11 +362,12 @@ export default function InstallationDetail() {
             <FormField label="Proxima revision"><input type="date" value={assetForm.fecha_proxima_revision} onChange={(event) => updateAssetField('fecha_proxima_revision', event.target.value)} /></FormField>
           </div>
           <FormField label="Observaciones"><textarea rows="3" value={assetForm.observaciones} onChange={(event) => updateAssetField('observaciones', event.target.value)} /></FormField>
-          <FormField label="Foto del activo"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateAssetField('image_file', event.target.files?.[0] || null)} /></FormField>
+          <FormField label="Foto del activo"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateAssetField('image_file', event.target.files?.[0] || null)} disabled={savingAsset} /></FormField>
+          {savingAsset && <p className="muted">Guardando activo y subiendo imagen. No cierres esta ventana.</p>}
           {error && <p className="error-text">{error}</p>}
           <div className="form-actions">
-            <button className="ghost-button" type="button" onClick={() => setAssetModalOpen(false)}>Cancelar</button>
-            <button className="primary-button" type="submit">Crear activo con QR</button>
+            <button className="ghost-button" type="button" onClick={() => setAssetModalOpen(false)} disabled={savingAsset}>Cancelar</button>
+            <button className="primary-button" type="submit" disabled={savingAsset}>{savingAsset ? 'Guardando...' : 'Crear activo con QR'}</button>
           </div>
         </form>
       </Modal>

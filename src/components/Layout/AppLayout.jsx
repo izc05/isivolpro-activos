@@ -1,13 +1,17 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { BarChart3, Building2, FileText, Home, MapPin, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video } from 'lucide-react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { BarChart3, Building2, ChevronDown, FileText, Home, MapPin, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
 
-const navItems = [
+const mainNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { to: '/scanner', label: 'Escaner', icon: QrCode },
+  { to: '/scanner', label: 'Escaner', icon: QrCode }
+];
+
+const inventoryNavItems = [
   { to: '/clientes', label: 'Clientes', icon: Building2 },
   { to: '/instalaciones', label: 'Instalaciones', icon: Home },
   { to: '/ubicaciones', label: 'Ubicaciones', icon: MapPin },
@@ -15,8 +19,11 @@ const navItems = [
   { to: '/documentos', label: 'Documentos', icon: FileText },
   { to: '/fotos', label: 'Fotos', icon: Image },
   { to: '/videos', label: 'Videos', icon: Video },
+  { to: '/qr', label: 'QR', icon: QrCode }
+];
+
+const operationsNavItems = [
   { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
-  { to: '/qr', label: 'QR', icon: QrCode },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck },
   { to: '/usuarios', label: 'Usuarios', icon: Users },
   { to: '/ajustes', label: 'Ajustes', icon: Settings }
@@ -25,6 +32,10 @@ const navItems = [
 export default function AppLayout() {
   const { profile } = useAuth();
   const { tenants, activeTenantId, setActiveTenantId } = useTenant();
+  const location = useLocation();
+  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const inventoryActive = inventoryNavItems.some((item) => location.pathname.startsWith(item.to));
+  const mobileNavItems = [...mainNavItems, ...inventoryNavItems, ...operationsNavItems];
 
   return (
     <div className="app-shell">
@@ -37,7 +48,19 @@ export default function AppLayout() {
           </div>
         </div>
         <nav className="nav-list">
-          {navItems.map((item) => <NavItem key={item.to} item={item} />)}
+          {mainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+          <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
+            <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
+              <span>Inventario QR</span>
+              <ChevronDown size={16} />
+            </button>
+            {inventoryOpen && (
+              <div className="nav-group-items">
+                {inventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              </div>
+            )}
+          </div>
+          {operationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
         </nav>
       </aside>
 
@@ -57,7 +80,7 @@ export default function AppLayout() {
       </div>
 
       <nav className="mobile-nav">
-        {navItems.map((item) => <NavItem key={item.to} item={item} compact />)}
+        {mobileNavItems.map((item) => <NavItem key={item.to} item={item} compact />)}
       </nav>
     </div>
   );

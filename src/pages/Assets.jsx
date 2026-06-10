@@ -36,6 +36,8 @@ export default function Assets() {
   const [form, setForm] = useState(emptyForm);
   const [editingRow, setEditingRow] = useState(null);
   const [canManage, setCanManage] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
   const permissions = usePermissions(activeTenantId);
 
   useEffect(() => {
@@ -53,8 +55,11 @@ export default function Assets() {
 
   async function submit(event) {
     event.preventDefault();
+    if (saving) return;
     const formElement = event.currentTarget;
     setError('');
+    setSuccess('');
+    setSaving(true);
     try {
       if (editingRow) {
         await updateAsset(editingRow, form);
@@ -66,8 +71,11 @@ export default function Assets() {
       formElement.reset();
       setOpen(false);
       refresh();
+      setSuccess(editingRow ? 'Activo actualizado correctamente.' : 'Activo creado correctamente.');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -81,6 +89,7 @@ export default function Assets() {
     setEditingRow(null);
     setForm(emptyForm);
     setError('');
+    setSuccess('');
     setOpen(true);
   }
 
@@ -104,10 +113,12 @@ export default function Assets() {
       image_file: null
     });
     setError('');
+    setSuccess('');
     setOpen(true);
   }
 
   function closeModal() {
+    if (saving) return;
     setOpen(false);
     setEditingRow(null);
     setForm(emptyForm);
@@ -117,6 +128,7 @@ export default function Assets() {
   return (
     <>
       <PageHeader title="Activos/equipos" subtitle="Ficha tecnica, estado, revisiones, documentos y QR por activo." action={canManage ? <button className="primary-button" onClick={startCreate}>Nuevo activo</button> : null} />
+      {success && <p className="success-text">{success}</p>}
       <DataTable columns={[
         { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}><EntityIdentity row={row} entityType="activo" title={row.nombre} subtitle={row.tipo || row.modelo} /></Link> },
         { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || '-' },
@@ -179,12 +191,13 @@ export default function Assets() {
           </div>
           <FormField label="Observaciones"><textarea rows="3" value={form.observaciones} onChange={(event) => updateField('observaciones', event.target.value)} /></FormField>
           <FormField label="Foto del activo">
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateField('image_file', event.target.files?.[0] || null)} />
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateField('image_file', event.target.files?.[0] || null)} disabled={saving} />
           </FormField>
+          {saving && <p className="muted">Guardando activo y subiendo imagen. No cierres esta ventana.</p>}
           {error && <p className="error-text">{error}</p>}
           <div className="form-actions">
-            <button className="ghost-button" type="button" onClick={closeModal}>Cancelar</button>
-            <button className="primary-button" type="submit">{editingRow ? 'Guardar cambios' : 'Crear activo'}</button>
+            <button className="ghost-button" type="button" onClick={closeModal} disabled={saving}>Cancelar</button>
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : editingRow ? 'Guardar cambios' : 'Crear activo'}</button>
           </div>
         </form>
       </Modal>
