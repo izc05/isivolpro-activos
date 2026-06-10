@@ -164,6 +164,7 @@ export default function WorkOrderVisit() {
               </FormField>
               <div className="form-actions">
                 <button className="secondary-button" type="button" disabled={saving} onClick={saveVisit}>Guardar observaciones</button>
+                <Link className="secondary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
                 <button className="primary-button" type="button" disabled={saving} onClick={finishVisit}>Finalizar visita</button>
               </div>
             </div>
@@ -187,11 +188,11 @@ export default function WorkOrderVisit() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Siguiente bloque</h2>
-        <p className="muted">Despues de registrar visitas, el siguiente paso sera añadir checklist con puntos, estados OK/No OK/No aplica y fotos por punto.</p>
+        <h2 className="section-heading">Checklist de visita</h2>
+        <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. En el siguiente paso añadiremos fotos por punto.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}`}>Ver detalle OT</Link>
-          <button className="secondary-button" disabled>Checklist proximamente</button>
+          <Link className="primary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
         </div>
       </section>
     </>
