@@ -103,13 +103,13 @@ export default function WorkOrderDetail() {
 
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-heading">Trabajo en campo</h2>
-        <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist y preparar el informe final.</p>
+        <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist, firmar con el cliente y preparar el informe final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
           <Link className="secondary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>
-          <Link className="primary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>
-          <button className="secondary-button" disabled>Fotos proximamente</button>
-          <button className="secondary-button" disabled>Firma/PDF proximamente</button>
+          <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>
+          <Link className="primary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>
+          <button className="secondary-button" disabled>PDF proximamente</button>
         </div>
       </section>
     </>
