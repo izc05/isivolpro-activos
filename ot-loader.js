@@ -1,4 +1,4 @@
-const VERSION = '20260611-5';
+const VERSION = '20260611-6';
 const isOtHash = (hash) => hash.startsWith('#/ots') || hash.startsWith('#/mis-ots');
 const initialOtHash = isOtHash(window.location.hash) ? window.location.hash : '';
 
@@ -46,7 +46,10 @@ window.addEventListener('hashchange', () => {
   window.setTimeout(() => activateOtRoute(targetHash), 0);
 });
 
-import(`./ot-module-v2.js?v=${VERSION}`)
+Promise.all([
+  import(`./ot-module-v2.js?v=${VERSION}`),
+  import(`./ot-enhancements.js?v=${VERSION}`)
+])
   .then(() => {
     if (initialOtHash) {
       window.setTimeout(() => activateOtRoute(initialOtHash), 500);
