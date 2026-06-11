@@ -1,7 +1,7 @@
 name: Deploy GitHub Pages
 
-# Builds the Vite application and supports both GitHub Pages sources:
-# GitHub Actions and publication from the root of the main branch.
+# Builds the Vite application and publishes the generated site to the
+# repository root. GitHub Pages is configured to deploy from the main branch.
 on:
   push:
     branches:
@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -64,18 +62,5 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Skip Actions Pages deploy
+        run: echo "Pages deploy is handled by the repository branch source."
