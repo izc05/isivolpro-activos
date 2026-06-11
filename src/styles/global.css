@@ -400,6 +400,112 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   align-items: center;
   gap: 8px;
 }
+.photo-uploader {
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 12px;
+  align-items: center;
+  border: 1px dashed #8bb8c8;
+  border-radius: 8px;
+  background: #f7fbfd;
+  padding: 10px;
+  cursor: pointer;
+}
+.photo-uploader input { display: none; }
+.photo-uploader img,
+.photo-uploader-icon {
+  width: 82px;
+  height: 74px;
+  border-radius: 8px;
+  border: 1px solid #c9e8f2;
+  background: #e7f6fb;
+}
+.photo-uploader img {
+  object-fit: cover;
+  display: block;
+}
+.photo-uploader-icon {
+  display: grid;
+  place-items: center;
+  color: #075985;
+}
+.photo-uploader-copy {
+  display: grid;
+  gap: 4px;
+  color: var(--primary);
+}
+.photo-uploader-copy small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+.photo-uploader.has-file {
+  border-style: solid;
+  border-color: #8bd3e6;
+  background: #effbff;
+}
+.photo-clear-button {
+  justify-self: flex-start;
+}
+.workorder-empty-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+.workorder-empty-error svg { color: var(--danger); flex: 0 0 auto; }
+.workorder-empty-error h2 { margin: 0 0 6px; color: var(--primary); }
+.workorder-empty-error p { margin: 0 0 12px; color: var(--muted); }
+.workorder-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: var(--ok);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.workorder-success p {
+  margin: 0;
+  font-weight: 800;
+}
+.report-summary-card,
+.report-action-card {
+  display: grid;
+  gap: 12px;
+}
+.report-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #075985;
+  background: #e7f6fb;
+  border: 1px solid #c9e8f2;
+}
+.report-included-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-included-list span {
+  border: 1px solid var(--line);
+  background: #f7fafc;
+  color: var(--primary);
+  border-radius: 999px;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-weight: 800;
+  font-size: 13px;
+}
+.report-actions .primary-button,
+.report-actions .secondary-button {
+  min-width: 150px;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 .location-map {
   display: grid;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleAlert, Plus, RefreshCw, Save } from 'lucide-react';
+import { Camera, CircleAlert, ImagePlus, Plus, RefreshCw, Save, X } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
@@ -257,6 +257,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
   const [photos, setPhotos] = useState([]);
   const [photoUrls, setPhotoUrls] = useState({});
   const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [comment, setComment] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -279,6 +280,16 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
   useEffect(() => {
     refreshPhotos();
   }, [item.id]);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl('');
+      return undefined;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   async function submitPhoto(event) {
     event.preventDefault();
@@ -305,6 +316,13 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
     } finally {
       setUploading(false);
     }
+  }
+
+  function clearSelectedFile(event) {
+    event?.preventDefault();
+    setFile(null);
+    const input = document.getElementById(`photo-input-${item.id}`);
+    if (input) input.value = '';
   }
 
   return (
@@ -337,9 +355,29 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
       <div className="workorder-photo-block">
         <h3 className="section-heading"><Camera size={18} /> Fotos del punto</h3>
         <form className="form-grid" onSubmit={submitPhoto}>
-          <FormField label="Foto">
-            <input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-          </FormField>
+          <label className={`photo-uploader ${file ? 'has-file' : ''}`} htmlFor={`photo-input-${item.id}`}>
+            <input
+              id={`photo-input-${item.id}`}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              capture="environment"
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
+            />
+            {previewUrl ? (
+              <img src={previewUrl} alt="Vista previa de la foto seleccionada" />
+            ) : (
+              <span className="photo-uploader-icon"><ImagePlus size={28} /></span>
+            )}
+            <span className="photo-uploader-copy">
+              <strong>{file ? file.name : 'Adjuntar imagen'}</strong>
+              <small>{file ? `${Math.round(file.size / 1024)} KB listos para subir` : 'Toca para hacer foto o seleccionar desde galeria'}</small>
+            </span>
+          </label>
+          {file && (
+            <button className="ghost-button photo-clear-button" type="button" onClick={clearSelectedFile}>
+              <X size={18} /> Quitar imagen
+            </button>
+          )}
           <FormField label="Comentario de la foto">
             <input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Ej. Estado inicial, defecto, reparacion realizada" />
           </FormField>

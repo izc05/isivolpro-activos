@@ -37,12 +37,13 @@ async function urlToDataUrl(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error('No se pudo cargar una imagen del informe.');
   const blob = await response.blob();
-  return new Promise((resolve, reject) => {
+  const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+  return normalizeImageForPdf(dataUrl);
 }
 
 function imageDimensions(dataUrl) {
@@ -57,8 +58,26 @@ function imageDimensions(dataUrl) {
 function imageFormat(dataUrl) {
   if (typeof dataUrl !== 'string') return 'PNG';
   if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) return 'JPEG';
-  if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
   return 'PNG';
+}
+
+async function normalizeImageForPdf(dataUrl) {
+  if (typeof dataUrl !== 'string') return dataUrl;
+  if (!dataUrl.startsWith('data:image/webp')) return dataUrl;
+
+  const image = new Image();
+  image.src = dataUrl;
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.86);
 }
 
 function addPageIfNeeded(doc, y, needed = 12) {
