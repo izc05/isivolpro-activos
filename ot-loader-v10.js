@@ -5,7 +5,10 @@ if (isOtRoute) {
   window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#/dashboard`);
 }
 
-import('./ot-workspace-v11.js?v=20260611-11')
+Promise.all([
+  import('./ot-workspace-v11.js?v=20260611-12'),
+  import('./ot-workspace-v11-extra.js?v=20260611-12')
+])
   .then(() => {
     if (!isOtRoute) return;
     window.setTimeout(() => {
