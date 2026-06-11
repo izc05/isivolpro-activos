@@ -272,12 +272,23 @@ export async function finishWorkOrderVisit(visit, finalObservations = '') {
     .eq('id', visit.ot_id)
     .single();
 
-  if (workOrder && !['FIRMADA', 'INFORME_GENERADO', 'CERRADA'].includes(workOrder.estado)) {
-    await updateWorkOrderStatus(workOrder, 'FINALIZADA');
+  if (workOrder && ['ASIGNADA', 'ACEPTADA'].includes(workOrder.estado)) {
+    await updateWorkOrderStatus(workOrder, 'EN_CURSO');
   }
 
   await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id } });
   return data;
+}
+
+export async function listWorkOrderVisitsForTenant(tenantId) {
+  const { data, error } = await withTimeout(supabase
+    .from('ot_visitas')
+    .select('id,tenant_id,ot_id,tecnico_id,fecha_inicio,fecha_fin,estado')
+    .eq('tenant_id', tenantId)
+    .order('fecha_inicio', { ascending: false }), 'La carga de visitas de OT');
+
+  if (error) throw error;
+  return data || [];
 }
 
 export async function listWorkOrderChecklist(tenantId, workOrderId) {

@@ -17,6 +17,7 @@ import Documents from './pages/Documents';
 import Videos from './pages/Videos';
 import Photos from './pages/Photos';
 import MaintenanceHistory from './pages/MaintenanceHistory';
+import WorkOrderDashboard from './pages/WorkOrderDashboard';
 import WorkOrders from './pages/WorkOrders';
 import MyWorkOrders from './pages/MyWorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="videos" element={<Videos />} />
         <Route path="fotos" element={<Photos />} />
         <Route path="mantenimiento" element={<MaintenanceHistory />} />
+        <Route path="ots-dashboard" element={<WorkOrderDashboard />} />
         <Route path="ots" element={<WorkOrders />} />
         <Route path="mis-ots" element={<MyWorkOrders />} />
         <Route path="ots-creadas" element={<MyWorkOrders mode="created" />} />

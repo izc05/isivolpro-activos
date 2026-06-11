@@ -31,13 +31,14 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   return (
     <>
       <PageHeader
-        title={isCreated ? 'OT creadas por mi' : 'Mis OT'}
-        subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : 'Ordenes asignadas a tu usuario para iniciar visitas, registrar observaciones y cerrar trabajos.'}
+        title={isCreated ? 'OT creadas por mi' : 'OT asignadas'}
+        subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : 'Ordenes enviadas al tecnico para iniciar visitas, registrar observaciones y completar checklist.'}
         action={<Link className="secondary-button" to="/ots">Ver todas</Link>}
       />
       <div className="tabs workorder-tabs">
+        <Link to="/ots-dashboard">Dashboard</Link>
         <Link to="/ots">Todas</Link>
-        <Link className={!isCreated ? 'active' : ''} to="/mis-ots">Mis OT</Link>
+        <Link className={!isCreated ? 'active' : ''} to="/mis-ots">OT asignadas</Link>
         <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}

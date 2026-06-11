@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Clock, PlayCircle, PlusCircle, RefreshCw, StopCircle } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -69,6 +70,7 @@ export default function WorkOrderVisit() {
   }, [activeTenantId, id]);
 
   const canStartVisit = useMemo(() => !activeVisit && workOrder && !['CERRADA', 'CANCELADA'].includes(workOrder.estado), [activeVisit, workOrder]);
+  const hasPreviousVisits = visits.some((visit) => visit.estado === 'FINALIZADA');
 
   async function startVisit() {
     if (!workOrder) return;
@@ -104,7 +106,7 @@ export default function WorkOrderVisit() {
 
   async function finishVisit() {
     if (!activeVisit) return;
-    if (!window.confirm('Finalizar esta visita? Despues podras abrir una nueva visita si hace falta.')) return;
+    if (!window.confirm('Finalizar esta intervencion? La OT seguira abierta para nuevas visitas hasta que la cierres desde el detalle.')) return;
     setError('');
     setSaving(true);
     try {
@@ -125,7 +127,7 @@ export default function WorkOrderVisit() {
   return (
     <>
       <PageHeader
-        title={`Visita ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
+        title={`Intervencion ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
         subtitle={workOrder.titulo}
         action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
       />
@@ -146,11 +148,20 @@ export default function WorkOrderVisit() {
         </section>
 
         <section className="card">
-          <h2 className="section-heading">Visita en campo</h2>
+          <h2 className="section-heading">Intervencion en campo</h2>
           {!activeVisit && (
             <>
-              <p className="muted">Pulsa iniciar cuando llegues a la instalacion. Si el movil lo permite, se guardara la ubicacion aproximada.</p>
-              <button className="primary-button" type="button" disabled={!canStartVisit || saving} onClick={startVisit}>Iniciar visita</button>
+              <p className="muted">
+                {hasPreviousVisits
+                  ? 'Esta OT ya tiene intervenciones finalizadas. Puedes abrir una nueva visita si queda trabajo pendiente, material por revisar o seguimiento.'
+                  : 'Pulsa iniciar cuando llegues a la instalacion. Si el movil lo permite, se guardara la ubicacion aproximada.'}
+              </p>
+              <button className="primary-button" type="button" disabled={!canStartVisit || saving} onClick={startVisit}>
+                {hasPreviousVisits ? <><PlusCircle size={18} /> Nueva intervencion</> : <><PlayCircle size={18} /> Iniciar visita</>}
+              </button>
+              {!canStartVisit && workOrder && (
+                <p className="muted">Solo se bloquean nuevas intervenciones cuando la OT esta cerrada o cancelada.</p>
+              )}
             </>
           )}
           {activeVisit && (
@@ -163,9 +174,9 @@ export default function WorkOrderVisit() {
                 <textarea rows="7" value={observations} onChange={(event) => setObservations(event.target.value)} placeholder="Anota trabajos realizados, pruebas, incidencias, material pendiente o indicaciones del cliente" />
               </FormField>
               <div className="form-actions">
-                <button className="secondary-button" type="button" disabled={saving} onClick={saveVisit}>Guardar observaciones</button>
+                <button className="secondary-button" type="button" disabled={saving} onClick={saveVisit}><RefreshCw size={18} /> Guardar observaciones</button>
                 <Link className="secondary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
-                <button className="primary-button" type="button" disabled={saving} onClick={finishVisit}>Finalizar visita</button>
+                <button className="primary-button" type="button" disabled={saving} onClick={finishVisit}><StopCircle size={18} /> Finalizar intervencion</button>
               </div>
             </div>
           )}
@@ -173,7 +184,7 @@ export default function WorkOrderVisit() {
       </div>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Historial de visitas</h2>
+        <h2 className="section-heading"><Clock size={18} /> Historial de intervenciones</h2>
         <DataTable
           columns={[
             { key: 'fecha_inicio', label: 'Inicio', render: (row) => formatDateTime(row.fecha_inicio) },
@@ -183,13 +194,13 @@ export default function WorkOrderVisit() {
             { key: 'observaciones', label: 'Observaciones', render: (row) => row.observaciones || '-' }
           ]}
           rows={visits}
-          empty="Sin visitas registradas"
+          empty="Sin intervenciones registradas"
         />
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-heading">Checklist de visita</h2>
-        <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. En el siguiente paso añadiremos fotos por punto.</p>
+        <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. Puedes adjuntar fotos por punto y continuar con firma/PDF cuando corresponda.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}`}>Ver detalle OT</Link>
           <Link className="primary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>

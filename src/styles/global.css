@@ -506,6 +506,39 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .report-actions .secondary-button {
   min-width: 150px;
 }
+.ot-metrics {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.ot-metric {
+  align-content: start;
+}
+.ot-metric > span {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #e7f6fb;
+  color: #075985;
+}
+.ot-metric small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.ot-metric.ok strong { color: var(--ok); }
+.ot-dashboard-panels {
+  margin-top: 16px;
+  align-items: start;
+}
+.ot-dashboard-panel {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.ot-dashboard-panel .table-card {
+  min-height: 100%;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 .location-map {
   display: grid;

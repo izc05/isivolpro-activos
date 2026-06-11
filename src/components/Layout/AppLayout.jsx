@@ -23,8 +23,9 @@ const inventoryNavItems = [
 ];
 
 const operationsNavItems = [
+  { to: '/ots-dashboard', label: 'Dashboard OT', icon: BarChart3 },
   { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck },
-  { to: '/mis-ots', label: 'Mis OT', icon: ListChecks },
+  { to: '/mis-ots', label: 'OT asignadas', icon: ListChecks },
   { to: '/ots-creadas', label: 'Creadas por mi', icon: PenLine },
   { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck },

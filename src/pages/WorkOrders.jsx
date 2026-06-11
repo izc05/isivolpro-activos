@@ -91,11 +91,12 @@ export default function WorkOrders() {
       <PageHeader
         title="Ordenes de trabajo"
         subtitle="Crea, asigna y sigue las OT de mantenimiento vinculadas a instalaciones, ubicaciones, activos y QR."
-        action={<button className="primary-button" onClick={() => setOpen(true)}>Nueva OT</button>}
+        action={<div className="quick-actions"><Link className="secondary-button" to="/ots-dashboard">Dashboard OT</Link><button className="primary-button" onClick={() => setOpen(true)}>Nueva OT</button></div>}
       />
       <div className="tabs workorder-tabs">
+        <Link to="/ots-dashboard">Dashboard</Link>
         <Link className="active" to="/ots">Todas</Link>
-        <Link to="/mis-ots">Mis OT</Link>
+        <Link to="/mis-ots">OT asignadas</Link>
         <Link to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}

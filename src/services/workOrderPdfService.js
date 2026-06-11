@@ -336,13 +336,31 @@ export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
 export async function listWorkOrderReports(tenantId, workOrderId) {
   const { data, error } = await supabase
     .from('ot_informes')
-    .select('*, created_by_profile:profiles!ot_informes_created_by_fkey(nombre,email)')
+    .select('*')
     .eq('tenant_id', tenantId)
     .eq('ot_id', workOrderId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  const reports = data || [];
+  const userIds = [...new Set(reports.map((report) => report.created_by).filter(Boolean))];
+  if (userIds.length === 0) return reports;
+
+  const { data: profiles, error: profileError } = await supabase
+    .from('profiles')
+    .select('id,nombre,email')
+    .in('id', userIds);
+
+  if (profileError) {
+    console.warn('No se pudieron cargar perfiles de informes OT', profileError);
+    return reports;
+  }
+
+  const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+  return reports.map((report) => ({
+    ...report,
+    created_by_profile: profileById.get(report.created_by) || null
+  }));
 }
 
 export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
