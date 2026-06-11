@@ -1,4 +1,4 @@
-const VERSION = '20260611-2';
+const VERSION = '20260611-4';
 const isOtHash = (hash) => hash.startsWith('#/ots') || hash.startsWith('#/mis-ots');
 const initialOtHash = isOtHash(window.location.hash) ? window.location.hash : '';
 
@@ -15,8 +15,6 @@ function activateOtRoute(targetHash) {
   pulse.remove();
 }
 
-// The published React bundle does not know the OT routes yet. Keep its
-// Dashboard route mounted, then let ot-module.js replace only the content area.
 if (initialOtHash) {
   window.history.replaceState({}, '', dashboardUrl());
 }
@@ -33,7 +31,6 @@ if ('caches' in window) {
   }).catch(() => {});
 }
 
-// Prevent the old HashRouter from receiving an unknown OT route.
 document.addEventListener('click', (event) => {
   const link = event.target.closest('a');
   const href = link?.getAttribute('href') || '';
@@ -42,7 +39,6 @@ document.addEventListener('click', (event) => {
   activateOtRoute(href);
 }, true);
 
-// Also handle programmatic location.hash changes made inside the OT module.
 window.addEventListener('hashchange', () => {
   const targetHash = window.location.hash;
   if (!isOtHash(targetHash)) return;
@@ -50,7 +46,10 @@ window.addEventListener('hashchange', () => {
   window.setTimeout(() => activateOtRoute(targetHash), 0);
 });
 
-import(`./ot-module.js?v=${VERSION}`).then(() => {
+Promise.all([
+  import(`./ot-module.js?v=${VERSION}`),
+  import(`./ot-actions.js?v=${VERSION}`)
+]).then(() => {
   if (initialOtHash) {
     window.setTimeout(() => activateOtRoute(initialOtHash), 500);
   }
