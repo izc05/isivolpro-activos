@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Camera, CircleAlert, Plus, RefreshCw, Save } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
@@ -37,7 +38,7 @@ const newItemInitial = { descripcion: '', requiere_foto: false };
 export default function WorkOrderChecklist() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [items, setItems] = useState([]);
   const [visits, setVisits] = useState([]);
@@ -46,15 +47,24 @@ export default function WorkOrderChecklist() {
   const [newItem, setNewItem] = useState(newItemInitial);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingStep, setLoadingStep] = useState('Preparando checklist...');
   const [savingId, setSavingId] = useState('');
 
   async function refresh() {
-    if (!activeTenantId || !id) return;
+    if (tenantLoading) return;
+    if (!activeTenantId || !id) {
+      setLoading(false);
+      setError('No se ha encontrado una empresa activa para cargar el checklist.');
+      return;
+    }
     setLoading(true);
+    setLoadingStep('Cargando orden de trabajo...');
+    setError('');
     try {
-      const [orderData, checklistData, visitData] = await Promise.all([
-        getWorkOrder(activeTenantId, id),
-        listWorkOrderChecklist(activeTenantId, id),
+      const orderData = await getWorkOrder(activeTenantId, id);
+      setLoadingStep('Preparando checklist base...');
+      const [checklistData, visitData] = await Promise.all([
+        ensureDefaultChecklist(orderData),
         listWorkOrderVisits(activeTenantId, id)
       ]);
       setWorkOrder(orderData);
@@ -71,7 +81,7 @@ export default function WorkOrderChecklist() {
 
   useEffect(() => {
     refresh();
-  }, [activeTenantId, id]);
+  }, [activeTenantId, tenantLoading, id]);
 
   const progress = useMemo(() => {
     const total = items.length;
@@ -123,8 +133,25 @@ export default function WorkOrderChecklist() {
     }
   }
 
-  if (loading) return <p className="muted">Cargando checklist...</p>;
-  if (!workOrder) return <p className="error-text">No se ha encontrado la OT.</p>;
+  if (loading || tenantLoading) {
+    return (
+      <section className="card workorder-loading">
+        <RefreshCw size={22} />
+        <div>
+          <strong>{loadingStep}</strong>
+          <p className="muted">Si la red o Supabase tardan demasiado, aparecerá una opción para reintentar.</p>
+        </div>
+      </section>
+    );
+  }
+  if (!workOrder) {
+    return (
+      <section className="card">
+        <p className="error-text">{error || 'No se ha encontrado la OT.'}</p>
+        <button className="secondary-button" type="button" onClick={refresh}><RefreshCw size={18} /> Reintentar</button>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -133,12 +160,21 @@ export default function WorkOrderChecklist() {
         subtitle={workOrder.titulo}
         action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
       />
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <div className="workorder-alert">
+          <CircleAlert size={20} />
+          <p>{error}</p>
+          <button className="secondary-button" type="button" onClick={refresh}><RefreshCw size={18} /> Reintentar</button>
+        </div>
+      )}
 
-      <section className="card">
+      <section className="card workorder-command">
         <div className="grid two">
           <div>
             <h2 className="section-heading">Resumen</h2>
+            <div className="workorder-progress" aria-label={`Progreso ${progress.percent}%`}>
+              <span style={{ width: `${progress.percent}%` }} />
+            </div>
             <div className="detail-list">
               <Detail label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
               <Detail label="Instalacion" value={workOrder.instalaciones?.nombre || '-'} />
@@ -160,8 +196,8 @@ export default function WorkOrderChecklist() {
             </FormField>
             <p className="muted">Si el tecnico ha iniciado visita, las respuestas y fotos quedaran vinculadas a esa visita.</p>
             <div className="quick-actions">
-              <button className="secondary-button" type="button" onClick={generateDefaultChecklist}>Generar checklist base</button>
-              <button className="primary-button" type="button" onClick={() => setOpen(true)}>Añadir punto</button>
+              <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Completar base</button>
+              <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Añadir punto</button>
             </div>
           </div>
         </div>
@@ -169,8 +205,10 @@ export default function WorkOrderChecklist() {
 
       <div className="checklist-stack" style={{ marginTop: 16 }}>
         {items.length === 0 && (
-          <section className="card">
-            <p className="muted">Esta OT todavia no tiene checklist. Pulsa “Generar checklist base” o añade puntos manualmente.</p>
+          <section className="card empty-state">
+            <strong>Esta OT todavia no tiene checklist.</strong>
+            <span>Genera una plantilla base o añade puntos manualmente para empezar la visita.</span>
+            <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>
           </section>
         )}
         {items.map((item) => (
@@ -187,10 +225,11 @@ export default function WorkOrderChecklist() {
 
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-heading">Siguiente bloque</h2>
-        <p className="muted">Ya puedes guardar fotos por punto. El siguiente paso sera firma del cliente y generacion de PDF.</p>
+        <p className="muted">Cuando todos los puntos esten revisados, pasa a firma del cliente y genera el PDF final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
-          <button className="secondary-button" disabled>Firma/PDF proximamente</button>
+          <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
+          <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
         </div>
       </section>
 
@@ -291,12 +330,12 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
           <textarea rows="3" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
         </FormField>
         <div className="form-actions">
-          <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation })}>Guardar punto</button>
+          <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation })}><Save size={18} /> Guardar punto</button>
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <h3 className="section-heading">Fotos del punto</h3>
+      <div className="workorder-photo-block">
+        <h3 className="section-heading"><Camera size={18} /> Fotos del punto</h3>
         <form className="form-grid" onSubmit={submitPhoto}>
           <FormField label="Foto">
             <input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" onChange={(event) => setFile(event.target.files?.[0] || null)} />
@@ -306,7 +345,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
           </FormField>
           {photoError && <p className="error-text">{photoError}</p>}
           <div className="form-actions">
-            <button className="primary-button" type="submit" disabled={uploading}>{uploading ? 'Subiendo...' : 'Subir foto'}</button>
+            <button className="primary-button" type="submit" disabled={uploading}><Camera size={18} /> {uploading ? 'Subiendo...' : 'Subir foto'}</button>
           </div>
         </form>
 

@@ -7,7 +7,7 @@ import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 
-export default function MyWorkOrders() {
+export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
@@ -15,7 +15,7 @@ export default function MyWorkOrders() {
   async function refresh() {
     if (!activeTenantId) return;
     try {
-      const data = await listWorkOrders(activeTenantId, { onlyMine: true });
+      const data = await listWorkOrders(activeTenantId, { onlyMine: mode === 'mine', createdByMe: mode === 'created' });
       setRows(data);
     } catch (err) {
       setError(err.message);
@@ -24,15 +24,22 @@ export default function MyWorkOrders() {
 
   useEffect(() => {
     refresh();
-  }, [activeTenantId]);
+  }, [activeTenantId, mode]);
+
+  const isCreated = mode === 'created';
 
   return (
     <>
       <PageHeader
-        title="Mis OT"
-        subtitle="Ordenes asignadas a tu usuario para iniciar visitas, registrar observaciones y cerrar trabajos."
+        title={isCreated ? 'OT creadas por mi' : 'Mis OT'}
+        subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : 'Ordenes asignadas a tu usuario para iniciar visitas, registrar observaciones y cerrar trabajos.'}
         action={<Link className="secondary-button" to="/ots">Ver todas</Link>}
       />
+      <div className="tabs workorder-tabs">
+        <Link to="/ots">Todas</Link>
+        <Link className={!isCreated ? 'active' : ''} to="/mis-ots">Mis OT</Link>
+        <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
+      </div>
       {error && <p className="error-text">{error}</p>}
       <DataTable
         columns={[
@@ -42,10 +49,10 @@ export default function MyWorkOrders() {
           { key: 'activo', label: 'Activo', render: (row) => row.activos?.nombre || '-' },
           { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> },
           { key: 'fecha_prevista', label: 'Prevista', render: (row) => row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-' },
-          { key: 'actions', label: 'Acciones', render: (row) => <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link> }
+          { key: 'actions', label: 'Acciones', render: (row) => <Link className="primary-button" to={isCreated ? `/ots/${row.id}` : `/ots/${row.id}/visita`}>{isCreated ? 'Ver OT' : 'Abrir visita'}</Link> }
         ]}
         rows={rows}
-        empty="No tienes OT asignadas"
+        empty={isCreated ? 'No has creado OT' : 'No tienes OT asignadas'}
       />
     </>
   );

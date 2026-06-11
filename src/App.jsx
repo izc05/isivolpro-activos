@@ -60,6 +60,7 @@ export default function App() {
         <Route path="mantenimiento" element={<MaintenanceHistory />} />
         <Route path="ots" element={<WorkOrders />} />
         <Route path="mis-ots" element={<MyWorkOrders />} />
+        <Route path="ots-creadas" element={<MyWorkOrders mode="created" />} />
         <Route path="ots/:id" element={<WorkOrderDetail />} />
         <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
         <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />

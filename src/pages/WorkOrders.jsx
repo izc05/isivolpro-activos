@@ -7,7 +7,7 @@ import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
-import { createWorkOrder, listWorkOrders, WORK_ORDER_PRIORITIES, WORK_ORDER_TYPES } from '../services/workOrderService';
+import { createWorkOrder, ensureDefaultChecklist, listWorkOrders, WORK_ORDER_PRIORITIES, WORK_ORDER_TYPES } from '../services/workOrderService';
 import { listTenantMembers } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
 
@@ -76,7 +76,8 @@ export default function WorkOrders() {
     event.preventDefault();
     setError('');
     try {
-      await createWorkOrder(activeTenantId, form);
+      const created = await createWorkOrder(activeTenantId, form);
+      await ensureDefaultChecklist(created);
       setForm(initialForm);
       setOpen(false);
       await refresh();
@@ -92,6 +93,11 @@ export default function WorkOrders() {
         subtitle="Crea, asigna y sigue las OT de mantenimiento vinculadas a instalaciones, ubicaciones, activos y QR."
         action={<button className="primary-button" onClick={() => setOpen(true)}>Nueva OT</button>}
       />
+      <div className="tabs workorder-tabs">
+        <Link className="active" to="/ots">Todas</Link>
+        <Link to="/mis-ots">Mis OT</Link>
+        <Link to="/ots-creadas">Creadas por mi</Link>
+      </div>
       {error && <p className="error-text">{error}</p>}
       <DataTable
         columns={[

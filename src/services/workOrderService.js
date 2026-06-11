@@ -20,6 +20,39 @@ export const WORK_ORDER_PRIORITIES = ['baja', 'media', 'alta', 'urgente'];
 export const WORK_ORDER_TYPES = ['averia', 'mantenimiento', 'revision', 'instalacion', 'inspeccion', 'otro'];
 export const CHECKLIST_RESULTS = ['pendiente', 'ok', 'no_ok', 'no_aplica'];
 
+const CHECKLIST_TEMPLATES = {
+  averia: [
+    ['Confirmar el sintoma comunicado por el cliente o responsable', false],
+    ['Registrar estado inicial y evidencias del defecto', true],
+    ['Identificar causa probable y actuacion realizada', true],
+    ['Verificar que la averia queda resuelta o documentar pendiente', false]
+  ],
+  mantenimiento: [
+    ['Realizar limpieza, reapriete y revision preventiva aplicable', true],
+    ['Comprobar desgaste, consumibles y puntos criticos', false],
+    ['Registrar mediciones, ajustes o material utilizado', false]
+  ],
+  revision: [
+    ['Comprobar identificacion y documentacion del equipo', false],
+    ['Revisar estado visual, conexiones y conservacion', true],
+    ['Registrar mediciones y resultado de la revision', false]
+  ],
+  instalacion: [
+    ['Comprobar montaje, fijaciones y conexionado', true],
+    ['Verificar puesta en marcha y condiciones de seguridad', true],
+    ['Registrar pruebas funcionales y entrega al responsable', false]
+  ],
+  inspeccion: [
+    ['Comprobar acceso, identificacion y condiciones de inspeccion', false],
+    ['Registrar defectos, incumplimientos o riesgos detectados', true],
+    ['Documentar mediciones, resultado y recomendaciones', false]
+  ],
+  otro: [
+    ['Realizar la actuacion indicada en la OT', true],
+    ['Registrar resultado y observaciones relevantes', false]
+  ]
+};
+
 export const DEFAULT_CHECKLIST_ITEMS = [
   { punto: '1', descripcion: 'Comprobar acceso seguro a la zona de trabajo', requiere_foto: false },
   { punto: '2', descripcion: 'Identificar instalacion, ubicacion y activo intervenido', requiere_foto: true },
@@ -30,6 +63,35 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   { punto: '7', descripcion: 'Dejar la zona limpia, segura y operativa', requiere_foto: false },
   { punto: '8', descripcion: 'Informar al cliente o responsable de la actuacion realizada', requiere_foto: false }
 ];
+
+export function checklistTemplateForType(type = 'mantenimiento') {
+  const base = [
+    ['Comprobar acceso seguro a la zona de trabajo', false],
+    ['Identificar instalacion, ubicacion y activo intervenido', true],
+    ['Revisar estado visual general antes de intervenir', true]
+  ];
+  const specific = CHECKLIST_TEMPLATES[type] || CHECKLIST_TEMPLATES.mantenimiento;
+  const closing = [
+    ['Realizar prueba funcional final', false],
+    ['Registrar material utilizado o material pendiente', false],
+    ['Dejar la zona limpia, segura y operativa', true],
+    ['Informar al cliente o responsable de la actuacion realizada', false]
+  ];
+
+  return [...base, ...specific, ...closing].map(([descripcion, requiere_foto], index) => ({
+    punto: String(index + 1),
+    descripcion,
+    requiere_foto
+  }));
+}
+
+function withTimeout(promise, label = 'La operacion', timeoutMs = 15000) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} ha tardado demasiado. Revisa la conexion y pulsa Reintentar.`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function normalizePayload(payload) {
   return {
@@ -46,7 +108,7 @@ function normalizePayload(payload) {
   };
 }
 
-export async function listWorkOrders(tenantId, { onlyMine = false } = {}) {
+export async function listWorkOrders(tenantId, { onlyMine = false, createdByMe = false } = {}) {
   let query = supabase
     .from('ordenes_trabajo')
     .select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)')
@@ -58,7 +120,12 @@ export async function listWorkOrders(tenantId, { onlyMine = false } = {}) {
     if (userData.user?.id) query = query.eq('assigned_to', userData.user.id);
   }
 
-  const { data, error } = await query;
+  if (createdByMe) {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user?.id) query = query.eq('created_by', userData.user.id);
+  }
+
+  const { data, error } = await withTimeout(query, 'La carga de ordenes de trabajo');
   if (error) throw error;
   return data || [];
 }
@@ -214,12 +281,12 @@ export async function finishWorkOrderVisit(visit, finalObservations = '') {
 }
 
 export async function listWorkOrderChecklist(tenantId, workOrderId) {
-  const { data, error } = await supabase
+  const { data, error } = await withTimeout(supabase
     .from('ot_checklist_respuestas')
     .select('*')
     .eq('tenant_id', tenantId)
     .eq('ot_id', workOrderId)
-    .order('orden', { ascending: true });
+    .order('orden', { ascending: true }), 'La carga del checklist');
 
   if (error) throw error;
   return data || [];
@@ -231,7 +298,7 @@ export async function ensureDefaultChecklist(row) {
 
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id || null;
-  const payload = DEFAULT_CHECKLIST_ITEMS.map((item, index) => ({
+  const payload = checklistTemplateForType(row.tipo).map((item, index) => ({
     tenant_id: row.tenant_id,
     ot_id: row.id,
     orden: index + 1,
