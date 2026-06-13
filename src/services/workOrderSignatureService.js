@@ -5,6 +5,7 @@ import { updateWorkOrderStatus } from './workOrderService';
 
 export async function uploadVisitSignature({ workOrder, visit, file, nombreFirmante, dniFirmante = '' }) {
   if (!workOrder?.id) throw new Error('No se ha encontrado la OT.');
+  if (workOrder.estado === 'CERRADA') throw new Error('La OT esta cerrada y no admite nuevas firmas.');
   if (!visit?.id) throw new Error('Selecciona una visita para firmar.');
   if (!file) throw new Error('No hay firma para guardar.');
   if (!nombreFirmante?.trim()) throw new Error('Introduce el nombre del firmante.');
