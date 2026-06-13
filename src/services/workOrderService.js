@@ -316,7 +316,7 @@ async function assertWorkOrderOpen(tenantId, workOrderId) {
 export async function listWorkOrders(tenantId, { onlyMine = false, createdByMe = false } = {}) {
   let query = supabase
     .from('ordenes_trabajo')
-    .select('*, instalaciones(nombre,direccion), ubicaciones(nombre), activos(nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)')
+    .select('*, instalaciones(nombre,direccion,latitud,longitud,maps_url,contacto_nombre,contacto_telefono,contacto_email), ubicaciones(nombre), activos(nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
