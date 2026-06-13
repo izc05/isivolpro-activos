@@ -987,6 +987,19 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   color: #075985;
   font-weight: 800;
 }
+.access-help {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+  padding: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.access-help strong {
+  color: var(--primary);
+}
 .danger-button {
   border: 1px solid #fecaca;
   border-radius: 8px;

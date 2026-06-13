@@ -35,7 +35,7 @@ export default function Login() {
       <form className="login-panel" onSubmit={handleSubmit}>
         <div>
           <h2>Acceso seguro</h2>
-          <p className="muted">Registro preparado para invitacion desde Supabase Auth.</p>
+          <p className="muted">Entra con el email y la contrasena de tu cuenta. Si eres tecnico nuevo, primero necesitas una invitacion del administrador.</p>
         </div>
         <FormField label="Email"><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required /></FormField>
         <FormField label="Contrasena"><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></FormField>
@@ -43,7 +43,7 @@ export default function Login() {
         <div className="login-actions">
           <button className="primary-button" type="submit">Entrar</button>
           <button className="ghost-button" type="button" onClick={handleReset}>Recuperar contrasena</button>
-          <Link className="ghost-button" to="/registro">Registro por invitacion</Link>
+          <Link className="ghost-button" to="/registro">Tengo una invitacion</Link>
         </div>
       </form>
     </section>

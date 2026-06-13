@@ -20,6 +20,14 @@ import {
 const TENANT_ROLES = ['admin_cliente', 'tecnico', 'tecnico_externo', 'cliente_lectura'];
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const plusHoursLocal = (hours) => new Date(Date.now() + hours * 60 * 60 * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+const buildInvitationUrl = (invitation) => {
+  if (!invitation?.invitation_token) return '';
+  const params = new URLSearchParams({
+    token: invitation.invitation_token,
+    email: invitation.email || ''
+  });
+  return `${window.location.origin}${window.location.pathname}#/registro?${params.toString()}`;
+};
 
 export default function UsersPermissions() {
   const { activeTenantId } = useTenant();
@@ -43,6 +51,7 @@ export default function UsersPermissions() {
   });
   const [message, setMessage] = useState('');
   const [accessMessage, setAccessMessage] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
 
   async function refresh() {
@@ -75,6 +84,7 @@ export default function UsersPermissions() {
   async function submitInvitation(event) {
     event.preventDefault();
     setMessage('');
+    setCopyMessage('');
     setLastInvitation(null);
     try {
       const invitation = await createTenantInvitation({
@@ -150,6 +160,16 @@ export default function UsersPermissions() {
     if (!window.confirm(`Revocar acceso a ${row.instalaciones?.nombre || 'esta instalacion'}?`)) return;
     await revokeInstallationAccessGrant(row);
     await refresh();
+  }
+
+  async function copyInvitation(text, label) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage(`${label} copiado.`);
+    } catch {
+      setCopyMessage('No se ha podido copiar automaticamente. Selecciona el texto y copialo manualmente.');
+    }
   }
 
   const accessStatus = (row) => {
@@ -247,9 +267,19 @@ export default function UsersPermissions() {
           {message && <p className="error-text">{message}</p>}
           {lastInvitation && (
             <div className="token-box">
+              <strong>Invitacion creada</strong>
+              <span>Envia este enlace al tecnico. El pondra su propia contrasena al aceptar la invitacion.</span>
+              <code>{buildInvitationUrl(lastInvitation)}</code>
+              <div className="quick-actions">
+                <button className="secondary-button" type="button" onClick={() => copyInvitation(buildInvitationUrl(lastInvitation), 'Enlace')}>Copiar enlace</button>
+              </div>
               <strong>Token temporal</strong>
               <code>{lastInvitation.invitation_token}</code>
               <span>Caduca: {new Date(lastInvitation.expires_at).toLocaleString()}</span>
+              <div className="quick-actions">
+                <button className="ghost-button" type="button" onClick={() => copyInvitation(lastInvitation.invitation_token, 'Token')}>Copiar solo token</button>
+              </div>
+              {copyMessage && <span>{copyMessage}</span>}
             </div>
           )}
           <div className="form-actions">

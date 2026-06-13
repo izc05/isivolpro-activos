@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import FormField from '../components/Forms/FormField';
 import { acceptTenantInvitation } from '../services/permissionService';
@@ -7,12 +7,13 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function InvitationRegister() {
   const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
   const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_SIGNUP === 'true';
   const [mode, setMode] = useState(demoEnabled ? 'demo' : 'invite');
   const [nombre, setNombre] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [password, setPassword] = useState('');
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(searchParams.get('token') || '');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -35,19 +36,43 @@ export default function InvitationRegister() {
     completePendingDemoAccess();
   }, [demoEnabled, isAuthenticated]);
 
+  useEffect(() => {
+    async function completePendingInvitation() {
+      if (!isAuthenticated || token) return;
+      const pending = sessionStorage.getItem('pendingTenantInvitation');
+      if (!pending) return;
+
+      try {
+        const parsed = JSON.parse(pending);
+        if (parsed.email) setEmail(parsed.email);
+        if (parsed.token) setToken(parsed.token);
+        if (!parsed.token) return;
+        await acceptTenantInvitation(parsed.token);
+        sessionStorage.removeItem('pendingTenantInvitation');
+        setMessage('Correo confirmado e invitacion aceptada. Ya puedes entrar en la aplicacion.');
+      } catch (error) {
+        setMessage(error.message);
+      }
+    }
+
+    completePendingInvitation();
+  }, [isAuthenticated, token]);
+
   async function submitInvitation(event) {
     event.preventDefault();
     setMessage('');
     try {
       if (!isAuthenticated) {
+        sessionStorage.setItem('pendingTenantInvitation', JSON.stringify({ email, token: token.trim() }));
         const { data, error } = await signUpWithInvitationEmail(email, password);
         if (error) throw error;
         if (!data.session) {
-          setMessage('Cuenta creada. Confirma el email y vuelve a aceptar la invitacion con el token.');
+          setMessage('Cuenta creada. Confirma el email. Si vuelves desde este movil intentaremos completar la invitacion automaticamente.');
           return;
         }
       }
       await acceptTenantInvitation(token.trim());
+      sessionStorage.removeItem('pendingTenantInvitation');
       setMessage('Invitacion aceptada. Ya puedes entrar en la aplicacion.');
     } catch (error) {
       setMessage(error.message);
@@ -94,14 +119,14 @@ export default function InvitationRegister() {
   return (
     <section className="login-page">
       <div className="login-visual">
-        <h1>Registro IsiVoltPro</h1>
-        <p>Crea un usuario demo o acepta una invitacion temporal de un administrador.</p>
+        <h1>Alta de usuario</h1>
+        <p>El administrador crea la invitacion. El tecnico define su propia contrasena y queda unido al cliente correcto.</p>
       </div>
       <div className="login-panel">
-        <h2>{mode === 'demo' ? 'Nuevo usuario demo' : 'Registro por invitacion'}</h2>
+        <h2>{mode === 'demo' ? 'Nuevo usuario demo' : 'Aceptar invitacion'}</h2>
         <div className="segmented">
           {demoEnabled && <button className={mode === 'demo' ? 'active' : ''} type="button" onClick={() => setMode('demo')}>Usuario demo</button>}
-          <button className={mode === 'invite' ? 'active' : ''} type="button" onClick={() => setMode('invite')}>Tengo token</button>
+          <button className={mode === 'invite' ? 'active' : ''} type="button" onClick={() => setMode('invite')}>Invitacion admin</button>
         </div>
 
         {mode === 'demo' && (
@@ -128,25 +153,31 @@ export default function InvitationRegister() {
 
         {mode === 'invite' && (
           <form className="form-grid" onSubmit={submitInvitation}>
-            <p className="muted">El token se valida con hash seguro, email coincidente y caducidad temporal.</p>
+            <div className="access-help">
+              <strong>Como debe entrar un tecnico</strong>
+              <span>1. El administrador crea la invitacion desde Usuarios y permisos.</span>
+              <span>2. El tecnico abre el enlace recibido o pega el token.</span>
+              <span>3. El tecnico escribe su propia contrasena. No hace falta que el admin la conozca.</span>
+            </div>
           {!isAuthenticated && (
             <>
               <FormField label="Email invitado">
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
               </FormField>
               <FormField label="Contrasena">
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength="8" required />
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength="8" autoComplete="new-password" required />
               </FormField>
             </>
           )}
           <FormField label="Token de invitacion">
-            <input value={token} onChange={(event) => setToken(event.target.value)} placeholder="Token temporal" required />
+            <input value={token} onChange={(event) => setToken(event.target.value.trim())} placeholder="Token temporal" autoComplete="one-time-code" required />
           </FormField>
           {message && <p className={message.includes('aceptada') ? 'muted' : 'error-text'}>{message}</p>}
           <button className="primary-button" type="submit">Aceptar invitacion</button>
+          {isAuthenticated && <p className="muted">Ya has iniciado sesion. Solo falta aceptar el token para unir esta cuenta al cliente.</p>}
           </form>
         )}
-        <Link className="primary-button" to="/login">Volver al login</Link>
+        <Link className="secondary-button" to="/login">Volver al login</Link>
       </div>
     </section>
   );
