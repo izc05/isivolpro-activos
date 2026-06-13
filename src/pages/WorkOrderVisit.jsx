@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Clock, PlayCircle, PlusCircle, RefreshCw, Save, StopCircle } from 'lucide-react';
+import { Clock, Mail, MapPin, Navigation, Phone, PlayCircle, PlusCircle, Save, StopCircle } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -22,6 +22,7 @@ import {
   WORK_ORDER_TYPE_LABELS
 } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
+import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
 
 function getBrowserLocation() {
   return new Promise((resolve) => {
@@ -230,7 +231,6 @@ export default function WorkOrderVisit() {
           <h2 className="section-heading">Trabajo asignado</h2>
           <div className="detail-list">
             <Detail label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
-            <Detail label="Instalacion" value={workOrder.instalaciones?.nombre || '-'} />
             <Detail label="Ubicacion" value={workOrder.ubicaciones?.nombre || '-'} />
             <Detail label="Activo" value={workOrder.activos?.nombre || '-'} />
             <Detail label="Tipo OT" value={WORK_ORDER_TYPE_LABELS[workOrder.tipo_ot || workOrder.tipo] || workOrder.tipo || '-'} />
@@ -241,6 +241,8 @@ export default function WorkOrderVisit() {
           {workOrder.instrucciones_tecnico && <p><strong>Instrucciones:</strong> {workOrder.instrucciones_tecnico}</p>}
           {workOrder.riesgos_precauciones && <p className="warning-text">{workOrder.riesgos_precauciones}</p>}
         </section>
+
+        <InstallationFieldCard installation={workOrder.instalaciones} />
 
         <section className="card">
           <h2 className="section-heading">Intervencion en campo</h2>
@@ -421,5 +423,49 @@ function Detail({ label, value }) {
       <span className="muted">{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function InstallationFieldCard({ installation }) {
+  const mapsUrl = buildMapsUrl(installation);
+  const embedUrl = buildMapsEmbedUrl(installation);
+  const phone = installation?.contacto_telefono;
+  const email = installation?.contacto_email;
+
+  return (
+    <section className="card ot-field-card">
+      <h2 className="section-heading"><MapPin size={18} /> Instalacion y contacto</h2>
+      <div className="detail-list">
+        <Detail label="Instalacion" value={installation?.nombre || '-'} />
+        <Detail label="Direccion" value={installation?.direccion || '-'} />
+        <Detail label="Contacto" value={installation?.contacto_nombre || '-'} />
+        <Detail label="Telefono" value={phone || '-'} />
+        <Detail label="Email" value={email || '-'} />
+      </div>
+      <div className="quick-actions">
+        {mapsUrl && (
+          <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
+            <Navigation size={18} /> Como llegar
+          </a>
+        )}
+        {phone && (
+          <a className="primary-button" href={`tel:${phone}`}>
+            <Phone size={18} /> Llamar
+          </a>
+        )}
+        {email && (
+          <a className="ghost-button" href={`mailto:${email}`}>
+            <Mail size={18} /> Email
+          </a>
+        )}
+      </div>
+      {embedUrl ? (
+        <div className="ot-map-frame compact">
+          <iframe title={`Mapa de ${installation?.nombre || 'instalacion'}`} src={embedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+        </div>
+      ) : (
+        <p className="warning-text">Esta instalacion no tiene direccion ni coordenadas registradas.</p>
+      )}
+    </section>
   );
 }

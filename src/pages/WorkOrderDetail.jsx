@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Mail, Navigation, Phone } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenant } from '../hooks/useTenant';
@@ -12,6 +13,7 @@ import {
   statusLabel
 } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
+import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
 
 export default function WorkOrderDetail() {
   const { id } = useParams();
@@ -109,6 +111,7 @@ export default function WorkOrderDetail() {
             <Detail label="Marca / modelo" value={[row.activos?.marca, row.activos?.modelo].filter(Boolean).join(' / ') || '-'} />
             <Detail label="Nº serie" value={row.activos?.numero_serie || '-'} />
           </div>
+          <InstallationContactPanel installation={row.instalaciones} />
         </section>
       </div>
 
@@ -155,6 +158,42 @@ function Detail({ label, value }) {
     <div className="detail-row">
       <span className="muted">{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function InstallationContactPanel({ installation }) {
+  const mapsUrl = buildMapsUrl(installation);
+  const embedUrl = buildMapsEmbedUrl(installation);
+  const phone = installation?.contacto_telefono;
+  const email = installation?.contacto_email;
+
+  if (!installation) return null;
+
+  return (
+    <div className="ot-installation-panel">
+      <div className="quick-actions">
+        {mapsUrl && (
+          <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
+            <Navigation size={18} /> Como llegar
+          </a>
+        )}
+        {phone && (
+          <a className="secondary-button" href={`tel:${phone}`}>
+            <Phone size={18} /> Llamar
+          </a>
+        )}
+        {email && (
+          <a className="ghost-button" href={`mailto:${email}`}>
+            <Mail size={18} /> Email
+          </a>
+        )}
+      </div>
+      {embedUrl && (
+        <div className="ot-map-frame">
+          <iframe title={`Mapa de ${installation.nombre || 'instalacion'}`} src={embedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+        </div>
+      )}
     </div>
   );
 }
