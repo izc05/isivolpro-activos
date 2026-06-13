@@ -10,11 +10,12 @@ export async function signIn(email, password) {
 }
 
 export async function signUpWithInvitationEmail(email, password) {
+  const redirectTo = `${window.location.origin}${window.location.pathname}#/registro?email=${encodeURIComponent(email)}`;
   return supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/registro`
+      emailRedirectTo: redirectTo
     }
   });
 }
@@ -25,7 +26,7 @@ export async function signUpDemoUser({ nombre, email, password }) {
     password,
     options: {
       data: { nombre },
-      emailRedirectTo: `${window.location.origin}/registro`
+      emailRedirectTo: `${window.location.origin}${window.location.pathname}#/registro`
     }
   });
   if (signup.error) return signup;
@@ -58,7 +59,7 @@ export async function signOut() {
 
 export function resetPassword(email) {
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/settings`
+    redirectTo: `${window.location.origin}${window.location.pathname}#/ajustes`
   });
 }
 
