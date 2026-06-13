@@ -17,6 +17,23 @@ export async function listTenantMembers(tenantId) {
   return data || [];
 }
 
+export async function getCurrentTenantMember(tenantId) {
+  if (!tenantId) return null;
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from('tenant_members')
+    .select('id,tenant_id,user_id,role,estado')
+    .eq('tenant_id', tenantId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function createTenantAsOwner(payload) {
   const { data, error } = await supabase.rpc('create_tenant_as_owner', {
     tenant_name: payload.nombre,

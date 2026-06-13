@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Security/ProtectedRoute';
+import { AdminRoute, HomeRedirect } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
 import Dashboard from './pages/Dashboard';
@@ -45,33 +46,33 @@ export default function App() {
       <Route path="/denegado" element={<AccessDenied />} />
       <Route path="/qr-no-valido" element={<InvalidQr />} />
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route index element={<HomeRedirect />} />
+        <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="scanner" element={<QRScanner />} />
-        <Route path="clientes" element={<Clients />} />
-        <Route path="instalaciones" element={<Installations />} />
+        <Route path="clientes" element={<AdminRoute><Clients /></AdminRoute>} />
+        <Route path="instalaciones" element={<AdminRoute><Installations /></AdminRoute>} />
         <Route path="instalaciones/:id" element={<InstallationDetail />} />
-        <Route path="ubicaciones" element={<Locations />} />
+        <Route path="ubicaciones" element={<AdminRoute><Locations /></AdminRoute>} />
         <Route path="ubicaciones/:id" element={<LocationDetail />} />
-        <Route path="activos" element={<Assets />} />
+        <Route path="activos" element={<AdminRoute><Assets /></AdminRoute>} />
         <Route path="activos/:id" element={<AssetDetail />} />
-        <Route path="documentos" element={<Documents />} />
-        <Route path="videos" element={<Videos />} />
-        <Route path="fotos" element={<Photos />} />
-        <Route path="mantenimiento" element={<MaintenanceHistory />} />
-        <Route path="ots-dashboard" element={<WorkOrderDashboard />} />
-        <Route path="ots" element={<WorkOrders />} />
+        <Route path="documentos" element={<AdminRoute><Documents /></AdminRoute>} />
+        <Route path="videos" element={<AdminRoute><Videos /></AdminRoute>} />
+        <Route path="fotos" element={<AdminRoute><Photos /></AdminRoute>} />
+        <Route path="mantenimiento" element={<AdminRoute><MaintenanceHistory /></AdminRoute>} />
+        <Route path="ots-dashboard" element={<AdminRoute><WorkOrderDashboard /></AdminRoute>} />
+        <Route path="ots" element={<AdminRoute><WorkOrders /></AdminRoute>} />
         <Route path="mis-ots" element={<MyWorkOrders />} />
-        <Route path="ots-creadas" element={<MyWorkOrders mode="created" />} />
+        <Route path="ots-creadas" element={<AdminRoute><MyWorkOrders mode="created" /></AdminRoute>} />
         <Route path="ots/:id" element={<WorkOrderDetail />} />
         <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
         <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />
         <Route path="ots/:id/firma" element={<WorkOrderSignature />} />
         <Route path="ots/:id/informe" element={<WorkOrderReport />} />
         <Route path="incidencias" element={<Incidents />} />
-        <Route path="qr" element={<QRGenerator />} />
-        <Route path="auditoria" element={<AuditLogs />} />
-        <Route path="usuarios" element={<UsersPermissions />} />
+        <Route path="qr" element={<AdminRoute><QRGenerator /></AdminRoute>} />
+        <Route path="auditoria" element={<AdminRoute><AuditLogs /></AdminRoute>} />
+        <Route path="usuarios" element={<AdminRoute><UsersPermissions /></AdminRoute>} />
         <Route path="ajustes" element={<Settings />} />
         <Route path="privacidad" element={<PrivacyNotice />} />
       </Route>
