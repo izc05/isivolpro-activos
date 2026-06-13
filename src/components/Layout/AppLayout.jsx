@@ -33,13 +33,22 @@ const operationsNavItems = [
   { to: '/ajustes', label: 'Ajustes', icon: Settings }
 ];
 
+const technicianNavItems = [
+  { to: '/mis-ots', label: 'Mis OT', icon: ListChecks },
+  { to: '/scanner', label: 'Escaner', icon: QrCode },
+  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
+  { to: '/ajustes', label: 'Cuenta', icon: Settings }
+];
+
 export default function AppLayout() {
   const { profile } = useAuth();
-  const { tenants, activeTenantId, setActiveTenantId } = useTenant();
+  const { tenants, activeTenantId, activeRole, isTenantAdmin, isTechnician, setActiveTenantId } = useTenant();
   const location = useLocation();
   const [inventoryOpen, setInventoryOpen] = useState(true);
   const inventoryActive = inventoryNavItems.some((item) => location.pathname.startsWith(item.to));
-  const mobileNavItems = [...mainNavItems, ...inventoryNavItems, ...operationsNavItems];
+  const showAdminNavigation = isTenantAdmin || !isTechnician;
+  const desktopNavItems = showAdminNavigation ? null : technicianNavItems;
+  const mobileNavItems = showAdminNavigation ? [...mainNavItems, ...inventoryNavItems, ...operationsNavItems] : technicianNavItems;
 
   return (
     <div className="app-shell">
@@ -52,19 +61,25 @@ export default function AppLayout() {
           </div>
         </div>
         <nav className="nav-list">
-          {mainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-          <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
-            <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
-              <span>Inventario QR</span>
-              <ChevronDown size={16} />
-            </button>
-            {inventoryOpen && (
-              <div className="nav-group-items">
-                {inventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+          {desktopNavItems ? (
+            desktopNavItems.map((item) => <NavItem key={item.to} item={item} />)
+          ) : (
+            <>
+              {mainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
+                <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
+                  <span>Inventario QR</span>
+                  <ChevronDown size={16} />
+                </button>
+                {inventoryOpen && (
+                  <div className="nav-group-items">
+                    {inventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          {operationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              {operationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+            </>
+          )}
         </nav>
       </aside>
 
@@ -72,11 +87,13 @@ export default function AppLayout() {
         <header className="topbar">
           <div>
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>Documentacion tecnica y mantenimiento por QR</span>
+            <span>{isTechnician ? 'Mis ordenes de trabajo' : 'Documentacion tecnica y mantenimiento por QR'}{activeRole ? ` · ${activeRole.replaceAll('_', ' ')}` : ''}</span>
           </div>
-          <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-            {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.nombre}</option>)}
-          </select>
+          {tenants.length > 1 && (
+            <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
+              {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.nombre}</option>)}
+            </select>
+          )}
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
         </header>
         <OfflineBanner />

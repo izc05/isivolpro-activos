@@ -4,7 +4,24 @@ import { useTenant } from '../hooks/useTenant';
 
 export default function Settings() {
   const { profile } = useAuth();
-  const { activeTenant } = useTenant();
+  const { activeTenant, activeRole, isTechnician } = useTenant();
+
+  if (isTechnician) {
+    return (
+      <>
+        <PageHeader title="Mi cuenta" subtitle="Datos basicos de acceso para el tecnico." />
+        <section className="card">
+          <h2>Cuenta</h2>
+          <p><strong>Usuario:</strong> {profile?.nombre || profile?.email}</p>
+          <p><strong>Email:</strong> {profile?.email || '-'}</p>
+          <p><strong>Cliente:</strong> {activeTenant?.nombre || '-'}</p>
+          <p><strong>Rol:</strong> {activeRole?.replaceAll('_', ' ') || 'tecnico'}</p>
+          <p className="muted">Para cambios de permisos, nuevas instalaciones o problemas de acceso, contacta con el administrador.</p>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title="Ajustes" subtitle="Configuracion de cuenta, privacidad y seguridad." />
