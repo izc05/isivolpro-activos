@@ -46,7 +46,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [inventoryOpen, setInventoryOpen] = useState(true);
   const inventoryActive = inventoryNavItems.some((item) => location.pathname.startsWith(item.to));
-  const showAdminNavigation = isTenantAdmin || !isTechnician;
+  const showAdminNavigation = isTenantAdmin;
   const desktopNavItems = showAdminNavigation ? null : technicianNavItems;
   const mobileNavItems = showAdminNavigation ? [...mainNavItems, ...inventoryNavItems, ...operationsNavItems] : technicianNavItems;
 
