@@ -3,7 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/Layout/PageHeader';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenant } from '../hooks/useTenant';
-import { getWorkOrder, updateWorkOrderStatus, WORK_ORDER_STATUSES } from '../services/workOrderService';
+import {
+  getWorkOrder,
+  REQUIREMENT_FIELDS,
+  updateWorkOrderStatus,
+  validNextActions,
+  WORK_ORDER_TYPE_LABELS,
+  statusLabel
+} from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 
 export default function WorkOrderDetail() {
@@ -35,7 +42,9 @@ export default function WorkOrderDetail() {
     if (!row) return;
     setError('');
     try {
-      const updated = await updateWorkOrderStatus(row, status);
+      const reopenReason = status === 'REABRIR' ? window.prompt('Motivo de reapertura') : '';
+      if (status === 'REABRIR' && !reopenReason) return;
+      const updated = await updateWorkOrderStatus({ ...row, reopen_reason: reopenReason }, status);
       setRow((current) => ({ ...current, ...updated }));
     } catch (err) {
       setError(err.message);
@@ -44,6 +53,9 @@ export default function WorkOrderDetail() {
 
   if (loading) return <p className="muted">Cargando orden de trabajo...</p>;
   if (!row) return <p className="error-text">No se ha encontrado la orden de trabajo.</p>;
+  const isClosed = row.estado === 'CERRADA';
+  const nextActions = validNextActions(row);
+  const requirements = REQUIREMENT_FIELDS.filter(([field]) => row.configuracion?.[field]);
 
   return (
     <>
@@ -60,22 +72,26 @@ export default function WorkOrderDetail() {
           <div className="detail-list">
             <Detail label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} />
             <Detail label="Prioridad" value={<span className={`badge ${row.prioridad === 'urgente' ? 'danger' : row.prioridad === 'alta' ? 'warn' : ''}`}>{row.prioridad}</span>} />
-            <Detail label="Tipo" value={row.tipo || '-'} />
+            <Detail label="Tipo" value={WORK_ORDER_TYPE_LABELS[row.tipo_ot || row.tipo] || row.tipo_ot || row.tipo || '-'} />
+            {row.tipo_ot_detalle && <Detail label="Detalle tipo" value={row.tipo_ot_detalle} />}
             <Detail label="Tecnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} />
             <Detail label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
             <Detail label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} />
+            <Detail label="Fecha limite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} />
+            <Detail label="Duracion estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
             <Detail label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
             <Detail label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
           </div>
+          {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
           <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            {WORK_ORDER_STATUSES.map((status) => (
+            {nextActions.map((status) => (
               <button
                 key={status}
-                className={row.estado === status ? 'primary-button' : 'secondary-button'}
+                className={status === 'CERRADA' ? 'primary-button' : 'secondary-button'}
                 type="button"
                 onClick={() => changeStatus(status)}
               >
-                {status.replaceAll('_', ' ').toLowerCase()}
+                {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
               </button>
             ))}
           </div>
@@ -99,6 +115,24 @@ export default function WorkOrderDetail() {
       <section className="card" style={{ marginTop: 16 }}>
         <h2 className="section-heading">Descripcion del trabajo</h2>
         <p>{row.descripcion || 'Sin descripcion adicional.'}</p>
+        <div className="detail-list">
+          <Detail label="Sintomas / situacion" value={row.sintomas || '-'} />
+          <Detail label="Trabajo solicitado" value={row.trabajo_solicitado || '-'} />
+          <Detail label="Instrucciones tecnico" value={row.instrucciones_tecnico || '-'} />
+          <Detail label="Riesgos / precauciones" value={row.riesgos_precauciones || '-'} />
+          <Detail label="Resultado esperado" value={row.resultado_esperado || '-'} />
+        </div>
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2 className="section-heading">Requisitos configurados</h2>
+        {requirements.length === 0 ? (
+          <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p>
+        ) : (
+          <div className="requirement-grid">
+            {requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}
+          </div>
+        )}
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
@@ -106,10 +140,10 @@ export default function WorkOrderDetail() {
         <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist, firmar con el cliente y generar el informe final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          <Link className="secondary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>
-          <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>
-          <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>
-          <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>
+          {!isClosed && <Link className="secondary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>}
+          {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
+          {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
+          {row.configuracion?.requiere_informe && <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>}
         </div>
       </section>
     </>

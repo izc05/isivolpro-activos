@@ -14,6 +14,7 @@ import {
   listChecklistPhotos,
   listWorkOrderChecklist,
   listWorkOrderVisits,
+  PHOTO_TYPES,
   signedChecklistPhotoUrl,
   updateChecklistItem,
   uploadChecklistPhoto
@@ -194,7 +195,7 @@ export default function WorkOrderChecklist() {
                 ))}
               </select>
             </FormField>
-            <p className="muted">Si el tecnico ha iniciado visita, las respuestas y fotos quedaran vinculadas a esa visita.</p>
+            <p className="muted">Se preselecciona la visita en curso para que el tecnico no tenga que elegir identificadores manualmente.</p>
             <div className="quick-actions">
               <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Completar base</button>
               <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Añadir punto</button>
@@ -259,12 +260,30 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [comment, setComment] = useState('');
+  const [photoType, setPhotoType] = useState('otra');
+  const [extra, setExtra] = useState({
+    defecto: item.defecto || '',
+    accion_realizada: item.accion_realizada || '',
+    estado_despues: item.estado_despues || '',
+    recomendacion: item.recomendacion || '',
+    medicion_valor: item.medicion_valor || ''
+  });
   const [photoError, setPhotoError] = useState('');
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setObservation(item.observacion || '');
   }, [item.observacion]);
+
+  useEffect(() => {
+    setExtra({
+      defecto: item.defecto || '',
+      accion_realizada: item.accion_realizada || '',
+      estado_despues: item.estado_despues || '',
+      recomendacion: item.recomendacion || '',
+      medicion_valor: item.medicion_valor || ''
+    });
+  }, [item.defecto, item.accion_realizada, item.estado_despues, item.recomendacion, item.medicion_valor]);
 
   async function refreshPhotos() {
     try {
@@ -305,10 +324,12 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
         checklistItem: item,
         visitId: selectedVisitId || item.visita_id || null,
         file,
-        comentario: comment
+        comentario: comment,
+        tipoFoto: photoType
       });
       setFile(null);
       setComment('');
+      setPhotoType('otra');
       event.target.reset();
       await refreshPhotos();
     } catch (err) {
@@ -316,6 +337,10 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
     } finally {
       setUploading(false);
     }
+  }
+
+  function updateExtra(field, value) {
+    setExtra((current) => ({ ...current, [field]: value }));
   }
 
   function clearSelectedFile(event) {
@@ -347,8 +372,29 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
         <FormField label="Observacion">
           <textarea rows="3" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
         </FormField>
+        {item.resultado === 'no_ok' && (
+          <>
+            <FormField label="Defecto detectado">
+              <textarea rows="2" value={extra.defecto} onChange={(event) => updateExtra('defecto', event.target.value)} />
+            </FormField>
+            <FormField label="Accion realizada">
+              <textarea rows="2" value={extra.accion_realizada} onChange={(event) => updateExtra('accion_realizada', event.target.value)} />
+            </FormField>
+            <FormField label="Estado despues de actuar">
+              <input value={extra.estado_despues} onChange={(event) => updateExtra('estado_despues', event.target.value)} />
+            </FormField>
+            <FormField label="Recomendacion">
+              <textarea rows="2" value={extra.recomendacion} onChange={(event) => updateExtra('recomendacion', event.target.value)} />
+            </FormField>
+          </>
+        )}
+        {item.requiere_medicion && (
+          <FormField label={`Medicion${item.valor_referencia ? ` · ref. ${item.valor_referencia}` : ''}`}>
+            <input value={extra.medicion_valor} onChange={(event) => updateExtra('medicion_valor', event.target.value)} />
+          </FormField>
+        )}
         <div className="form-actions">
-          <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation })}><Save size={18} /> Guardar punto</button>
+          <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation, ...extra })}><Save size={18} /> Guardar punto</button>
         </div>
       </div>
 
@@ -380,6 +426,11 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
           )}
           <FormField label="Comentario de la foto">
             <input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Ej. Estado inicial, defecto, reparacion realizada" />
+          </FormField>
+          <FormField label="Tipo de fotografia">
+            <select value={photoType} onChange={(event) => setPhotoType(event.target.value)}>
+              {PHOTO_TYPES.map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}
+            </select>
           </FormField>
           {photoError && <p className="error-text">{photoError}</p>}
           <div className="form-actions">

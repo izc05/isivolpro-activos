@@ -289,6 +289,7 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   const { blob, filename, workOrder } = await generateWorkOrderPdfBlob(tenantId, workOrderId);
+  if (workOrder.estado === 'CERRADA') throw new Error('La OT esta cerrada y no admite nuevos informes.');
   const file = new File([blob], filename, { type: 'application/pdf' });
   const path = buildStoragePath({
     tenantId,
