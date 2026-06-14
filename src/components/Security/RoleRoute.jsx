@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 
 export function AdminRoute({ children }) {
@@ -14,4 +15,11 @@ export function HomeRedirect() {
 
   if (roleLoading) return <p className="muted">Cargando acceso...</p>;
   return <Navigate to={isTenantAdmin ? '/dashboard' : '/mis-ots'} replace />;
+}
+
+export function SuperAdminRoute({ children }) {
+  const { isSuperAdmin } = useAuth();
+
+  if (!isSuperAdmin) return <Navigate to="/instalaciones" replace />;
+  return children;
 }

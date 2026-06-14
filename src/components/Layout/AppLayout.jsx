@@ -41,14 +41,15 @@ const technicianNavItems = [
 ];
 
 export default function AppLayout() {
-  const { profile } = useAuth();
+  const { isSuperAdmin, profile } = useAuth();
   const { tenants, activeTenantId, activeRole, isTenantAdmin, isTechnician, setActiveTenantId } = useTenant();
   const location = useLocation();
+  const visibleInventoryNavItems = isSuperAdmin ? inventoryNavItems : inventoryNavItems.filter((item) => item.to !== '/clientes');
   const [inventoryOpen, setInventoryOpen] = useState(true);
-  const inventoryActive = inventoryNavItems.some((item) => location.pathname.startsWith(item.to));
+  const inventoryActive = visibleInventoryNavItems.some((item) => location.pathname.startsWith(item.to));
   const showAdminNavigation = isTenantAdmin;
   const desktopNavItems = showAdminNavigation ? null : technicianNavItems;
-  const mobileNavItems = showAdminNavigation ? [...mainNavItems, ...inventoryNavItems, ...operationsNavItems] : technicianNavItems;
+  const mobileNavItems = showAdminNavigation ? [...mainNavItems, ...visibleInventoryNavItems, ...operationsNavItems] : technicianNavItems;
 
   return (
     <div className="app-shell">
@@ -73,7 +74,7 @@ export default function AppLayout() {
                 </button>
                 {inventoryOpen && (
                   <div className="nav-group-items">
-                    {inventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+                    {visibleInventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
                   </div>
                 )}
               </div>
