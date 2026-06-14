@@ -3,6 +3,7 @@ import DataTable from '../components/Cards/DataTable';
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, Copy, Mail, UserPlus } from 'lucide-react';
 import { useTenant } from '../hooks/useTenant';
+import { useAuth } from '../hooks/useAuth';
 import { listTenantMembers } from '../services/tenantService';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
@@ -31,7 +32,8 @@ const buildInvitationUrl = (invitation) => {
 };
 
 export default function UsersPermissions() {
-  const { activeTenantId } = useTenant();
+  const { user } = useAuth();
+  const { activeTenant, activeTenantId, activeRole } = useTenant();
   const [rows, setRows] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [installations, setInstallations] = useState([]);
@@ -53,22 +55,34 @@ export default function UsersPermissions() {
   const [message, setMessage] = useState('');
   const [accessMessage, setAccessMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [loadMessage, setLoadMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
   const pendingInvitations = invitations.filter((invitation) => invitation.estado === 'pendiente');
   const externalTechnicians = rows.filter((member) => member.role === 'tecnico_externo' && member.estado === 'activo');
 
   async function refresh() {
     if (!activeTenantId) return;
-    const [members, pendingInvitations, tenantInstallations, grants] = await Promise.all([
+    setLoadMessage('');
+    const results = await Promise.allSettled([
       listTenantMembers(activeTenantId),
       listTenantInvitations(activeTenantId),
       listInstallationsForTenant(activeTenantId),
       listInstallationAccessGrants(activeTenantId)
     ]);
+    const [membersResult, invitationsResult, installationsResult, grantsResult] = results;
+    const loadErrors = results
+      .filter((result) => result.status === 'rejected')
+      .map((result) => result.reason?.message || 'Error cargando datos');
+    const members = membersResult.status === 'fulfilled' ? membersResult.value : [];
+    const pendingInvitations = invitationsResult.status === 'fulfilled' ? invitationsResult.value : [];
+    const tenantInstallations = installationsResult.status === 'fulfilled' ? installationsResult.value : [];
+    const grants = grantsResult.status === 'fulfilled' ? grantsResult.value : [];
+
     setRows(members);
     setInvitations(pendingInvitations);
     setInstallations(tenantInstallations);
     setAccessGrants(grants);
+    if (loadErrors.length > 0) setLoadMessage(loadErrors.join(' | '));
     setAccessForm((current) => ({
       ...current,
       userId: current.userId || members.find((member) => member.role === 'tecnico_externo' && member.estado === 'activo')?.user_id || '',
@@ -205,6 +219,14 @@ export default function UsersPermissions() {
         </div>
         <p className="muted">Los tecnicos de empresa tienen acceso a todas las instalaciones. Los tecnicos externos solo ven las instalaciones que les concedas en Acceso instalacion.</p>
       </section>
+      <section className="card account-context-card">
+        <span><strong>Sesion:</strong> {user?.email || 'Sin email de sesion'}</span>
+        <span><strong>Cliente activo:</strong> {activeTenant?.nombre || activeTenantId || 'Sin cliente activo'}</span>
+        <span><strong>Rol:</strong> {activeRole || 'Sin rol cargado'}</span>
+      </section>
+      {loadMessage && (
+        <p className="warning-text">Algunos datos no se han podido cargar: {loadMessage}</p>
+      )}
       <section className="card role-guide-card">
         <div>
           <strong>Rol tecnico</strong>

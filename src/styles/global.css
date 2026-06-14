@@ -1029,6 +1029,16 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .role-guide-card strong {
   color: var(--primary);
 }
+.account-context-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+.account-context-card strong {
+  color: var(--primary);
+}
 .pending-invitations {
   display: grid;
   gap: 12px;
