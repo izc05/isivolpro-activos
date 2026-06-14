@@ -55,6 +55,7 @@ export default function UsersPermissions() {
   const [copyMessage, setCopyMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
   const pendingInvitations = invitations.filter((invitation) => invitation.estado === 'pendiente');
+  const externalTechnicians = rows.filter((member) => member.role === 'tecnico_externo' && member.estado === 'activo');
 
   async function refresh() {
     if (!activeTenantId) return;
@@ -70,7 +71,7 @@ export default function UsersPermissions() {
     setAccessGrants(grants);
     setAccessForm((current) => ({
       ...current,
-      userId: current.userId || members.find((member) => member.role !== 'admin_cliente')?.user_id || members[0]?.user_id || '',
+      userId: current.userId || members.find((member) => member.role === 'tecnico_externo' && member.estado === 'activo')?.user_id || '',
       instalacionId: current.instalacionId || tenantInstallations[0]?.id || ''
     }));
   }
@@ -202,7 +203,17 @@ export default function UsersPermissions() {
           <span className="muted">Invitaciones pendientes</span>
           <strong>{pendingInvitations.length}</strong>
         </div>
-        <p className="muted">Un tecnico invitado aparece como pendiente hasta que abre el enlace, crea su contrasena y acepta. Despues pasa automaticamente a usuarios activos y ya se puede asignar a una OT.</p>
+        <p className="muted">Los tecnicos de empresa tienen acceso a todas las instalaciones. Los tecnicos externos solo ven las instalaciones que les concedas en Acceso instalacion.</p>
+      </section>
+      <section className="card role-guide-card">
+        <div>
+          <strong>Rol tecnico</strong>
+          <span>Para personal de la empresa. Puede trabajar sobre todas las instalaciones del cliente activo y se puede asignar a cualquier OT.</span>
+        </div>
+        <div>
+          <strong>Rol tecnico externo</strong>
+          <span>Para colaboradores puntuales. Despues de aceptar la invitacion, concede acceso solo a la instalacion necesaria.</span>
+        </div>
       </section>
       {pendingInvitations.length > 0 && (
         <section className="pending-invitations">
@@ -332,15 +343,18 @@ export default function UsersPermissions() {
       </Modal>
       <Modal title="Acceso a instalacion" open={accessOpen} onClose={() => setAccessOpen(false)}>
         <form className="form-grid" onSubmit={submitAccessGrant}>
-          <p className="muted">Da acceso a una instalacion concreta. El tecnico podra escanear QR de esa instalacion, sus ubicaciones y sus activos mientras el permiso este activo.</p>
+          <p className="muted">Este formulario es solo para tecnicos externos. Los tecnicos de empresa ya tienen acceso a todas las instalaciones del cliente.</p>
           <FormField label="Usuario">
             <select value={accessForm.userId} onChange={(event) => setAccessForm((current) => ({ ...current, userId: event.target.value }))} required>
-              <option value="">Selecciona usuario</option>
-              {rows.map((member) => (
+              <option value="">Selecciona tecnico externo</option>
+              {externalTechnicians.map((member) => (
                 <option key={member.user_id} value={member.user_id}>{member.profiles?.nombre || member.profiles?.email || member.user_id}</option>
               ))}
             </select>
           </FormField>
+          {externalTechnicians.length === 0 && (
+            <p className="warning-text">No hay tecnicos externos activos. Invita primero con rol tecnico_externo y espera a que acepte la invitacion.</p>
+          )}
           <FormField label="Instalacion">
             <select value={accessForm.instalacionId} onChange={(event) => setAccessForm((current) => ({ ...current, instalacionId: event.target.value }))} required>
               <option value="">Selecciona instalacion</option>
