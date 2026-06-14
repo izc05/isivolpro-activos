@@ -1,6 +1,7 @@
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import { useEffect, useState } from 'react';
+import { CheckCircle2, Clock3, Copy, Mail, UserPlus } from 'lucide-react';
 import { useTenant } from '../hooks/useTenant';
 import { listTenantMembers } from '../services/tenantService';
 import FormField from '../components/Forms/FormField';
@@ -53,6 +54,7 @@ export default function UsersPermissions() {
   const [accessMessage, setAccessMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
+  const pendingInvitations = invitations.filter((invitation) => invitation.estado === 'pendiente');
 
   async function refresh() {
     if (!activeTenantId) return;
@@ -191,6 +193,45 @@ export default function UsersPermissions() {
           </div>
         }
       />
+      <section className="card users-summary-card">
+        <div>
+          <span className="muted">Usuarios activos</span>
+          <strong>{rows.length}</strong>
+        </div>
+        <div>
+          <span className="muted">Invitaciones pendientes</span>
+          <strong>{pendingInvitations.length}</strong>
+        </div>
+        <p className="muted">Un tecnico invitado aparece como pendiente hasta que abre el enlace, crea su contrasena y acepta. Despues pasa automaticamente a usuarios activos y ya se puede asignar a una OT.</p>
+      </section>
+      {pendingInvitations.length > 0 && (
+        <section className="pending-invitations">
+          <h2 className="section-heading">Pendientes de aceptar</h2>
+          <div className="pending-invitation-grid">
+            {pendingInvitations.map((invitation) => {
+              const invitationUrl = buildInvitationUrl(invitation);
+              return (
+                <article className="pending-invitation-card" key={invitation.id}>
+                  <div className="pending-invitation-icon"><Clock3 size={22} /></div>
+                  <div>
+                    <strong>{invitation.nombre || invitation.email}</strong>
+                    <span><Mail size={15} /> {invitation.email}</span>
+                    <span>Rol: {invitation.role.replaceAll('_', ' ')}</span>
+                    <span>Caduca: {new Date(invitation.expires_at).toLocaleString()}</span>
+                    <small>Estado: esperando confirmacion del tecnico. Aun no es asignable.</small>
+                  </div>
+                  <div className="quick-actions">
+                    <button className="secondary-button" type="button" onClick={() => copyInvitation(invitationUrl, 'Enlace')}>
+                      <Copy size={16} /> Copiar enlace
+                    </button>
+                    <button className="danger-button" type="button" onClick={() => revoke(invitation)}>Revocar</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
       <DataTable columns={[
         { key: 'usuario', label: 'Usuario', render: (row) => row.profiles?.nombre || row.profiles?.email },
         {
@@ -217,7 +258,7 @@ export default function UsersPermissions() {
             </select>
           )
         }
-      ]} rows={rows} />
+      ]} rows={rows} empty="Todavia no hay usuarios activos. Crea una invitacion y espera a que el tecnico la acepte." />
       <div style={{ marginTop: 16 }}>
         <h2 className="section-heading">Accesos por instalacion</h2>
         <DataTable columns={[
@@ -266,12 +307,13 @@ export default function UsersPermissions() {
           <p className="muted">Para tecnicos de la empresa usa el rol tecnico. Para visitas puntuales usa tecnico_externo y despues concede acceso solo a la instalacion necesaria. El token se muestra una sola vez y no se guarda en claro.</p>
           {message && <p className="error-text">{message}</p>}
           {lastInvitation && (
-            <div className="token-box">
-              <strong>Invitacion creada</strong>
-              <span>Envia este enlace al tecnico. El pondra su propia contrasena al aceptar la invitacion.</span>
+            <div className="invitation-created-box">
+              <div className="success-icon"><CheckCircle2 size={24} /></div>
+              <strong>Invitacion creada correctamente</strong>
+              <span>Envia este enlace al tecnico. Hasta que lo acepte aparecera como pendiente y no sera asignable en una OT.</span>
               <code>{buildInvitationUrl(lastInvitation)}</code>
               <div className="quick-actions">
-                <button className="secondary-button" type="button" onClick={() => copyInvitation(buildInvitationUrl(lastInvitation), 'Enlace')}>Copiar enlace</button>
+                <button className="primary-button" type="button" onClick={() => copyInvitation(buildInvitationUrl(lastInvitation), 'Enlace')}><Copy size={16} /> Copiar enlace</button>
               </div>
               <strong>Token temporal</strong>
               <code>{lastInvitation.invitation_token}</code>
@@ -284,7 +326,7 @@ export default function UsersPermissions() {
           )}
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={() => setOpen(false)}>Cerrar</button>
-            <button className="primary-button" type="submit">Crear invitacion</button>
+            <button className="primary-button" type="submit"><UserPlus size={18} /> Crear invitacion</button>
           </div>
         </form>
       </Modal>

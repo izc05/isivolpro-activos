@@ -1,6 +1,18 @@
 import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 
+const defaultPublicAppUrl = 'https://izc05.github.io/isivolpro-activos/';
+
+function publicAppUrl() {
+  const configured = import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.VITE_APP_URL;
+  const base = configured || (window.location.hostname === 'localhost' ? defaultPublicAppUrl : `${window.location.origin}${window.location.pathname}`);
+  return base.endsWith('/') ? base : `${base}/`;
+}
+
+function appHashUrl(path) {
+  return `${publicAppUrl()}#${path}`;
+}
+
 export async function signIn(email, password) {
   const result = await supabase.auth.signInWithPassword({ email, password });
   if (!result.error) {
@@ -12,7 +24,7 @@ export async function signIn(email, password) {
 export async function signUpWithInvitationEmail(email, password, token = '') {
   const params = new URLSearchParams({ email });
   if (token) params.set('token', token);
-  const redirectTo = `${window.location.origin}${window.location.pathname}#/registro?${params.toString()}`;
+  const redirectTo = appHashUrl(`/registro?${params.toString()}`);
   return supabase.auth.signUp({
     email,
     password,
@@ -28,7 +40,7 @@ export async function signUpDemoUser({ nombre, email, password }) {
     password,
     options: {
       data: { nombre },
-      emailRedirectTo: `${window.location.origin}${window.location.pathname}#/registro`
+      emailRedirectTo: appHashUrl('/registro')
     }
   });
   if (signup.error) return signup;
@@ -61,7 +73,7 @@ export async function signOut() {
 
 export function resetPassword(email) {
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}${window.location.pathname}#/ajustes`
+    redirectTo: appHashUrl('/ajustes')
   });
 }
 
