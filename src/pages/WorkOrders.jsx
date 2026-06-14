@@ -18,6 +18,7 @@ import {
   WORK_ORDER_TYPES
 } from '../services/workOrderService';
 import { listTenantMembers } from '../services/tenantService';
+import { listTenantInvitations } from '../services/permissionService';
 import { formatDateTime } from '../utils/dateUtils';
 
 function buildInitialForm() {
@@ -53,6 +54,7 @@ export default function WorkOrders() {
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
   const [rows, setRows] = useState([]);
   const [members, setMembers] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -60,12 +62,14 @@ export default function WorkOrders() {
 
   async function refresh() {
     if (!activeTenantId) return;
-    const [workOrders, tenantMembers] = await Promise.all([
+    const [workOrders, tenantMembers, tenantInvitations] = await Promise.all([
       listWorkOrders(activeTenantId),
-      listTenantMembers(activeTenantId)
+      listTenantMembers(activeTenantId),
+      listTenantInvitations(activeTenantId)
     ]);
     setRows(workOrders);
     setMembers(tenantMembers);
+    setInvitations(tenantInvitations);
   }
 
   useEffect(() => {
@@ -75,6 +79,34 @@ export default function WorkOrders() {
   const technicians = useMemo(
     () => members.filter((member) => ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(member.role) && member.estado !== 'inactivo'),
     [members]
+  );
+
+  const technicianOptions = useMemo(() => {
+    const byUserId = new Map();
+    technicians.forEach((member) => {
+      byUserId.set(member.user_id, {
+        id: member.user_id,
+        label: member.profiles?.nombre || member.profiles?.email || member.user_id,
+        source: 'member'
+      });
+    });
+    invitations
+      .filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'aceptada' && invitation.accepted_by)
+      .forEach((invitation) => {
+        if (!byUserId.has(invitation.accepted_by)) {
+          byUserId.set(invitation.accepted_by, {
+            id: invitation.accepted_by,
+            label: invitation.nombre || invitation.email || invitation.accepted_by,
+            source: 'invitation'
+          });
+        }
+      });
+    return Array.from(byUserId.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [technicians, invitations]);
+
+  const pendingTechnicianInvitations = useMemo(
+    () => invitations.filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'pendiente'),
+    [invitations]
   );
 
   const filteredLocations = useMemo(
@@ -255,9 +287,28 @@ export default function WorkOrders() {
             <FormField label="Tecnico principal">
               <select value={form.assigned_to} onChange={(event) => updateField('assigned_to', event.target.value)}>
                 <option value="">Sin asignar</option>
-                {technicians.map((member) => <option key={member.user_id} value={member.user_id}>{member.profiles?.nombre || member.profiles?.email || member.user_id}</option>)}
+                {technicianOptions.length > 0 && (
+                  <optgroup label="Tecnicos activos">
+                    {technicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technician.label}</option>)}
+                  </optgroup>
+                )}
+                {pendingTechnicianInvitations.length > 0 && (
+                  <optgroup label="Invitaciones pendientes">
+                    {pendingTechnicianInvitations.map((invitation) => (
+                      <option key={invitation.id} value="" disabled>
+                        {(invitation.nombre || invitation.email)} - pendiente de aceptar
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </FormField>
+            {technicianOptions.length === 0 && pendingTechnicianInvitations.length === 0 && (
+              <p className="warning-text">No hay tecnicos activos ni invitaciones pendientes. Crea una invitacion desde Usuarios y permisos.</p>
+            )}
+            {pendingTechnicianInvitations.length > 0 && (
+              <p className="muted">Las invitaciones pendientes apareceran como tecnicos asignables cuando el usuario acepte el enlace y complete el alta.</p>
+            )}
           </section>
 
           <section className="form-section">

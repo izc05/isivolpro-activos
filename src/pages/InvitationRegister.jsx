@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FormField from '../components/Forms/FormField';
 import { acceptTenantInvitation } from '../services/permissionService';
 import { claimDemoAccess, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
@@ -15,6 +15,7 @@ export default function InvitationRegister() {
   const [password, setPassword] = useState('');
   const [token, setToken] = useState(searchParams.get('token') || '');
   const [message, setMessage] = useState('');
+  const acceptedTokenRef = useRef('');
 
   useEffect(() => {
     async function completePendingDemoAccess() {
@@ -38,19 +39,21 @@ export default function InvitationRegister() {
 
   useEffect(() => {
     async function completePendingInvitation() {
-      if (!isAuthenticated || token) return;
+      if (!isAuthenticated) return;
       const pending = sessionStorage.getItem('pendingTenantInvitation');
-      if (!pending) return;
 
       try {
-        const parsed = JSON.parse(pending);
-        if (parsed.email) setEmail(parsed.email);
-        if (parsed.token) setToken(parsed.token);
-        if (!parsed.token) return;
-        await acceptTenantInvitation(parsed.token);
+        const pendingData = pending ? JSON.parse(pending) : {};
+        const tokenToAccept = token || pendingData.token || '';
+        if (!tokenToAccept || acceptedTokenRef.current === tokenToAccept) return;
+        acceptedTokenRef.current = tokenToAccept;
+        if (pendingData.email) setEmail(pendingData.email);
+        if (!token) setToken(tokenToAccept);
+        await acceptTenantInvitation(tokenToAccept);
         sessionStorage.removeItem('pendingTenantInvitation');
         setMessage('Correo confirmado e invitacion aceptada. Ya puedes entrar en la aplicacion.');
       } catch (error) {
+        acceptedTokenRef.current = '';
         setMessage(error.message);
       }
     }
@@ -64,7 +67,7 @@ export default function InvitationRegister() {
     try {
       if (!isAuthenticated) {
         sessionStorage.setItem('pendingTenantInvitation', JSON.stringify({ email, token: token.trim() }));
-        const { data, error } = await signUpWithInvitationEmail(email, password);
+        const { data, error } = await signUpWithInvitationEmail(email, password, token.trim());
         if (error) throw error;
         if (!data.session) {
           setMessage('Cuenta creada. Confirma el email. Si vuelves desde este movil intentaremos completar la invitacion automaticamente.');

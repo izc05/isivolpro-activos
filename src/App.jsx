@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Security/ProtectedRoute';
-import { AdminRoute, HomeRedirect } from './components/Security/RoleRoute';
+import { AdminRoute, HomeRedirect, SuperAdminRoute } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
 import Dashboard from './pages/Dashboard';
@@ -49,7 +49,7 @@ export default function App() {
         <Route index element={<HomeRedirect />} />
         <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="scanner" element={<QRScanner />} />
-        <Route path="clientes" element={<AdminRoute><Clients /></AdminRoute>} />
+        <Route path="clientes" element={<SuperAdminRoute><Clients /></SuperAdminRoute>} />
         <Route path="instalaciones" element={<AdminRoute><Installations /></AdminRoute>} />
         <Route path="instalaciones/:id" element={<InstallationDetail />} />
         <Route path="ubicaciones" element={<AdminRoute><Locations /></AdminRoute>} />

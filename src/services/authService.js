@@ -9,8 +9,10 @@ export async function signIn(email, password) {
   return result;
 }
 
-export async function signUpWithInvitationEmail(email, password) {
-  const redirectTo = `${window.location.origin}${window.location.pathname}#/registro?email=${encodeURIComponent(email)}`;
+export async function signUpWithInvitationEmail(email, password, token = '') {
+  const params = new URLSearchParams({ email });
+  if (token) params.set('token', token);
+  const redirectTo = `${window.location.origin}${window.location.pathname}#/registro?${params.toString()}`;
   return supabase.auth.signUp({
     email,
     password,

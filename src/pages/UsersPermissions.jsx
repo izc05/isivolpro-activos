@@ -37,7 +37,7 @@ export default function UsersPermissions() {
   const [accessGrants, setAccessGrants] = useState([]);
   const [open, setOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
-  const [form, setForm] = useState({ nombre: '', email: '', role: 'tecnico_externo', mfaRequired: false });
+  const [form, setForm] = useState({ nombre: '', email: '', role: 'tecnico', mfaRequired: false });
   const [accessForm, setAccessForm] = useState({
     userId: '',
     instalacionId: '',
@@ -95,7 +95,7 @@ export default function UsersPermissions() {
         mfaRequired: form.mfaRequired
       });
       setLastInvitation(invitation);
-      setForm({ nombre: '', email: '', role: 'tecnico_externo', mfaRequired: false });
+      setForm({ nombre: '', email: '', role: 'tecnico', mfaRequired: false });
       await refresh();
     } catch (error) {
       setMessage(error.message);
@@ -263,7 +263,7 @@ export default function UsersPermissions() {
             <input type="checkbox" checked={form.mfaRequired} onChange={(event) => updateField('mfaRequired', event.target.checked)} />
             <span>Requerir MFA para este usuario</span>
           </label>
-          <p className="muted">Para visitas puntuales usa tecnico_externo y despues concede acceso solo a la instalacion necesaria. El token se muestra una sola vez y no se guarda en claro.</p>
+          <p className="muted">Para tecnicos de la empresa usa el rol tecnico. Para visitas puntuales usa tecnico_externo y despues concede acceso solo a la instalacion necesaria. El token se muestra una sola vez y no se guarda en claro.</p>
           {message && <p className="error-text">{message}</p>}
           {lastInvitation && (
             <div className="token-box">

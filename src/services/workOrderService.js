@@ -296,6 +296,17 @@ function normalizePayload(payload) {
   };
 }
 
+function isMissingWorkOrderColumn(error, column) {
+  const message = String(error?.message || '');
+  return message.includes(column) && (message.includes('schema cache') || message.includes('column'));
+}
+
+function withoutUnsupportedWorkOrderFields(payload) {
+  const clean = { ...payload };
+  delete clean.activos_relacionados;
+  return clean;
+}
+
 function assertEditable(row) {
   if (row?.estado === 'CERRADA') {
     throw new Error('La OT esta cerrada y es de solo lectura.');
@@ -354,7 +365,7 @@ export async function createWorkOrder(tenantId, payload) {
     normalized.assigned_by = userData.user?.id || null;
     normalized.assigned_at = new Date().toISOString();
   }
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('ordenes_trabajo')
     .insert({
       tenant_id: tenantId,
@@ -363,6 +374,21 @@ export async function createWorkOrder(tenantId, payload) {
     })
     .select()
     .single();
+
+  if (error && isMissingWorkOrderColumn(error, 'activos_relacionados')) {
+    const compatiblePayload = withoutUnsupportedWorkOrderFields(normalized);
+    const retry = await supabase
+      .from('ordenes_trabajo')
+      .insert({
+        tenant_id: tenantId,
+        ...compatiblePayload,
+        created_by: userData.user?.id || null
+      })
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw error;
   await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: data.id });
@@ -378,13 +404,25 @@ export async function updateWorkOrder(row, payload) {
     normalized.assigned_at = new Date().toISOString();
     normalized.reassignment_reason = payload.reassignment_reason || null;
   }
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('ordenes_trabajo')
     .update(normalized)
     .eq('id', row.id)
     .eq('tenant_id', row.tenant_id)
     .select()
     .single();
+
+  if (error && isMissingWorkOrderColumn(error, 'activos_relacionados')) {
+    const retry = await supabase
+      .from('ordenes_trabajo')
+      .update(withoutUnsupportedWorkOrderFields(normalized))
+      .eq('id', row.id)
+      .eq('tenant_id', row.tenant_id)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw error;
   await logAudit({ tenantId: row.tenant_id, action: 'update_work_order', entityType: 'orden_trabajo', entityId: row.id });
