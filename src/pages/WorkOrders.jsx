@@ -17,6 +17,7 @@ import {
   WORK_ORDER_TYPE_LABELS,
   WORK_ORDER_TYPES
 } from '../services/workOrderService';
+import { softDeleteWorkOrder } from '../services/workOrderDeleteService';
 import { listTenantMembers } from '../services/tenantService';
 import { listTenantInvitations } from '../services/permissionService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -57,7 +58,9 @@ export default function WorkOrders() {
   const [invitations, setInvitations] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
   const [form, setForm] = useState(buildInitialForm);
 
   async function refresh() {
@@ -152,6 +155,7 @@ export default function WorkOrders() {
   async function submit(event, status) {
     event.preventDefault();
     setError('');
+    setMessage('');
     setSaving(true);
     try {
       const payload = { ...form, estado: status };
@@ -160,10 +164,30 @@ export default function WorkOrders() {
       setForm(buildInitialForm());
       setOpen(false);
       await refresh();
+      setMessage('OT creada correctamente.');
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteOrder(row) {
+    const label = row.codigo_ot || row.titulo || row.id.slice(0, 8);
+    const confirmed = window.confirm(`Vas a borrar la OT ${label}. Se ocultara del listado, pero quedara registrada en auditoria. ¿Continuar?`);
+    if (!confirmed) return;
+
+    setError('');
+    setMessage('');
+    setDeletingId(row.id);
+    try {
+      await softDeleteWorkOrder(row);
+      await refresh();
+      setMessage(`OT ${label} borrada correctamente.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingId('');
     }
   }
 
@@ -181,6 +205,7 @@ export default function WorkOrders() {
         <Link to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}
+      {message && <p className="success-text">{message}</p>}
       <DataTable
         columns={[
           { key: 'codigo_ot', label: 'OT', render: (row) => <Link to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
@@ -190,7 +215,19 @@ export default function WorkOrders() {
           { key: 'assigned_to', label: 'Tecnico', render: (row) => row.assigned?.nombre || row.assigned?.email || 'Sin asignar' },
           { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${row.prioridad === 'urgente' ? 'danger' : row.prioridad === 'alta' ? 'warn' : ''}`}>{row.prioridad}</span> },
           { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> },
-          { key: 'fecha_prevista', label: 'Prevista', render: (row) => row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-' }
+          { key: 'fecha_prevista', label: 'Prevista', render: (row) => row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-' },
+          {
+            key: 'actions',
+            label: 'Acciones',
+            render: (row) => (
+              <div className="quick-actions">
+                <Link className="secondary-button" to={`/ots/${row.id}`}>Ver</Link>
+                <button className="danger-button" type="button" disabled={deletingId === row.id} onClick={() => deleteOrder(row)}>
+                  {deletingId === row.id ? 'Borrando...' : 'Borrar'}
+                </button>
+              </div>
+            )
+          }
         ]}
         rows={rows}
         empty="Sin ordenes de trabajo creadas"
