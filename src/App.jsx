@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Security/ProtectedRoute';
-import { AdminRoute, HomeRedirect, SuperAdminRoute } from './components/Security/RoleRoute';
+import { AdminRoute, HomeRedirect, InventoryRoute, SuperAdminRoute, WorkOrderManagerRoute } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
 import AuthCallback from './pages/AuthCallback';
@@ -52,20 +52,20 @@ export default function App() {
         <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="scanner" element={<QRScanner />} />
         <Route path="clientes" element={<SuperAdminRoute><Clients /></SuperAdminRoute>} />
-        <Route path="instalaciones" element={<AdminRoute><Installations /></AdminRoute>} />
+        <Route path="instalaciones" element={<InventoryRoute><Installations /></InventoryRoute>} />
         <Route path="instalaciones/:id" element={<InstallationDetail />} />
-        <Route path="ubicaciones" element={<AdminRoute><Locations /></AdminRoute>} />
+        <Route path="ubicaciones" element={<InventoryRoute><Locations /></InventoryRoute>} />
         <Route path="ubicaciones/:id" element={<LocationDetail />} />
-        <Route path="activos" element={<AdminRoute><Assets /></AdminRoute>} />
+        <Route path="activos" element={<InventoryRoute><Assets /></InventoryRoute>} />
         <Route path="activos/:id" element={<AssetDetail />} />
-        <Route path="documentos" element={<AdminRoute><Documents /></AdminRoute>} />
-        <Route path="videos" element={<AdminRoute><Videos /></AdminRoute>} />
-        <Route path="fotos" element={<AdminRoute><Photos /></AdminRoute>} />
-        <Route path="mantenimiento" element={<AdminRoute><MaintenanceHistory /></AdminRoute>} />
-        <Route path="ots-dashboard" element={<AdminRoute><WorkOrderDashboard /></AdminRoute>} />
-        <Route path="ots" element={<AdminRoute><WorkOrders /></AdminRoute>} />
+        <Route path="documentos" element={<InventoryRoute><Documents /></InventoryRoute>} />
+        <Route path="videos" element={<InventoryRoute><Videos /></InventoryRoute>} />
+        <Route path="fotos" element={<InventoryRoute><Photos /></InventoryRoute>} />
+        <Route path="mantenimiento" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
+        <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
+        <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />
         <Route path="mis-ots" element={<MyWorkOrders />} />
-        <Route path="ots-creadas" element={<AdminRoute><MyWorkOrders mode="created" /></AdminRoute>} />
+        <Route path="ots-creadas" element={<WorkOrderManagerRoute><MyWorkOrders mode="created" /></WorkOrderManagerRoute>} />
         <Route path="ots/:id" element={<WorkOrderDetail />} />
         <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
         <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />
