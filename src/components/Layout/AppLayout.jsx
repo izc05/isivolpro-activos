@@ -7,49 +7,79 @@ import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
 
 const mainNavItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { to: '/scanner', label: 'Escaner', icon: QrCode }
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, permission: 'admin' },
+  { to: '/scanner', label: 'Escaner', icon: QrCode, permission: 'all' }
 ];
 
 const inventoryNavItems = [
-  { to: '/clientes', label: 'Clientes', icon: Building2 },
-  { to: '/instalaciones', label: 'Instalaciones', icon: Home },
-  { to: '/ubicaciones', label: 'Ubicaciones', icon: MapPin },
-  { to: '/activos', label: 'Activos', icon: Wrench },
-  { to: '/documentos', label: 'Documentos', icon: FileText },
-  { to: '/fotos', label: 'Fotos', icon: Image },
-  { to: '/videos', label: 'Videos', icon: Video },
-  { to: '/qr', label: 'QR', icon: QrCode }
+  { to: '/clientes', label: 'Clientes', icon: Building2, permission: 'super_admin' },
+  { to: '/instalaciones', label: 'Instalaciones', icon: Home, permission: 'inventory' },
+  { to: '/ubicaciones', label: 'Ubicaciones', icon: MapPin, permission: 'inventory' },
+  { to: '/activos', label: 'Activos', icon: Wrench, permission: 'inventory' },
+  { to: '/documentos', label: 'Documentos', icon: FileText, permission: 'inventory' },
+  { to: '/fotos', label: 'Fotos', icon: Image, permission: 'inventory' },
+  { to: '/videos', label: 'Videos', icon: Video, permission: 'inventory' },
+  { to: '/qr', label: 'QR', icon: QrCode, permission: 'qr' }
 ];
 
 const operationsNavItems = [
-  { to: '/ots-dashboard', label: 'Dashboard OT', icon: BarChart3 },
-  { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck },
-  { to: '/mis-ots', label: 'OT asignadas', icon: ListChecks },
-  { to: '/ots-creadas', label: 'Creadas por mi', icon: PenLine },
-  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
-  { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck },
-  { to: '/usuarios', label: 'Usuarios', icon: Users },
-  { to: '/ajustes', label: 'Ajustes', icon: Settings }
-];
-
-const technicianNavItems = [
-  { to: '/mis-ots', label: 'Mis OT', icon: ListChecks },
-  { to: '/scanner', label: 'Escaner', icon: QrCode },
-  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
-  { to: '/ajustes', label: 'Cuenta', icon: Settings }
+  { to: '/ots-dashboard', label: 'Dashboard OT', icon: BarChart3, permission: 'workorders_manage' },
+  { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
+  { to: '/mis-ots', label: 'OT asignadas', icon: ListChecks, permission: 'workorders' },
+  { to: '/ots-creadas', label: 'Creadas por mi', icon: PenLine, permission: 'workorders_manage' },
+  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' },
+  { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck, permission: 'audit' },
+  { to: '/usuarios', label: 'Usuarios', icon: Users, permission: 'users' },
+  { to: '/ajustes', label: 'Ajustes', icon: Settings, permission: 'all' }
 ];
 
 export default function AppLayout() {
   const { isSuperAdmin, profile } = useAuth();
-  const { tenants, activeTenantId, activeRole, isTenantAdmin, isTechnician, setActiveTenantId } = useTenant();
+  const tenant = useTenant();
+  const {
+    tenants,
+    activeTenantId,
+    activeRole,
+    activeRoleLabel,
+    isTenantAdmin,
+    isTechnician,
+    canViewInventory,
+    canManageWorkOrders,
+    canUseWorkOrders,
+    canManageUsers,
+    canViewAudit,
+    canUseQrGenerator,
+    canCreateIncidents,
+    setActiveTenantId
+  } = tenant;
   const location = useLocation();
-  const visibleInventoryNavItems = isSuperAdmin ? inventoryNavItems : inventoryNavItems.filter((item) => item.to !== '/clientes');
   const [inventoryOpen, setInventoryOpen] = useState(true);
+
+  const canSeeItem = (item) => {
+    if (item.permission === 'all') return true;
+    if (item.permission === 'super_admin') return isSuperAdmin;
+    if (item.permission === 'admin') return isTenantAdmin;
+    if (item.permission === 'inventory') return canViewInventory;
+    if (item.permission === 'qr') return canUseQrGenerator;
+    if (item.permission === 'workorders_manage') return canManageWorkOrders;
+    if (item.permission === 'workorders') return canUseWorkOrders || canManageWorkOrders;
+    if (item.permission === 'incidents') return canCreateIncidents;
+    if (item.permission === 'audit') return canViewAudit;
+    if (item.permission === 'users') return canManageUsers;
+    return false;
+  };
+
+  const visibleMainNavItems = mainNavItems.filter(canSeeItem);
+  const visibleInventoryNavItems = inventoryNavItems.filter(canSeeItem);
+  const visibleOperationsNavItems = operationsNavItems.filter(canSeeItem);
   const inventoryActive = visibleInventoryNavItems.some((item) => location.pathname.startsWith(item.to));
-  const showAdminNavigation = isTenantAdmin;
-  const desktopNavItems = showAdminNavigation ? null : technicianNavItems;
-  const mobileNavItems = showAdminNavigation ? [...mainNavItems, ...visibleInventoryNavItems, ...operationsNavItems] : technicianNavItems;
+  const showInventoryGroup = visibleInventoryNavItems.length > 0;
+  const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders;
+  const fallbackNavItems = visibleOperationsNavItems.filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
+  const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
+  const mobileNavItems = showFullNavigation
+    ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleOperationsNavItems]
+    : [...visibleMainNavItems, ...fallbackNavItems];
 
   return (
     <div className="app-shell">
@@ -66,19 +96,21 @@ export default function AppLayout() {
             desktopNavItems.map((item) => <NavItem key={item.to} item={item} />)
           ) : (
             <>
-              {mainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-              <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
-                <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
-                  <span>Inventario QR</span>
-                  <ChevronDown size={16} />
-                </button>
-                {inventoryOpen && (
-                  <div className="nav-group-items">
-                    {visibleInventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-                  </div>
-                )}
-              </div>
-              {operationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              {visibleMainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              {showInventoryGroup && (
+                <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
+                  <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
+                    <span>Inventario QR</span>
+                    <ChevronDown size={16} />
+                  </button>
+                  {inventoryOpen && (
+                    <div className="nav-group-items">
+                      {visibleInventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+                    </div>
+                  )}
+                </div>
+              )}
+              {visibleOperationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
             </>
           )}
         </nav>
@@ -88,11 +120,11 @@ export default function AppLayout() {
         <header className="topbar">
           <div>
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>{isTechnician ? 'Mis ordenes de trabajo' : 'Documentacion tecnica y mantenimiento por QR'}{activeRole ? ` · ${activeRole.replaceAll('_', ' ')}` : ''}</span>
+            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Documentacion tecnica y mantenimiento por QR'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
           </div>
           {tenants.length > 1 && (
             <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-              {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.nombre}</option>)}
+              {tenants.map((tenantItem) => <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>)}
             </select>
           )}
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
