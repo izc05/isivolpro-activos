@@ -3,14 +3,14 @@ export const TENANT_ROLES = ['admin_cliente', 'tecnico', 'tecnico_externo', 'cli
 export const ROLE_LABELS = {
   super_admin: 'Super administrador',
   admin_cliente: 'Administrador del cliente',
-  tecnico: 'Tecnico interno',
+  tecnico: 'Tecnico propio',
   tecnico_externo: 'Tecnico externo',
   cliente_lectura: 'Cliente solo lectura'
 };
 
 export const ROLE_DESCRIPTIONS = {
-  admin_cliente: 'Gestiona usuarios, instalaciones, QR, documentos, OT, auditoria y ajustes del cliente.',
-  tecnico: 'Puede trabajar con inventario, activos, incidencias y ordenes de trabajo del cliente.',
+  admin_cliente: 'Gestiona usuarios, instalaciones, QR, documentos, todas las OT, auditoria y ajustes del cliente.',
+  tecnico: 'Tecnico propio de la empresa. Puede ver inventario y trabajar cualquier OT que se le asigne, sin crear accesos temporales por instalacion.',
   tecnico_externo: 'Acceso limitado: mis OT, escaner, incidencias y permisos concretos por instalacion.',
   cliente_lectura: 'Consulta informacion visible para cliente sin crear ni modificar datos.'
 };
@@ -27,8 +27,8 @@ export function buildTenantPermissions({ activeRole, isSuperAdmin = false, hasTe
   const isTenantMember = Boolean(activeRole);
   const canViewInventory = Boolean(isTenantAdmin || isInternalTechnician || isReadOnlyClient);
   const canManageInventory = Boolean(isTenantAdmin || isInternalTechnician);
-  const canManageWorkOrders = Boolean(isTenantAdmin || isInternalTechnician);
-  const canUseWorkOrders = Boolean(canManageWorkOrders || isExternalTechnician);
+  const canManageWorkOrders = Boolean(isTenantAdmin);
+  const canUseWorkOrders = Boolean(isTenantAdmin || isInternalTechnician || isExternalTechnician);
   const canManageUsers = Boolean(isTenantAdmin);
   const canViewAudit = Boolean(isTenantAdmin);
   const canUseQrGenerator = Boolean(isTenantAdmin || isInternalTechnician);
