@@ -23,6 +23,11 @@ function invitationErrorMessage(error, sessionEmail) {
   return error?.message || 'No se ha podido aceptar la invitacion.';
 }
 
+function isPositiveInvitationMessage(message) {
+  const text = String(message || '').toLowerCase();
+  return text.includes('aceptada') || text.includes('cuenta creada') || text.includes('correo confirmado');
+}
+
 export default function InvitationRegister() {
   const { isAuthenticated, user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -198,7 +203,7 @@ export default function InvitationRegister() {
           <FormField label="Token de invitacion">
             <input value={token} onChange={(event) => setToken(event.target.value.trim())} placeholder="Token temporal" autoComplete="one-time-code" required />
           </FormField>
-          {message && <p className={message.includes('aceptada') ? 'muted' : 'error-text'}>{message}</p>}
+          {message && <p className={isPositiveInvitationMessage(message) ? 'muted' : 'error-text'}>{message}</p>}
           <button className="primary-button" type="submit">Aceptar invitacion</button>
           {isAuthenticated && (
             <div className="invitation-session-box">

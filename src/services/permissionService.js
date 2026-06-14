@@ -11,7 +11,15 @@ export async function createTenantInvitation({ tenantId, nombre, email, role, mf
   });
 
   if (error) throw error;
-  return data?.[0];
+  return {
+    ...data?.[0],
+    tenant_id: tenantId,
+    nombre: nombre || null,
+    email: email?.trim().toLowerCase() || '',
+    role,
+    estado: 'pendiente',
+    mfa_required: Boolean(mfaRequired)
+  };
 }
 
 export async function acceptTenantInvitation(token) {
@@ -71,7 +79,7 @@ export async function setMemberMfaRequired(userId, required) {
 export async function listInstallationAccessGrants(tenantId) {
   const { data, error } = await supabase
     .from('installation_access_grants')
-    .select('*, profiles(nombre,email), instalaciones(nombre)')
+    .select('*, profiles:profiles!installation_access_grants_user_id_fkey(nombre,email), instalaciones(nombre)')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
