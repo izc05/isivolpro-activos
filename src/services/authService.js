@@ -34,6 +34,18 @@ export async function signUpWithInvitationEmail(email, password, token = '') {
   });
 }
 
+export function resendInvitationConfirmationEmail(email, token = '') {
+  const params = new URLSearchParams({ email });
+  if (token) params.set('token', token);
+  return supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: appHashUrl(`/registro?${params.toString()}`)
+    }
+  });
+}
+
 export async function signUpDemoUser({ nombre, email, password }) {
   const signup = await supabase.auth.signUp({
     email,
