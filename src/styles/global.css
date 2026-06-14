@@ -1109,6 +1109,28 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .access-help strong {
   color: var(--primary);
 }
+
+.invitation-session-box {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+}
+
+.invitation-session-box strong {
+  color: var(--primary);
+}
+
+.invitation-session-box span {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.invitation-session-box small {
+  color: var(--muted);
+}
 .danger-button {
   border: 1px solid #fecaca;
   border-radius: 8px;

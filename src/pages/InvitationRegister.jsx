@@ -2,11 +2,29 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import FormField from '../components/Forms/FormField';
 import { acceptTenantInvitation } from '../services/permissionService';
-import { claimDemoAccess, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
+import { claimDemoAccess, signOut, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 
+function invitationErrorMessage(error, sessionEmail) {
+  const raw = String(error?.message || error || '').toLowerCase();
+
+  if (raw.includes('email does not match')) {
+    return `Esta invitacion pertenece a otro email. Ahora estas conectado como ${sessionEmail || 'otro usuario'}. Cierra sesion y entra con el email invitado.`;
+  }
+
+  if (raw.includes('invalid or expired')) {
+    return 'La invitacion no existe, ya fue aceptada/revocada o ha caducado. Crea una invitacion nueva desde Usuarios y permisos y envia el enlace nuevo al tecnico.';
+  }
+
+  if (raw.includes('authentication required')) {
+    return 'Primero crea la cuenta con el email invitado y confirma el correo. Despues vuelve a este enlace para aceptar la invitacion.';
+  }
+
+  return error?.message || 'No se ha podido aceptar la invitacion.';
+}
+
 export default function InvitationRegister() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [searchParams] = useSearchParams();
   const demoEnabled = import.meta.env.VITE_ENABLE_DEMO_SIGNUP === 'true';
   const [mode, setMode] = useState(demoEnabled ? 'demo' : 'invite');
@@ -54,12 +72,12 @@ export default function InvitationRegister() {
         setMessage('Correo confirmado e invitacion aceptada. Ya puedes entrar en la aplicacion.');
       } catch (error) {
         acceptedTokenRef.current = '';
-        setMessage(error.message);
+        setMessage(invitationErrorMessage(error, user?.email));
       }
     }
 
     completePendingInvitation();
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, user?.email]);
 
   async function submitInvitation(event) {
     event.preventDefault();
@@ -78,8 +96,13 @@ export default function InvitationRegister() {
       sessionStorage.removeItem('pendingTenantInvitation');
       setMessage('Invitacion aceptada. Ya puedes entrar en la aplicacion.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(invitationErrorMessage(error, user?.email));
     }
+  }
+
+  async function logoutForInvitation() {
+    await signOut();
+    window.location.reload();
   }
 
   async function submitDemo(event) {
@@ -177,7 +200,14 @@ export default function InvitationRegister() {
           </FormField>
           {message && <p className={message.includes('aceptada') ? 'muted' : 'error-text'}>{message}</p>}
           <button className="primary-button" type="submit">Aceptar invitacion</button>
-          {isAuthenticated && <p className="muted">Ya has iniciado sesion. Solo falta aceptar el token para unir esta cuenta al cliente.</p>}
+          {isAuthenticated && (
+            <div className="invitation-session-box">
+              <strong>Sesion actual</strong>
+              <span>{user?.email || 'Usuario conectado'}</span>
+              <small>La invitacion solo se puede aceptar con el mismo email al que se envio.</small>
+              <button className="ghost-button" type="button" onClick={logoutForInvitation}>Cerrar sesion y usar otro email</button>
+            </div>
+          )}
           </form>
         )}
         <Link className="secondary-button" to="/login">Volver al login</Link>
