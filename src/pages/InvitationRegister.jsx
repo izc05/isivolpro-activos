@@ -2,7 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import FormField from '../components/Forms/FormField';
 import { acceptTenantInvitation } from '../services/permissionService';
-import { claimDemoAccess, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
+import { claimDemoAccess, resendInvitationConfirmationEmail, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 
 export default function InvitationRegister() {
@@ -15,6 +15,8 @@ export default function InvitationRegister() {
   const [password, setPassword] = useState('');
   const [token, setToken] = useState(searchParams.get('token') || '');
   const [message, setMessage] = useState('');
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [resending, setResending] = useState(false);
   const acceptedTokenRef = useRef('');
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export default function InvitationRegister() {
         if (error) throw error;
         sessionStorage.removeItem('pendingDemoSignup');
         setMessage('Correo confirmado y acceso demo preparado. Ya puedes entrar en la aplicacion.');
+        setNeedsEmailConfirmation(false);
       } catch (error) {
         setMessage(error.message);
       }
@@ -52,6 +55,7 @@ export default function InvitationRegister() {
         await acceptTenantInvitation(tokenToAccept);
         sessionStorage.removeItem('pendingTenantInvitation');
         setMessage('Correo confirmado e invitacion aceptada. Ya puedes entrar en la aplicacion.');
+        setNeedsEmailConfirmation(false);
       } catch (error) {
         acceptedTokenRef.current = '';
         setMessage(error.message);
@@ -64,13 +68,15 @@ export default function InvitationRegister() {
   async function submitInvitation(event) {
     event.preventDefault();
     setMessage('');
+    setNeedsEmailConfirmation(false);
     try {
       if (!isAuthenticated) {
         sessionStorage.setItem('pendingTenantInvitation', JSON.stringify({ email, token: token.trim() }));
         const { data, error } = await signUpWithInvitationEmail(email, password, token.trim());
         if (error) throw error;
         if (!data.session) {
-          setMessage('Cuenta creada. Confirma el email. Si vuelves desde este movil intentaremos completar la invitacion automaticamente.');
+          setNeedsEmailConfirmation(true);
+          setMessage('Cuenta creada. Falta confirmar el email. Revisa la bandeja de entrada y spam. Si no llega, pulsa Reenviar correo de confirmacion.');
           return;
         }
       }
@@ -79,6 +85,21 @@ export default function InvitationRegister() {
       setMessage('Invitacion aceptada. Ya puedes entrar en la aplicacion.');
     } catch (error) {
       setMessage(error.message);
+    }
+  }
+
+  async function resendConfirmation() {
+    setMessage('');
+    setResending(true);
+    try {
+      const { error } = await resendInvitationConfirmationEmail(email, token.trim());
+      if (error) throw error;
+      setNeedsEmailConfirmation(true);
+      setMessage('Correo de confirmacion reenviado. Revisa Recibidos, Spam, Promociones o Todos.');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -175,7 +196,17 @@ export default function InvitationRegister() {
           <FormField label="Token de invitacion">
             <input value={token} onChange={(event) => setToken(event.target.value.trim())} placeholder="Token temporal" autoComplete="one-time-code" required />
           </FormField>
-          {message && <p className={message.includes('aceptada') ? 'muted' : 'error-text'}>{message}</p>}
+          {message && <p className={message.includes('aceptada') || message.includes('reenviado') ? 'muted' : 'error-text'}>{message}</p>}
+          {needsEmailConfirmation && !isAuthenticated && (
+            <div className="access-help">
+              <strong>No me llega el correo</strong>
+              <span>Revisa Spam, Promociones y Todos. En Gmail a veces tarda unos minutos.</span>
+              <span>Si sigue sin llegar, el administrador debe revisar en Supabase: Auth &gt; URL Configuration y Auth &gt; Email Templates.</span>
+              <button className="secondary-button" type="button" disabled={resending || !email} onClick={resendConfirmation}>
+                {resending ? 'Reenviando...' : 'Reenviar correo de confirmacion'}
+              </button>
+            </div>
+          )}
           <button className="primary-button" type="submit">Aceptar invitacion</button>
           {isAuthenticated && <p className="muted">Ya has iniciado sesion. Solo falta aceptar el token para unir esta cuenta al cliente.</p>}
           </form>
