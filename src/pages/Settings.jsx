@@ -1,10 +1,35 @@
 import PageHeader from '../components/Layout/PageHeader';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
 
 export default function Settings() {
   const { profile } = useAuth();
   const { activeTenant, activeRole, isTechnician } = useTenant();
+
+  if (!activeTenant) {
+    return (
+      <>
+        <PageHeader title="Cuenta sin empresa activa" subtitle="Tu usuario existe, pero aun no esta unido a una empresa de IsiVoltPro." />
+        <section className="card account-warning-card">
+          <h2>Falta aceptar la invitacion</h2>
+          <p><strong>Usuario:</strong> {profile?.nombre || profile?.email || '-'}</p>
+          <p><strong>Email:</strong> {profile?.email || '-'}</p>
+          <p className="warning-text">Esta cuenta no tiene cliente activo. Por eso no puedes administrar usuarios ni ver las instalaciones de la empresa.</p>
+          <div className="access-help">
+            <strong>Que hacer ahora</strong>
+            <span>Si eres tecnico: vuelve a abrir el enlace de invitacion o pulsa aceptar invitacion y pega el token que recibiste.</span>
+            <span>Si eres administrador: cierra sesion y entra con la cuenta admin de la empresa.</span>
+            <span>Si el token ha caducado, el administrador debe crear una invitacion nueva.</span>
+          </div>
+          <div className="quick-actions">
+            <Link className="primary-button" to="/registro">Aceptar invitacion</Link>
+            <Link className="secondary-button" to="/login">Volver al login</Link>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   if (isTechnician) {
     return (
