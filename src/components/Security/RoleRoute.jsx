@@ -21,7 +21,7 @@ export function InventoryRoute({ children }) {
 }
 
 export function WorkOrderManagerRoute({ children }) {
-  return <PermissionRoute allowedRoles={['admin_cliente', 'tecnico']} fallback="/mis-ots">{children}</PermissionRoute>;
+  return <PermissionRoute allowedRoles={['admin_cliente']} fallback="/mis-ots">{children}</PermissionRoute>;
 }
 
 export function TechnicianRoute({ children }) {
@@ -34,8 +34,8 @@ export function HomeRedirect() {
 
   if (authLoading || tenantLoading || roleLoading) return <p className="muted">Cargando acceso...</p>;
   if (isTenantAdmin) return <Navigate to="/dashboard" replace />;
-  if (canViewInventory) return <Navigate to="/instalaciones" replace />;
   if (canUseWorkOrders) return <Navigate to="/mis-ots" replace />;
+  if (canViewInventory) return <Navigate to="/instalaciones" replace />;
   if (activeTenantId) return <Navigate to="/scanner" replace />;
   return <Navigate to="/ajustes" replace />;
 }
