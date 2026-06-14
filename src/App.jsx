@@ -4,6 +4,7 @@ import ProtectedRoute from './components/Security/ProtectedRoute';
 import { AdminRoute, HomeRedirect, SuperAdminRoute } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
+import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import QRScanner from './pages/QRScanner';
 import QRResolver from './pages/QRResolver';
@@ -41,6 +42,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<InvitationRegister />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/aviso/:token" element={<PublicIncidentReport />} />
       <Route path="/qr/:token" element={<ProtectedRoute><QRResolver /></ProtectedRoute>} />
       <Route path="/denegado" element={<AccessDenied />} />
@@ -76,6 +78,7 @@ export default function App() {
         <Route path="ajustes" element={<Settings />} />
         <Route path="privacidad" element={<PrivacyNotice />} />
       </Route>
+      <Route path="*" element={<AuthCallback />} />
     </Routes>
   );
 }
