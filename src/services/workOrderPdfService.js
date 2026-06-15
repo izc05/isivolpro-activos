@@ -6,11 +6,14 @@ import {
   getWorkOrder,
   listChecklistPhotos,
   listWorkOrderChecklist,
+  listWorkOrderMaterials,
   listWorkOrderVisits,
-  signedChecklistPhotoUrl,
-  updateWorkOrderStatus
+  MATERIAL_MOVEMENT_LABELS,
+  signedChecklistPhotoUrl
 } from './workOrderService';
+import { updateWorkOrderLifecycleStatus } from './workOrderLifecycleService';
 import { signedVisitSignatureUrl } from './workOrderSignatureService';
+import { isWorkOrderClosed, priorityLabel, workOrderStatusLabel, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 
 const PAGE = { width: 210, height: 297, margin: 14 };
 
@@ -27,10 +30,6 @@ function formatDate(value) {
 function resultLabel(value) {
   const labels = { pendiente: 'Pendiente', ok: 'OK', no_ok: 'No OK', no_aplica: 'No aplica' };
   return labels[value] || safeText(value);
-}
-
-function statusLabel(value) {
-  return safeText(value).replaceAll('_', ' ');
 }
 
 async function urlToDataUrl(url) {
@@ -64,14 +63,12 @@ function imageFormat(dataUrl) {
 async function normalizeImageForPdf(dataUrl) {
   if (typeof dataUrl !== 'string') return dataUrl;
   if (!dataUrl.startsWith('data:image/webp')) return dataUrl;
-
   const image = new Image();
   image.src = dataUrl;
   await new Promise((resolve, reject) => {
     image.onload = resolve;
     image.onerror = reject;
   });
-
   const canvas = document.createElement('canvas');
   canvas.width = image.naturalWidth || image.width;
   canvas.height = image.naturalHeight || image.height;
@@ -151,10 +148,14 @@ function addFooter(doc) {
 }
 
 async function collectReportData(tenantId, workOrderId) {
-  const [workOrder, visits, checklist] = await Promise.all([
+  const [workOrder, visits, checklist, materials] = await Promise.all([
     getWorkOrder(tenantId, workOrderId),
     listWorkOrderVisits(tenantId, workOrderId),
-    listWorkOrderChecklist(tenantId, workOrderId)
+    listWorkOrderChecklist(tenantId, workOrderId),
+    listWorkOrderMaterials(tenantId, workOrderId).catch((error) => {
+      console.warn('No se pudieron cargar materiales para informe', error);
+      return [];
+    })
   ]);
 
   const photosByChecklistId = {};
@@ -185,19 +186,19 @@ async function collectReportData(tenantId, workOrderId) {
     visitsWithSignatures.push({ ...visit, signatureUrl });
   }
 
-  return { workOrder, visits: visitsWithSignatures, checklist, photosByChecklistId };
+  return { workOrder, visits: visitsWithSignatures, checklist, photosByChecklistId, materials };
 }
 
 export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
-  const { workOrder, visits, checklist, photosByChecklistId } = await collectReportData(tenantId, workOrderId);
+  const { workOrder, visits, checklist, photosByChecklistId, materials } = await collectReportData(tenantId, workOrderId);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   let y = addHeader(doc, 'Informe de Orden de Trabajo', `${workOrder.codigo_ot || workOrder.id} · ${workOrder.titulo}`);
 
   y = addSection(doc, y, '1. Datos generales');
   y = addKeyValue(doc, y, 'OT', workOrder.codigo_ot || workOrder.id);
-  y = addKeyValue(doc, y, 'Estado', statusLabel(workOrder.estado));
-  y = addKeyValue(doc, y, 'Tipo', workOrder.tipo);
-  y = addKeyValue(doc, y, 'Prioridad', workOrder.prioridad);
+  y = addKeyValue(doc, y, 'Estado', workOrderStatusLabel(workOrder.estado));
+  y = addKeyValue(doc, y, 'Tipo', workOrderTypeLabel(workOrder.tipo_ot || workOrder.tipo));
+  y = addKeyValue(doc, y, 'Prioridad', priorityLabel(workOrder.prioridad));
   y = addKeyValue(doc, y, 'Tecnico', workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar');
   y = addKeyValue(doc, y, 'Fecha prevista', formatDate(workOrder.fecha_prevista));
   y = addKeyValue(doc, y, 'Fecha inicio', formatDate(workOrder.fecha_inicio));
@@ -215,13 +216,16 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 
   y = addSection(doc, y, '3. Descripcion del trabajo');
   y = addParagraph(doc, y, workOrder.descripcion || 'Sin descripcion adicional.');
+  if (workOrder.trabajo_solicitado) y = addKeyValue(doc, y, 'Trabajo solicitado', workOrder.trabajo_solicitado);
+  if (workOrder.instrucciones_tecnico) y = addKeyValue(doc, y, 'Instrucciones', workOrder.instrucciones_tecnico);
+  if (workOrder.resultado_esperado) y = addKeyValue(doc, y, 'Resultado esperado', workOrder.resultado_esperado);
 
   y = addSection(doc, y, '4. Visitas');
   if (visits.length === 0) {
     y = addParagraph(doc, y, 'No hay visitas registradas.');
   } else {
     visits.forEach((visit, index) => {
-      y = addPageIfNeeded(doc, y, 26);
+      y = addPageIfNeeded(doc, y, 30);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text(`Visita ${index + 1}`, PAGE.margin, y);
@@ -231,7 +235,7 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
       y = addKeyValue(doc, y, 'Fin', formatDate(visit.fecha_fin));
       y = addKeyValue(doc, y, 'Estado', visit.estado);
       y = addKeyValue(doc, y, 'Ubicacion GPS', visit.latitud && visit.longitud ? `${visit.latitud}, ${visit.longitud}` : '-');
-      y = addParagraph(doc, y, visit.observaciones || 'Sin observaciones.');
+      y = addParagraph(doc, y, visit.trabajo_realizado || visit.observaciones || 'Sin observaciones.');
     });
   }
 
@@ -248,7 +252,6 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
       y = addKeyValue(doc, y, 'Resultado', resultLabel(item.resultado));
       y = addKeyValue(doc, y, 'Requiere foto', item.requiere_foto ? 'Si' : 'No');
       y = addParagraph(doc, y, item.observacion || 'Sin observacion.');
-
       const photos = photosByChecklistId[item.id] || [];
       if (photos.length > 0) {
         for (const photo of photos) {
@@ -263,7 +266,23 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
     }
   }
 
-  y = addSection(doc, y, '6. Firma cliente / responsable');
+  y = addSection(doc, y, '6. Materiales');
+  if (materials.length === 0) {
+    y = addParagraph(doc, y, 'No hay materiales registrados.');
+  } else {
+    for (const material of materials) {
+      y = addPageIfNeeded(doc, y, 22);
+      y = addKeyValue(doc, y, 'Material', material.descripcion_libre || material.material_id || '-');
+      y = addKeyValue(doc, y, 'Cantidad', `${material.cantidad || 0} ${material.unidad || 'ud'}`);
+      y = addKeyValue(doc, y, 'Movimiento', MATERIAL_MOVEMENT_LABELS[material.tipo_movimiento] || material.tipo_movimiento);
+      if (material.referencia) y = addKeyValue(doc, y, 'Referencia', material.referencia);
+      if (material.numero_serie) y = addKeyValue(doc, y, 'Numero serie', material.numero_serie);
+      if (material.observaciones) y = addParagraph(doc, y, material.observaciones);
+      y += 2;
+    }
+  }
+
+  y = addSection(doc, y, '7. Firma cliente / responsable');
   const signedVisits = visits.filter((visit) => visit.firma_path);
   if (signedVisits.length === 0) {
     y = addParagraph(doc, y, 'No hay firma guardada.');
@@ -289,89 +308,46 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   const { blob, filename, workOrder } = await generateWorkOrderPdfBlob(tenantId, workOrderId);
-  if (workOrder.estado === 'CERRADA') throw new Error('La OT esta cerrada y no admite nuevos informes.');
+  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevos informes.');
   const file = new File([blob], filename, { type: 'application/pdf' });
-  const path = buildStoragePath({
-    tenantId,
-    scope: 'ordenes-trabajo',
-    scopeId: workOrderId,
-    folder: 'informes',
-    file
-  });
+  const path = buildStoragePath({ tenantId, scope: 'ordenes-trabajo', scopeId: workOrderId, folder: 'informes', file });
 
   await uploadPrivateFile({
     tenantId,
     bucket: 'documents-private',
     path,
     file,
-    metadata: {
-      auditAction: 'upload_work_order_pdf_report',
-      entityType: 'orden_trabajo',
-      entityId: workOrderId
-    }
+    metadata: { auditAction: 'upload_work_order_pdf_report', entityType: 'orden_trabajo', entityId: workOrderId }
   });
 
   const { data, error } = await supabase
     .from('ot_informes')
-    .insert({
-      tenant_id: tenantId,
-      ot_id: workOrderId,
-      bucket: 'documents-private',
-      path,
-      filename,
-      created_by: (await supabase.auth.getUser()).data.user?.id || null
-    })
+    .insert({ tenant_id: tenantId, ot_id: workOrderId, bucket: 'documents-private', path, filename, created_by: (await supabase.auth.getUser()).data.user?.id || null })
     .select()
     .single();
 
   if (error) throw error;
-
-  if (!['CERRADA'].includes(workOrder.estado)) {
-    await updateWorkOrderStatus(workOrder, 'INFORME_GENERADO');
-  }
-
+  if (!['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(workOrder.estado)) await updateWorkOrderLifecycleStatus(workOrder, 'FINALIZADA');
   await logAudit({ tenantId, action: 'generate_work_order_pdf_report', entityType: 'ot_informe', entityId: data.id, metadata: { otId: workOrderId, filename } });
   return data;
 }
 
 export async function listWorkOrderReports(tenantId, workOrderId) {
-  const { data, error } = await supabase
-    .from('ot_informes')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('ot_id', workOrderId)
-    .order('created_at', { ascending: false });
-
+  const { data, error } = await supabase.from('ot_informes').select('*').eq('tenant_id', tenantId).eq('ot_id', workOrderId).order('created_at', { ascending: false });
   if (error) throw error;
   const reports = data || [];
   const userIds = [...new Set(reports.map((report) => report.created_by).filter(Boolean))];
   if (userIds.length === 0) return reports;
-
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select('id,nombre,email')
-    .in('id', userIds);
-
+  const { data: profiles, error: profileError } = await supabase.from('profiles').select('id,nombre,email').in('id', userIds);
   if (profileError) {
     console.warn('No se pudieron cargar perfiles de informes OT', profileError);
     return reports;
   }
-
   const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
-  return reports.map((report) => ({
-    ...report,
-    created_by_profile: profileById.get(report.created_by) || null
-  }));
+  return reports.map((report) => ({ ...report, created_by_profile: profileById.get(report.created_by) || null }));
 }
 
 export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
   if (!report?.bucket || !report?.path) return '';
-  return createSignedUrl({
-    tenantId: report.tenant_id,
-    bucket: report.bucket,
-    path: report.path,
-    entityType: 'ot_informe',
-    entityId: report.id,
-    expiresIn
-  });
+  return createSignedUrl({ tenantId: report.tenant_id, bucket: report.bucket, path: report.path, entityType: 'ot_informe', entityId: report.id, expiresIn });
 }
