@@ -25,6 +25,7 @@ const inventoryNavItems = [
 const workOrderNavItems = [
   { to: '/ots-dashboard', label: 'Panel OT', icon: BarChart3, permission: 'workorders_manage' },
   { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
+  { to: '/ots-realizadas', label: 'OT realizadas', icon: CheckIcon, permission: 'workorders_manage' },
   { to: '/mis-ots', label: 'Mis OT asignadas', icon: ListChecks, permission: 'workorders' },
   { to: '/ots-creadas', label: 'OT creadas por mi', icon: PenLine, permission: 'workorders_manage' },
   { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' }
@@ -39,6 +40,10 @@ const userNavItems = [
 
 function UserIcon(props) {
   return <Users {...props} />;
+}
+
+function CheckIcon(props) {
+  return <ClipboardCheck {...props} />;
 }
 
 export default function AppLayout() {
@@ -178,8 +183,8 @@ function NavGroup({ title, items, open, active, onToggle }) {
 function NavItem({ item, compact = false }) {
   const Icon = item.icon;
   return (
-    <NavLink to={item.to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-      <Icon size={compact ? 20 : 18} />
+    <NavLink to={item.to} className={({ isActive }) => `nav-item ${compact ? 'compact' : ''} ${isActive ? 'active' : ''}`}>
+      <Icon size={20} />
       <span>{item.label}</span>
     </NavLink>
   );
