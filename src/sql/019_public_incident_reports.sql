@@ -14,7 +14,7 @@ create table if not exists public.external_incident_reports (
   reporter_hash text not null,
   title text not null,
   description text not null,
-  priority text not null default 'media' check (priority in ('baja', 'media', 'alta', 'urgente')),
+  priority text not null default 'media' check (priority in ('baja', 'media', 'alta', 'urgente', 'critica')),
   status text not null default 'accepted' check (status in ('accepted', 'duplicate_blocked', 'reviewed', 'rejected')),
   incidencia_id uuid references public.incidencias(id) on delete set null,
   user_agent text,
@@ -131,7 +131,7 @@ begin
   if nullif(trim(report_description), '') is null or length(trim(report_description)) > 1200 then
     raise exception 'Descripcion obligatoria';
   end if;
-  if coalesce(report_priority, 'media') not in ('baja', 'media', 'alta', 'urgente') then
+  if coalesce(report_priority, 'media') not in ('baja', 'media', 'alta', 'urgente', 'critica') then
     raise exception 'Prioridad no valida';
   end if;
 
@@ -189,7 +189,8 @@ begin
     titulo,
     descripcion,
     prioridad,
-    estado
+    estado,
+    notas_revision
   )
   values (
     qr_row.tenant_id,
@@ -197,9 +198,10 @@ begin
     resolved_location_id,
     resolved_asset_id,
     trim(report_title),
-    'Aviso externo recibido por QR. Revisar datos de contacto en external_incident_reports. ' || trim(report_description),
+    'Aviso externo recibido por QR. ' || trim(report_description),
     coalesce(report_priority, 'media'),
-    'observada'
+    'abierta',
+    'Origen: aviso publico por QR. Contacto: ' || trim(reporter_name) || ' - ' || trim(reporter_contact)
   )
   returning id into new_incident_id;
 
@@ -255,3 +257,7 @@ $$;
 
 grant execute on function public.public_qr_context(text) to anon, authenticated;
 grant execute on function public.submit_public_incident(text, text, text, text, text, text, text) to anon, authenticated;
+
+update public.incidencias
+set estado = 'abierta'
+where estado = 'observada';
