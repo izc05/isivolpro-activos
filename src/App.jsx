@@ -30,6 +30,7 @@ import WorkOrderReport from './pages/WorkOrderReport';
 import Incidents from './pages/Incidents';
 import QRGenerator from './pages/QRGenerator';
 import AuditLogs from './pages/AuditLogs';
+import UserModule from './pages/UserModule';
 import UsersPermissions from './pages/UsersPermissions';
 import Settings from './pages/Settings';
 import AccessDenied from './pages/AccessDenied';
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="ots/:id/informe" element={<WorkOrderReport />} />
         <Route path="incidencias" element={<Incidents />} />
         <Route path="qr" element={<AdminRoute><QRGenerator /></AdminRoute>} />
+        <Route path="usuarios-panel" element={<AdminRoute><UserModule /></AdminRoute>} />
         <Route path="auditoria" element={<AdminRoute><AuditLogs /></AdminRoute>} />
         <Route path="usuarios" element={<AdminRoute><UsersPermissions /></AdminRoute>} />
         <Route path="ajustes" element={<Settings />} />
