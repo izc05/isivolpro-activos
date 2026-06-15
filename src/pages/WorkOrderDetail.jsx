@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle2, ClipboardCheck, Mail, Navigation, Phone } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Mail, Navigation, PackagePlus, Phone } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
+import DataTable from '../components/Cards/DataTable';
+import FormField from '../components/Forms/FormField';
+import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenant } from '../hooks/useTenant';
-import { getWorkOrder, REQUIREMENT_FIELDS } from '../services/workOrderService';
+import {
+  createVisitMaterial,
+  getWorkOrder,
+  listWorkOrderMaterials,
+  MATERIAL_MOVEMENT_LABELS,
+  MATERIAL_MOVEMENT_TYPES,
+  REQUIREMENT_FIELDS
+} from '../services/workOrderService';
 import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
 import {
   isWorkOrderClosed,
@@ -19,20 +29,42 @@ import {
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
 
+const EMPTY_MATERIAL = {
+  descripcion_libre: '',
+  referencia: '',
+  cantidad: '1',
+  unidad: 'ud',
+  tipo_movimiento: 'utilizado',
+  numero_serie: '',
+  observaciones: ''
+};
+
 export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { activeTenantId } = useTenant();
   const [row, setRow] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [materialDraft, setMaterialDraft] = useState(EMPTY_MATERIAL);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingMaterial, setSavingMaterial] = useState(false);
 
   async function refresh() {
     if (!activeTenantId || !id) return;
     setLoading(true);
     try {
-      const data = await getWorkOrder(activeTenantId, id);
+      const [data, materialData] = await Promise.all([
+        getWorkOrder(activeTenantId, id),
+        listWorkOrderMaterials(activeTenantId, id).catch((err) => {
+          console.warn('No se pudieron cargar materiales OT', err);
+          return [];
+        })
+      ]);
       setRow(data);
+      setMaterials(materialData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,13 +79,38 @@ export default function WorkOrderDetail() {
   async function changeStatus(status) {
     if (!row) return;
     setError('');
+    setMessage('');
     try {
       const reopenReason = status === 'REABRIR' ? window.prompt('Motivo de reapertura') : '';
       if (status === 'REABRIR' && !reopenReason) return;
       const updated = await updateWorkOrderLifecycleStatus(row, status, { reopenReason });
       setRow((current) => ({ ...current, ...updated }));
+      setMessage(`Estado actualizado a ${statusLabel(updated.estado)}.`);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  function updateMaterialDraft(field, value) {
+    setMaterialDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  async function addMaterial(event) {
+    event.preventDefault();
+    if (!row) return;
+    setError('');
+    setMessage('');
+    setSavingMaterial(true);
+    try {
+      await createVisitMaterial(row, null, materialDraft);
+      setMaterialDraft(EMPTY_MATERIAL);
+      setMaterialOpen(false);
+      setMaterials(await listWorkOrderMaterials(row.tenant_id, row.id));
+      setMessage('Material registrado correctamente.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingMaterial(false);
     }
   }
 
@@ -72,6 +129,7 @@ export default function WorkOrderDetail() {
         action={<button className="ghost-button" onClick={() => navigate('/ots')}>Volver</button>}
       />
       {error && <p className="error-text">{error}</p>}
+      {message && <p className="success-text">{message}</p>}
 
       <CollapsibleSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validacion final" icon={ClipboardCheck} badge={row.estado} defaultOpen>
         <div className="detail-list">
@@ -91,12 +149,7 @@ export default function WorkOrderDetail() {
         {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
         <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           {nextActions.map((status) => (
-            <button
-              key={status}
-              className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'}
-              type="button"
-              onClick={() => changeStatus(status)}
-            >
+            <button key={status} className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'} type="button" onClick={() => changeStatus(status)}>
               {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
             </button>
           ))}
@@ -128,14 +181,31 @@ export default function WorkOrderDetail() {
         </div>
       </CollapsibleSection>
 
+      <CollapsibleSection
+        title="Materiales"
+        subtitle="Material usado, retirado, devuelto o pendiente de pedir"
+        icon={PackagePlus}
+        badge={`${materials.length}`}
+        defaultOpen={materials.length > 0 || row.configuracion?.requiere_materiales}
+        actions={!isClosed && <button className="secondary-button" type="button" onClick={() => setMaterialOpen(true)}><PackagePlus size={18} /> Añadir material</button>}
+      >
+        <DataTable
+          columns={[
+            { key: 'descripcion_libre', label: 'Material', render: (item) => item.descripcion_libre || item.material_id || '-' },
+            { key: 'cantidad', label: 'Cantidad', render: (item) => `${item.cantidad || 0} ${item.unidad || 'ud'}` },
+            { key: 'tipo_movimiento', label: 'Tipo', render: (item) => <span className="badge">{MATERIAL_MOVEMENT_LABELS[item.tipo_movimiento] || item.tipo_movimiento}</span> },
+            { key: 'referencia', label: 'Referencia', render: (item) => item.referencia || '-' },
+            { key: 'numero_serie', label: 'Nº serie', render: (item) => item.numero_serie || '-' },
+            { key: 'visita', label: 'Visita', render: (item) => item.visita?.fecha_inicio ? formatDateTime(item.visita.fecha_inicio) : 'OT general' },
+            { key: 'observaciones', label: 'Observaciones', render: (item) => item.observaciones || '-' }
+          ]}
+          rows={materials}
+          empty="Sin materiales registrados en esta OT."
+        />
+      </CollapsibleSection>
+
       <CollapsibleSection title="Requisitos de cierre" subtitle="Checklist, fotos, firma, mediciones e informe" icon={CheckCircle2} badge={`${requirements.length}`} defaultOpen={false}>
-        {requirements.length === 0 ? (
-          <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p>
-        ) : (
-          <div className="requirement-grid">
-            {requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}
-          </div>
-        )}
+        {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </CollapsibleSection>
 
       <CollapsibleSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
@@ -148,17 +218,47 @@ export default function WorkOrderDetail() {
           {row.configuracion?.requiere_informe && <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>}
         </div>
       </CollapsibleSection>
+
+      <Modal title="Añadir material a la OT" open={materialOpen} onClose={() => setMaterialOpen(false)}>
+        <form className="form-grid" onSubmit={addMaterial}>
+          <div className="grid two">
+            <FormField label="Descripcion libre">
+              <input value={materialDraft.descripcion_libre} onChange={(event) => updateMaterialDraft('descripcion_libre', event.target.value)} placeholder="Ej. Valvula, junta, fusible, filtro..." required />
+            </FormField>
+            <FormField label="Referencia">
+              <input value={materialDraft.referencia} onChange={(event) => updateMaterialDraft('referencia', event.target.value)} />
+            </FormField>
+            <FormField label="Cantidad">
+              <input type="number" min="0" step="0.01" value={materialDraft.cantidad} onChange={(event) => updateMaterialDraft('cantidad', event.target.value)} />
+            </FormField>
+            <FormField label="Unidad">
+              <input value={materialDraft.unidad} onChange={(event) => updateMaterialDraft('unidad', event.target.value)} placeholder="ud, m, l, kg..." />
+            </FormField>
+            <FormField label="Movimiento">
+              <select value={materialDraft.tipo_movimiento} onChange={(event) => updateMaterialDraft('tipo_movimiento', event.target.value)}>
+                {MATERIAL_MOVEMENT_TYPES.map((type) => <option key={type} value={type}>{MATERIAL_MOVEMENT_LABELS[type] || type.replaceAll('_', ' ')}</option>)}
+              </select>
+            </FormField>
+            <FormField label="Numero de serie">
+              <input value={materialDraft.numero_serie} onChange={(event) => updateMaterialDraft('numero_serie', event.target.value)} />
+            </FormField>
+          </div>
+          <FormField label="Observaciones">
+            <textarea rows="3" value={materialDraft.observaciones} onChange={(event) => updateMaterialDraft('observaciones', event.target.value)} />
+          </FormField>
+          <p className="muted">Este registro queda asociado a la OT general. Si lo añades desde una visita, quedara vinculado tambien a esa intervencion.</p>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setMaterialOpen(false)}>Cancelar</button>
+            <button className="primary-button" type="submit" disabled={savingMaterial}>{savingMaterial ? 'Guardando...' : 'Registrar material'}</button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }
 
 function Detail({ label, value }) {
-  return (
-    <div className="detail-row">
-      <span className="muted">{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <div className="detail-row"><span className="muted">{label}</span><strong>{value}</strong></div>;
 }
 
 function InstallationContactPanel({ installation }) {
@@ -166,9 +266,7 @@ function InstallationContactPanel({ installation }) {
   const embedUrl = buildMapsEmbedUrl(installation);
   const phone = installation?.contacto_telefono;
   const email = installation?.contacto_email;
-
   if (!installation) return null;
-
   return (
     <div className="ot-installation-panel">
       <div className="quick-actions">
