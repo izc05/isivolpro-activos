@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle2, ClipboardCheck, Mail, Navigation, PackagePlus, Phone } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Mail, Navigation, PackagePlus, Phone, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
@@ -11,12 +11,12 @@ import { useTenant } from '../hooks/useTenant';
 import {
   createVisitMaterial,
   getWorkOrder,
-  listWorkOrderMaterials,
   MATERIAL_MOVEMENT_LABELS,
   MATERIAL_MOVEMENT_TYPES,
   REQUIREMENT_FIELDS
 } from '../services/workOrderService';
 import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
+import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
 import {
   isWorkOrderClosed,
   priorityLabel,
@@ -39,32 +39,37 @@ const EMPTY_MATERIAL = {
   observaciones: ''
 };
 
+const EMPTY_REVIEW_DATA = { checklist: [], visits: [], materials: [], photos: [], reports: [] };
+
 export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, canManageWorkOrders } = useTenant();
   const [row, setRow] = useState(null);
-  const [materials, setMaterials] = useState([]);
+  const [reviewData, setReviewData] = useState(EMPTY_REVIEW_DATA);
   const [materialOpen, setMaterialOpen] = useState(false);
   const [materialDraft, setMaterialDraft] = useState(EMPTY_MATERIAL);
+  const [reviewNotes, setReviewNotes] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingMaterial, setSavingMaterial] = useState(false);
+  const [validating, setValidating] = useState(false);
 
   async function refresh() {
     if (!activeTenantId || !id) return;
     setLoading(true);
     try {
-      const [data, materialData] = await Promise.all([
+      const [data, finalReview] = await Promise.all([
         getWorkOrder(activeTenantId, id),
-        listWorkOrderMaterials(activeTenantId, id).catch((err) => {
-          console.warn('No se pudieron cargar materiales OT', err);
-          return [];
+        loadWorkOrderFinalReview(activeTenantId, id).catch((err) => {
+          console.warn('No se pudo cargar la revision final OT', err);
+          return EMPTY_REVIEW_DATA;
         })
       ]);
       setRow(data);
-      setMaterials(materialData);
+      setReviewData(finalReview);
+      setReviewNotes(data.revision_admin_notas || '');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,8 +81,38 @@ export default function WorkOrderDetail() {
     refresh();
   }, [activeTenantId, id]);
 
+  const isClosed = row ? isWorkOrderClosed(row) : false;
+  const materials = reviewData.materials || [];
+  const reviewItems = useMemo(() => (row ? buildFinalReviewItems(row, reviewData) : []), [row, reviewData]);
+  const canValidateReview = finalReviewCanValidate(reviewItems);
+
+  async function validateFinalReview() {
+    if (!row) return;
+    if (!canManageWorkOrders) {
+      setError('Solo un administrador puede validar definitivamente la OT.');
+      return;
+    }
+    setError('');
+    setMessage('');
+    setValidating(true);
+    try {
+      const updated = await validateWorkOrderAsAdmin(row, reviewItems, reviewNotes);
+      setRow((current) => ({ ...current, ...updated }));
+      setMessage('OT validada correctamente por administracion.');
+      await refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setValidating(false);
+    }
+  }
+
   async function changeStatus(status) {
     if (!row) return;
+    if (status === 'VALIDADA') {
+      await validateFinalReview();
+      return;
+    }
     setError('');
     setMessage('');
     try {
@@ -86,6 +121,7 @@ export default function WorkOrderDetail() {
       const updated = await updateWorkOrderLifecycleStatus(row, status, { reopenReason });
       setRow((current) => ({ ...current, ...updated }));
       setMessage(`Estado actualizado a ${statusLabel(updated.estado)}.`);
+      await refresh();
     } catch (err) {
       setError(err.message);
     }
@@ -105,8 +141,8 @@ export default function WorkOrderDetail() {
       await createVisitMaterial(row, null, materialDraft);
       setMaterialDraft(EMPTY_MATERIAL);
       setMaterialOpen(false);
-      setMaterials(await listWorkOrderMaterials(row.tenant_id, row.id));
       setMessage('Material registrado correctamente.');
+      await refresh();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -117,9 +153,9 @@ export default function WorkOrderDetail() {
   if (loading) return <p className="muted">Cargando orden de trabajo...</p>;
   if (!row) return <p className="error-text">No se ha encontrado la orden de trabajo.</p>;
 
-  const isClosed = isWorkOrderClosed(row);
-  const nextActions = validNextActions(row);
+  const nextActions = validNextActions(row).filter((status) => status !== 'VALIDADA' || canManageWorkOrders);
   const requirements = REQUIREMENT_FIELDS.filter(([field]) => row.configuracion?.[field]);
+  const pendingReviewItems = reviewItems.filter((item) => item.blocking);
 
   return (
     <>
@@ -144,6 +180,8 @@ export default function WorkOrderDetail() {
           <Detail label="Duracion estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
           <Detail label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
           <Detail label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
+          <Detail label="Revision admin" value={row.revision_admin_estado || 'no_requerida'} />
+          <Detail label="Validada el" value={row.closed_at ? formatDateTime(row.closed_at) : '-'} />
         </div>
         {statusTransitionHelp(row.estado) && <p className="muted">{statusTransitionHelp(row.estado)}</p>}
         {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
@@ -154,6 +192,43 @@ export default function WorkOrderDetail() {
             </button>
           ))}
         </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Revision final"
+        subtitle="Comprobacion previa antes de cerrar definitivamente la OT"
+        icon={ShieldCheck}
+        badge={canValidateReview ? 'lista' : `${pendingReviewItems.length} pendiente(s)`}
+        defaultOpen={row.estado === 'FINALIZADA' || pendingReviewItems.length > 0}
+      >
+        <div className="final-review-list">
+          {reviewItems.map((item) => (
+            <article className={`final-review-item ${item.passed ? 'ok' : item.required ? 'danger' : 'warn'}`} key={item.key}>
+              <span>{item.passed ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}</span>
+              <div>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+              </div>
+              <b>{item.required ? 'obligatorio' : 'opcional'}</b>
+            </article>
+          ))}
+        </div>
+        {pendingReviewItems.length > 0 && <p className="warning-text">No se puede validar todavía. Faltan requisitos obligatorios.</p>}
+        {canManageWorkOrders && !isClosed && (
+          <div className="form-grid" style={{ marginTop: 14 }}>
+            <FormField label="Notas de revision del administrador">
+              <textarea rows="3" value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="Ej. Revisado informe, fotos y firma. Se valida cierre." />
+            </FormField>
+            <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+              <button className="primary-button" type="button" disabled={!canValidateReview || validating} onClick={validateFinalReview}>
+                {validating ? 'Validando...' : 'Validar OT'}
+              </button>
+              <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Revisar informe</Link>
+              <Link className="ghost-button" to={`/ots/${row.id}/checklist`}>Revisar checklist</Link>
+            </div>
+          </div>
+        )}
+        {!canManageWorkOrders && <p className="muted">Solo el administrador puede validar definitivamente la OT.</p>}
       </CollapsibleSection>
 
       <CollapsibleSection title="Instalacion y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen>
@@ -225,27 +300,13 @@ export default function WorkOrderDetail() {
             <FormField label="Descripcion libre">
               <input value={materialDraft.descripcion_libre} onChange={(event) => updateMaterialDraft('descripcion_libre', event.target.value)} placeholder="Ej. Valvula, junta, fusible, filtro..." required />
             </FormField>
-            <FormField label="Referencia">
-              <input value={materialDraft.referencia} onChange={(event) => updateMaterialDraft('referencia', event.target.value)} />
-            </FormField>
-            <FormField label="Cantidad">
-              <input type="number" min="0" step="0.01" value={materialDraft.cantidad} onChange={(event) => updateMaterialDraft('cantidad', event.target.value)} />
-            </FormField>
-            <FormField label="Unidad">
-              <input value={materialDraft.unidad} onChange={(event) => updateMaterialDraft('unidad', event.target.value)} placeholder="ud, m, l, kg..." />
-            </FormField>
-            <FormField label="Movimiento">
-              <select value={materialDraft.tipo_movimiento} onChange={(event) => updateMaterialDraft('tipo_movimiento', event.target.value)}>
-                {MATERIAL_MOVEMENT_TYPES.map((type) => <option key={type} value={type}>{MATERIAL_MOVEMENT_LABELS[type] || type.replaceAll('_', ' ')}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Numero de serie">
-              <input value={materialDraft.numero_serie} onChange={(event) => updateMaterialDraft('numero_serie', event.target.value)} />
-            </FormField>
+            <FormField label="Referencia"><input value={materialDraft.referencia} onChange={(event) => updateMaterialDraft('referencia', event.target.value)} /></FormField>
+            <FormField label="Cantidad"><input type="number" min="0" step="0.01" value={materialDraft.cantidad} onChange={(event) => updateMaterialDraft('cantidad', event.target.value)} /></FormField>
+            <FormField label="Unidad"><input value={materialDraft.unidad} onChange={(event) => updateMaterialDraft('unidad', event.target.value)} placeholder="ud, m, l, kg..." /></FormField>
+            <FormField label="Movimiento"><select value={materialDraft.tipo_movimiento} onChange={(event) => updateMaterialDraft('tipo_movimiento', event.target.value)}>{MATERIAL_MOVEMENT_TYPES.map((type) => <option key={type} value={type}>{MATERIAL_MOVEMENT_LABELS[type] || type.replaceAll('_', ' ')}</option>)}</select></FormField>
+            <FormField label="Numero de serie"><input value={materialDraft.numero_serie} onChange={(event) => updateMaterialDraft('numero_serie', event.target.value)} /></FormField>
           </div>
-          <FormField label="Observaciones">
-            <textarea rows="3" value={materialDraft.observaciones} onChange={(event) => updateMaterialDraft('observaciones', event.target.value)} />
-          </FormField>
+          <FormField label="Observaciones"><textarea rows="3" value={materialDraft.observaciones} onChange={(event) => updateMaterialDraft('observaciones', event.target.value)} /></FormField>
           <p className="muted">Este registro queda asociado a la OT general. Si lo añades desde una visita, quedara vinculado tambien a esa intervencion.</p>
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={() => setMaterialOpen(false)}>Cancelar</button>
