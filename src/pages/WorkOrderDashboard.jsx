@@ -7,8 +7,7 @@ import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge'
 import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders, listWorkOrderVisitsForTenant } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
-
-const ACTIVE_STATUSES = ['ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
+import { ACTIVE_WORK_ORDER_STATUSES, FINISHED_WORK_ORDER_STATUSES, normalizedStatus } from '../utils/workOrderLifecycle';
 
 export default function WorkOrderDashboard() {
   const { activeTenantId } = useTenant();
@@ -40,13 +39,15 @@ export default function WorkOrderDashboard() {
   }, [activeTenantId]);
 
   const metrics = useMemo(() => {
-    const open = orders.filter((order) => ACTIVE_STATUSES.includes(order.estado)).length;
-    const inProgress = orders.filter((order) => order.estado === 'EN_CURSO').length;
-    const pending = orders.filter((order) => ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(order.estado)).length;
-    const finished = orders.filter((order) => ['FINALIZADA', 'FIRMADA', 'INFORME_GENERADO'].includes(order.estado)).length;
-    const unassigned = orders.filter((order) => !order.assigned_to && !['CERRADA', 'CANCELADA'].includes(order.estado)).length;
+    const open = orders.filter((order) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))).length;
+    const inProgress = orders.filter((order) => normalizedStatus(order.estado) === 'EN_CURSO').length;
+    const pending = orders.filter((order) => ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(normalizedStatus(order.estado))).length;
+    const finished = orders.filter((order) => FINISHED_WORK_ORDER_STATUSES.includes(order.estado) || normalizedStatus(order.estado) === 'FINALIZADA').length;
+    const validated = orders.filter((order) => normalizedStatus(order.estado) === 'VALIDADA').length;
+    const unassigned = orders.filter((order) => !order.assigned_to && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
     const activeVisits = visits.filter((visit) => visit.estado === 'EN_CURSO').length;
-    return { open, inProgress, pending, finished, unassigned, activeVisits };
+    const overdue = orders.filter((order) => order.fecha_limite && new Date(order.fecha_limite) < new Date() && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
+    return { open, inProgress, pending, finished, validated, unassigned, activeVisits, overdue };
   }, [orders, visits]);
 
   const recentOrders = useMemo(() => orders.slice(0, 8), [orders]);
@@ -68,7 +69,7 @@ export default function WorkOrderDashboard() {
     <>
       <PageHeader
         title="Dashboard OT"
-        subtitle="Seguimiento operativo de ordenes creadas, asignadas a tecnicos y visitas en campo."
+        subtitle="Seguimiento operativo de ordenes nuevas, asignadas, en curso, pendientes, finalizadas y validadas."
         action={<Link className="primary-button" to="/ots">Gestionar OT</Link>}
       />
       {error && <p className="error-text">{error}</p>}
@@ -77,7 +78,9 @@ export default function WorkOrderDashboard() {
         <Metric icon={<ClipboardCheck size={22} />} label="OT abiertas" value={metrics.open} />
         <Metric icon={<Activity size={22} />} label="En curso" value={metrics.inProgress} />
         <Metric icon={<AlertTriangle size={22} />} label="Pendientes" value={metrics.pending} tone="warn" />
+        <Metric icon={<AlertTriangle size={22} />} label="Vencidas" value={metrics.overdue} tone="danger" />
         <Metric icon={<FileCheck2 size={22} />} label="Finalizadas" value={metrics.finished} tone="ok" />
+        <Metric icon={<FileCheck2 size={22} />} label="Validadas" value={metrics.validated} tone="ok" />
         <Metric icon={<UserRoundX size={22} />} label="Sin tecnico" value={metrics.unassigned} tone="danger" />
         <Metric icon={<Clock size={22} />} label="Visitas activas" value={metrics.activeVisits} />
       </div>
