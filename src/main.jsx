@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './hooks/useAuth';
 import { TenantProvider } from './hooks/useTenant';
 import './styles/global.css';
+import './styles/workflow.css';
 import './styles/finalReview.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
