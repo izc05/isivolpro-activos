@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Filter, FileText, Package, Wrench } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Filter, FileText, Image, Package, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
+import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenant } from '../hooks/useTenant';
-import { listWorkOrders } from '../services/workOrderService';
+import {
+  listChecklistPhotos,
+  listWorkOrderChecklist,
+  listWorkOrders,
+  signedChecklistPhotoUrl
+} from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 import { normalizedStatus, priorityLabel, priorityTone, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 import { supabase } from '../services/supabaseClient';
@@ -18,6 +24,12 @@ export default function CompletedWorkOrders() {
   const [rows, setRows] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [reports, setReports] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [checklistRows, setChecklistRows] = useState([]);
+  const [checklistPhotos, setChecklistPhotos] = useState({});
+  const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', status: 'todas', date: 'todas' });
@@ -30,15 +42,18 @@ export default function CompletedWorkOrders() {
       const workOrders = await listWorkOrders(activeTenantId);
       const completed = workOrders.filter((row) => DONE_STATUSES.includes(normalizedStatus(row.estado)) || DONE_STATUSES.includes(row.estado));
       const otIds = completed.map((row) => row.id);
-      const [materialsRes, reportsRes] = await Promise.all([
+      const [materialsRes, reportsRes, photosRes] = await Promise.all([
         otIds.length ? supabase.from('ot_visita_materiales').select('*').eq('tenant_id', activeTenantId).in('ot_id', otIds) : Promise.resolve({ data: [], error: null }),
-        otIds.length ? supabase.from('ot_informes').select('*').eq('tenant_id', activeTenantId).in('ot_id', otIds) : Promise.resolve({ data: [], error: null })
+        otIds.length ? supabase.from('ot_informes').select('*').eq('tenant_id', activeTenantId).in('ot_id', otIds) : Promise.resolve({ data: [], error: null }),
+        otIds.length ? supabase.from('ot_fotos').select('*').eq('tenant_id', activeTenantId).in('ot_id', otIds).order('created_at', { ascending: false }) : Promise.resolve({ data: [], error: null })
       ]);
       if (materialsRes.error) throw materialsRes.error;
       if (reportsRes.error) throw reportsRes.error;
+      if (photosRes.error) throw photosRes.error;
       setRows(completed);
       setMaterials(materialsRes.data || []);
       setReports(reportsRes.data || []);
+      setPhotos(photosRes.data || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,6 +67,7 @@ export default function CompletedWorkOrders() {
 
   const materialCountByOt = useMemo(() => countBy(materials, 'ot_id'), [materials]);
   const reportCountByOt = useMemo(() => countBy(reports, 'ot_id'), [reports]);
+  const photoCountByOt = useMemo(() => countBy(photos, 'ot_id'), [photos]);
 
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
@@ -75,14 +91,45 @@ export default function CompletedWorkOrders() {
     finalizadas: rows.filter((row) => normalizedStatus(row.estado) === 'FINALIZADA').length,
     validadas: rows.filter((row) => normalizedStatus(row.estado) === 'VALIDADA' || row.estado === 'CERRADA').length,
     materiales: materials.length,
-    informes: reports.length
-  }), [rows, materials, reports]);
+    informes: reports.length,
+    fotos: photos.length
+  }), [rows, materials, reports, photos]);
+
+  async function openChecklist(row) {
+    setSelectedOrder(row);
+    setChecklistRows([]);
+    setChecklistPhotos({});
+    setChecklistOpen(true);
+    setLoadingChecklist(true);
+    setError('');
+    try {
+      const checklist = await listWorkOrderChecklist(row.tenant_id, row.id);
+      const photosByItem = {};
+      for (const item of checklist) {
+        const itemPhotos = await listChecklistPhotos(row.tenant_id, item.id);
+        photosByItem[item.id] = await Promise.all((itemPhotos || []).map(async (photo) => {
+          try {
+            return { ...photo, signedUrl: await signedChecklistPhotoUrl(photo, 900) };
+          } catch (err) {
+            console.warn('No se pudo firmar foto de checklist', err);
+            return { ...photo, signedUrl: '' };
+          }
+        }));
+      }
+      setChecklistRows(checklist);
+      setChecklistPhotos(photosByItem);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingChecklist(false);
+    }
+  }
 
   if (loading) return <p className="muted">Cargando OT realizadas...</p>;
 
   return (
     <>
-      <PageHeader title="OT realizadas" subtitle="Histórico de trabajos finalizados, validados, materiales usados e informes generados." action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
+      <PageHeader title="OT realizadas" subtitle="Histórico de trabajos finalizados, validados, checklist completo, fotos, materiales e informes." action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
         <Link to="/ots">Todas</Link>
@@ -97,6 +144,7 @@ export default function CompletedWorkOrders() {
           <article className="metric-card"><span>Realizadas</span><strong>{metrics.realizadas}</strong></article>
           <article className="metric-card warn"><span>Finalizadas sin validar</span><strong>{metrics.finalizadas}</strong></article>
           <article className="metric-card"><span>Validadas/cerradas</span><strong>{metrics.validadas}</strong></article>
+          <article className="metric-card"><span>Fotos OT</span><strong>{metrics.fotos}</strong></article>
           <article className="metric-card"><span>Materiales</span><strong>{metrics.materiales}</strong></article>
           <article className="metric-card"><span>Informes</span><strong>{metrics.informes}</strong></article>
         </section>
@@ -112,7 +160,7 @@ export default function CompletedWorkOrders() {
         <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'FINALIZADA' }))}>Pendientes validar</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, date: '30' }))}>Últimos 30 días</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todas', date: 'todas' })}>Limpiar</button></div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con acceso a informe y detalle" icon={Wrench} defaultOpen>
+      <CollapsibleSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con checklist, fotos, informe y detalle" icon={Wrench} defaultOpen>
         <DataTable
           columns={[
             { key: 'codigo_ot', label: 'OT', render: (row) => <Link className="table-link" to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
@@ -124,14 +172,51 @@ export default function CompletedWorkOrders() {
             { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad)}</span> },
             { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> },
             { key: 'fecha_fin', label: 'Finalización', render: (row) => row.fecha_fin || row.closed_at ? formatDateTime(row.fecha_fin || row.closed_at) : '-' },
+            { key: 'fotos', label: 'Fotos', render: (row) => <span className="badge"><Image size={14} /> {photoCountByOt.get(row.id) || 0}</span> },
             { key: 'materiales', label: 'Materiales', render: (row) => <span className="badge"><Package size={14} /> {materialCountByOt.get(row.id) || 0}</span> },
             { key: 'informes', label: 'Informes', render: (row) => <span className="badge"><FileText size={14} /> {reportCountByOt.get(row.id) || 0}</span> },
-            { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><Link className="secondary-button" to={`/ots/${row.id}`}>Ver OT</Link><Link className="primary-button" to={`/ots/${row.id}/informe`}>Informe</Link></div> }
+            { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><button className="secondary-button" type="button" onClick={() => openChecklist(row)}><ClipboardCheck size={16} /> Checklist + fotos</button><Link className="secondary-button" to={`/ots/${row.id}`}>Ver OT</Link><Link className="primary-button" to={`/ots/${row.id}/informe`}>Informe</Link></div> }
           ]}
           rows={filteredRows}
           empty="Todavía no hay OT realizadas."
         />
       </CollapsibleSection>
+
+      <Modal title={selectedOrder ? `Checklist + fotos · ${selectedOrder.codigo_ot || selectedOrder.titulo}` : 'Checklist + fotos'} open={checklistOpen} onClose={() => setChecklistOpen(false)}>
+        {loadingChecklist ? <p className="muted">Cargando checklist y fotos...</p> : (
+          <div className="ot-checklist-review-list">
+            {selectedOrder && (
+              <div className="ot-checklist-review-header">
+                <strong>{selectedOrder.titulo}</strong>
+                <span>{selectedOrder.instalaciones?.nombre || '-'} · {selectedOrder.activos?.nombre || 'Sin activo'}</span>
+              </div>
+            )}
+            {checklistRows.length === 0 && <p className="muted">Esta OT no tiene checklist registrado.</p>}
+            {checklistRows.map((item) => (
+              <article className={`ot-checklist-review-item ${item.resultado === 'ok' ? 'ok' : item.resultado === 'no_ok' ? 'danger' : ''}`} key={item.id}>
+                <div className="ot-checklist-review-title">
+                  <strong>{item.punto}. {item.descripcion}</strong>
+                  <span className={`badge ${item.resultado === 'ok' ? 'ok' : item.resultado === 'no_ok' ? 'danger' : 'warn'}`}>{item.resultado || 'pendiente'}</span>
+                </div>
+                {item.observacion && <p>{item.observacion}</p>}
+                {item.medicion_valor && <small>Medición: {item.medicion_valor}</small>}
+                {item.accion_realizada && <small>Acción: {item.accion_realizada}</small>}
+                {(checklistPhotos[item.id] || []).length > 0 ? (
+                  <div className="incident-photo-grid">
+                    {(checklistPhotos[item.id] || []).map((photo) => (
+                      <article className="incident-photo-card" key={photo.id}>
+                        {photo.signedUrl ? <img src={photo.signedUrl} alt={photo.comentario || photo.file_name || 'Foto de checklist'} /> : <div className="muted">Foto no disponible</div>}
+                        <small>{photo.tipo_foto || 'foto'} · {formatDateTime(photo.created_at)}</small>
+                        {photo.comentario && <span>{photo.comentario}</span>}
+                      </article>
+                    ))}
+                  </div>
+                ) : <p className="muted">Sin fotos asociadas a este punto.</p>}
+              </article>
+            ))}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
