@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, Filter, RefreshCw, ShieldCheck, Wrench, XCircle } from 'lucide-react';
+import { ClipboardCheck, Filter, ImagePlus, RefreshCw, ShieldCheck, Wrench, XCircle } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
@@ -11,6 +11,7 @@ import { useTenant } from '../hooks/useTenant';
 import { formatDateTime } from '../utils/dateUtils';
 import { createIncident } from '../services/entityService';
 import { listTenantMembers } from '../services/tenantService';
+import { createIncidentPhoto, validateIncidentPhotoFile } from '../services/incidentPhotoService';
 import {
   closeIncidentWorkflow,
   convertIncidentToWorkOrder,
@@ -47,8 +48,12 @@ function externalReport(row) {
   return Array.isArray(row.external_incident_reports) ? row.external_incident_reports[0] : row.external_incident_reports || null;
 }
 
+function incidentPhotos(row) {
+  return Array.isArray(row.incident_photos) ? row.incident_photos : [];
+}
+
 export default function Incidents() {
-  const { rows, activeTenantId, refresh } = useTenantRows('incidencias', '*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), external_incident_reports(id,reporter_name,reporter_contact,created_at)', { order: 'fecha_apertura' });
+  const { rows, activeTenantId, refresh } = useTenantRows('incidencias', '*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), external_incident_reports(id,reporter_name,reporter_contact,created_at), incident_photos(id,source,tipo_foto,file_name,mime_type,size_bytes,data_url,comentario,created_at)', { order: 'fecha_apertura' });
   const { canManageWorkOrders } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
@@ -56,10 +61,16 @@ export default function Incidents() {
   const [technicians, setTechnicians] = useState([]);
   const [open, setOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
+  const [photoIncident, setPhotoIncident] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoComment, setPhotoComment] = useState('');
+  const [photoPreview, setPhotoPreview] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [convertForm, setConvertForm] = useState(INITIAL_CONVERT);
   const [filters, setFilters] = useState({ search: '', estado: 'abiertas', prioridad: 'todas' });
@@ -82,6 +93,7 @@ export default function Incidents() {
     abiertas: rows.filter((row) => ['abierta', 'en_revision'].includes(row.estado)).length,
     revision: rows.filter((row) => row.estado === 'en_revision').length,
     externas: rows.filter((row) => externalReport(row)).length,
+    conFotos: rows.filter((row) => incidentPhotos(row).length > 0).length,
     convertidas: rows.filter((row) => row.estado === 'convertida_en_ot').length,
     urgentes: rows.filter((row) => ['urgente', 'critica'].includes(row.prioridad) && !['cerrada', 'descartada', 'convertida_en_ot'].includes(row.estado)).length
   }), [rows]);
@@ -144,6 +156,52 @@ export default function Incidents() {
       resultado_esperado: 'Resolver incidencia comunicada y dejar constancia de la actuación realizada.'
     });
     setConvertOpen(true);
+  }
+
+  function openPhotos(row) {
+    setPhotoIncident(row);
+    setPhotoFile(null);
+    setPhotoComment('');
+    setPhotoPreview('');
+    setPhotosOpen(true);
+  }
+
+  function updatePhotoFile(file) {
+    setError('');
+    setPhotoPreview('');
+    if (!file) {
+      setPhotoFile(null);
+      return;
+    }
+    try {
+      validateIncidentPhotoFile(file);
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    } catch (err) {
+      setPhotoFile(null);
+      setError(err.message);
+    }
+  }
+
+  async function submitPhoto(event) {
+    event.preventDefault();
+    if (!photoIncident) return;
+    setError('');
+    setMessage('');
+    setUploadingPhoto(true);
+    try {
+      await createIncidentPhoto({ tenantId: photoIncident.tenant_id, incidentId: photoIncident.id, file: photoFile, comentario: photoComment });
+      setMessage('Foto añadida a la incidencia.');
+      setPhotosOpen(false);
+      setPhotoFile(null);
+      setPhotoComment('');
+      setPhotoPreview('');
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function submitConvert(event) {
@@ -209,11 +267,12 @@ export default function Incidents() {
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <CollapsibleSection title="Resumen incidencias" subtitle="Avisos abiertos, externos, en revisión y convertidos en OT" icon={ClipboardCheck} badge={`${stats.abiertas} abiertas`} defaultOpen>
+      <CollapsibleSection title="Resumen incidencias" subtitle="Avisos abiertos, externos, en revisión, con fotos y convertidos en OT" icon={ClipboardCheck} badge={`${stats.abiertas} abiertas`} defaultOpen>
         <section className="grid metrics user-module-metrics">
           <article className="metric-card"><span>Abiertas</span><strong>{stats.abiertas}</strong></article>
           <article className="metric-card warn"><span>En revisión</span><strong>{stats.revision}</strong></article>
           <article className="metric-card"><span>Externas QR</span><strong>{stats.externas}</strong></article>
+          <article className="metric-card"><span>Con fotos</span><strong>{stats.conFotos}</strong></article>
           <article className="metric-card danger"><span>Urgentes/críticas</span><strong>{stats.urgentes}</strong></article>
           <article className="metric-card"><span>Convertidas en OT</span><strong>{stats.convertidas}</strong></article>
         </section>
@@ -235,6 +294,7 @@ export default function Incidents() {
           { key: 'origen', label: 'Origen / contacto', render: (row) => { const report = externalReport(row); return report ? <div><span className="badge">QR público</span><small className="muted" style={{ display: 'block', marginTop: 4 }}>{report.reporter_name} · {report.reporter_contact}</small></div> : <span className="badge">Interna</span>; } },
           { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${PRIORITY_TONE[row.prioridad] || ''}`}>{PRIORITY_LABELS[row.prioridad] || row.prioridad}</span> },
           { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${row.estado === 'convertida_en_ot' || row.estado === 'cerrada' ? 'ok' : row.estado === 'descartada' ? 'danger' : 'warn'}`}>{INCIDENT_STATUS_LABELS[row.estado] || row.estado}</span> },
+          { key: 'fotos', label: 'Fotos', render: (row) => <button className="secondary-button" type="button" onClick={() => openPhotos(row)}>{incidentPhotos(row).length ? `${incidentPhotos(row).length} foto(s)` : 'Añadir'}</button> },
           { key: 'instalacion', label: 'Instalación', render: (row) => row.instalaciones?.nombre || '-' },
           { key: 'activo', label: 'Activo', render: (row) => row.activos?.nombre || '-' },
           { key: 'fecha_apertura', label: 'Apertura', render: (row) => formatDateTime(row.fecha_apertura) },
@@ -253,6 +313,36 @@ export default function Incidents() {
           <FormField label="Descripción"><textarea rows="4" value={form.descripcion} onChange={(event) => updateField('descripcion', event.target.value)} /></FormField>
           <div className="form-actions"><button className="ghost-button" type="button" onClick={() => setOpen(false)}>Cancelar</button><button className="primary-button" type="submit">Crear incidencia</button></div>
         </form>
+      </Modal>
+
+      <Modal title="Fotos de incidencia" open={photosOpen} onClose={() => setPhotosOpen(false)}>
+        <div className="form-grid">
+          {photoIncident && <p className="muted">Incidencia: <strong>{photoIncident.titulo}</strong></p>}
+          <div className="incident-photo-grid">
+            {incidentPhotos(photoIncident || {}).length > 0 ? incidentPhotos(photoIncident || {}).map((photo) => (
+              <article className="incident-photo-card" key={photo.id}>
+                <img src={photo.data_url} alt={photo.comentario || photo.file_name || 'Foto incidencia'} />
+                <small>{photo.source === 'public_qr' ? 'QR público' : 'Interna'} · {formatDateTime(photo.created_at)}</small>
+                {photo.comentario && <span>{photo.comentario}</span>}
+              </article>
+            )) : <p className="muted">Esta incidencia no tiene fotos todavía.</p>}
+          </div>
+          {photoIncident && !['cerrada', 'descartada', 'convertida_en_ot'].includes(photoIncident.estado) && (
+            <form className="form-grid" onSubmit={submitPhoto}>
+              <FormField label="Añadir foto interna">
+                <label className="secondary-button">
+                  <ImagePlus size={18} /> Seleccionar foto
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => updatePhotoFile(event.target.files?.[0] || null)} hidden />
+                </label>
+              </FormField>
+              {photoPreview && <img className="incident-photo-preview" src={photoPreview} alt="Vista previa" />}
+              <FormField label="Comentario">
+                <input value={photoComment} onChange={(event) => setPhotoComment(event.target.value)} maxLength={160} placeholder="Ej. fuga visible, placa del equipo..." />
+              </FormField>
+              <div className="form-actions"><button className="primary-button" type="submit" disabled={uploadingPhoto || !photoFile}>{uploadingPhoto ? 'Subiendo...' : 'Guardar foto'}</button></div>
+            </form>
+          )}
+        </div>
       </Modal>
 
       <Modal title="Convertir incidencia en OT" open={convertOpen} onClose={() => setConvertOpen(false)}>
