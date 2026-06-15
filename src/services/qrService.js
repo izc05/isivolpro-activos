@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
+import { incidentPhotoFileToDataUrl } from './incidentPhotoService';
 
 export function qrPathFromToken(token) {
   return `#/qr/${encodeURIComponent(token)}`;
@@ -70,6 +71,9 @@ export async function submitPublicIncident(token, payload) {
     Intl.DateTimeFormat().resolvedOptions().timeZone
   ].join('|');
 
+  const photoFile = payload.foto || null;
+  const photoDataUrl = photoFile ? await incidentPhotoFileToDataUrl(photoFile) : null;
+
   const { data, error } = await supabase.rpc('submit_public_incident', {
     qr_token_text: tokenFromQrValue(token),
     reporter_name: payload.nombre,
@@ -77,7 +81,12 @@ export async function submitPublicIncident(token, payload) {
     report_title: payload.titulo,
     report_description: payload.descripcion,
     report_priority: payload.prioridad || 'media',
-    browser_fingerprint: fingerprint
+    browser_fingerprint: fingerprint,
+    photo_data_url: photoDataUrl,
+    photo_file_name: photoFile?.name || null,
+    photo_mime_type: photoFile?.type || null,
+    photo_size_bytes: photoFile?.size || null,
+    photo_comment: payload.comentarioFoto || null
   });
   if (error) throw error;
   return data?.[0] || data;
