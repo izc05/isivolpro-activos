@@ -31,10 +31,15 @@ const workOrderNavItems = [
 ];
 
 const userNavItems = [
-  { to: '/usuarios', label: 'Usuarios y permisos', icon: Users, permission: 'users' },
+  { to: '/usuarios-panel', label: 'Panel usuarios', icon: Users, permission: 'users' },
+  { to: '/usuarios', label: 'Gestion usuarios', icon: UserIcon, permission: 'users' },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck, permission: 'audit' },
   { to: '/ajustes', label: 'Ajustes', icon: Settings, permission: 'all' }
 ];
+
+function UserIcon(props) {
+  return <Users {...props} />;
+}
 
 export default function AppLayout() {
   const { isSuperAdmin, profile } = useAuth();
