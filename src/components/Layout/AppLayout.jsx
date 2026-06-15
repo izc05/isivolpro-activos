@@ -7,8 +7,8 @@ import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
 
 const mainNavItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, permission: 'admin' },
-  { to: '/scanner', label: 'Escaner', icon: QrCode, permission: 'all' }
+  { to: '/dashboard', label: 'Inicio', icon: BarChart3, permission: 'admin' },
+  { to: '/scanner', label: 'Escaner QR', icon: QrCode, permission: 'all' }
 ];
 
 const inventoryNavItems = [
@@ -19,17 +19,20 @@ const inventoryNavItems = [
   { to: '/documentos', label: 'Documentos', icon: FileText, permission: 'inventory' },
   { to: '/fotos', label: 'Fotos', icon: Image, permission: 'inventory' },
   { to: '/videos', label: 'Videos', icon: Video, permission: 'inventory' },
-  { to: '/qr', label: 'QR', icon: QrCode, permission: 'qr' }
+  { to: '/qr', label: 'Generador QR', icon: QrCode, permission: 'qr' }
 ];
 
-const operationsNavItems = [
-  { to: '/ots-dashboard', label: 'Dashboard OT', icon: BarChart3, permission: 'workorders_manage' },
+const workOrderNavItems = [
+  { to: '/ots-dashboard', label: 'Panel OT', icon: BarChart3, permission: 'workorders_manage' },
   { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
-  { to: '/mis-ots', label: 'OT asignadas', icon: ListChecks, permission: 'workorders' },
-  { to: '/ots-creadas', label: 'Creadas por mi', icon: PenLine, permission: 'workorders_manage' },
-  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' },
+  { to: '/mis-ots', label: 'Mis OT asignadas', icon: ListChecks, permission: 'workorders' },
+  { to: '/ots-creadas', label: 'OT creadas por mi', icon: PenLine, permission: 'workorders_manage' },
+  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' }
+];
+
+const userNavItems = [
+  { to: '/usuarios', label: 'Usuarios y permisos', icon: Users, permission: 'users' },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck, permission: 'audit' },
-  { to: '/usuarios', label: 'Usuarios', icon: Users, permission: 'users' },
   { to: '/ajustes', label: 'Ajustes', icon: Settings, permission: 'all' }
 ];
 
@@ -53,7 +56,7 @@ export default function AppLayout() {
     setActiveTenantId
   } = tenant;
   const location = useLocation();
-  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [openGroups, setOpenGroups] = useState({ inventory: true, workorders: true, users: true });
 
   const canSeeItem = (item) => {
     if (item.permission === 'all') return true;
@@ -69,16 +72,19 @@ export default function AppLayout() {
     return false;
   };
 
+  const toggleGroup = (group) => setOpenGroups((current) => ({ ...current, [group]: !current[group] }));
+  const groupActive = (items) => items.some((item) => location.pathname.startsWith(item.to));
+
   const visibleMainNavItems = mainNavItems.filter(canSeeItem);
   const visibleInventoryNavItems = inventoryNavItems.filter(canSeeItem);
-  const visibleOperationsNavItems = operationsNavItems.filter(canSeeItem);
-  const inventoryActive = visibleInventoryNavItems.some((item) => location.pathname.startsWith(item.to));
-  const showInventoryGroup = visibleInventoryNavItems.length > 0;
-  const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders;
-  const fallbackNavItems = visibleOperationsNavItems.filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
+  const visibleWorkOrderNavItems = workOrderNavItems.filter(canSeeItem);
+  const visibleUserNavItems = userNavItems.filter(canSeeItem);
+
+  const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders || canManageUsers;
+  const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
   const mobileNavItems = showFullNavigation
-    ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleOperationsNavItems]
+    ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
     : [...visibleMainNavItems, ...fallbackNavItems];
 
   return (
@@ -97,20 +103,27 @@ export default function AppLayout() {
           ) : (
             <>
               {visibleMainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-              {showInventoryGroup && (
-                <div className={`nav-group ${inventoryActive ? 'active' : ''}`}>
-                  <button className="nav-group-toggle" type="button" onClick={() => setInventoryOpen((current) => !current)} aria-expanded={inventoryOpen}>
-                    <span>Inventario QR</span>
-                    <ChevronDown size={16} />
-                  </button>
-                  {inventoryOpen && (
-                    <div className="nav-group-items">
-                      {visibleInventoryNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-                    </div>
-                  )}
-                </div>
-              )}
-              {visibleOperationsNavItems.map((item) => <NavItem key={item.to} item={item} />)}
+              <NavGroup
+                title="Bloque Inventario"
+                items={visibleInventoryNavItems}
+                open={openGroups.inventory}
+                active={groupActive(visibleInventoryNavItems)}
+                onToggle={() => toggleGroup('inventory')}
+              />
+              <NavGroup
+                title="Bloque OT"
+                items={visibleWorkOrderNavItems}
+                open={openGroups.workorders}
+                active={groupActive(visibleWorkOrderNavItems)}
+                onToggle={() => toggleGroup('workorders')}
+              />
+              <NavGroup
+                title="Bloque Usuarios"
+                items={visibleUserNavItems}
+                open={openGroups.users}
+                active={groupActive(visibleUserNavItems)}
+                onToggle={() => toggleGroup('users')}
+              />
             </>
           )}
         </nav>
@@ -120,7 +133,7 @@ export default function AppLayout() {
         <header className="topbar">
           <div>
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Documentacion tecnica y mantenimiento por QR'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
+            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
           </div>
           {tenants.length > 1 && (
             <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
@@ -136,6 +149,23 @@ export default function AppLayout() {
       <nav className="mobile-nav">
         {mobileNavItems.map((item) => <NavItem key={item.to} item={item} compact />)}
       </nav>
+    </div>
+  );
+}
+
+function NavGroup({ title, items, open, active, onToggle }) {
+  if (!items.length) return null;
+  return (
+    <div className={`nav-group ${active ? 'active' : ''}`}>
+      <button className="nav-group-toggle" type="button" onClick={onToggle} aria-expanded={open}>
+        <span>{title}</span>
+        <ChevronDown size={16} />
+      </button>
+      {open && (
+        <div className="nav-group-items">
+          {items.map((item) => <NavItem key={item.to} item={item} />)}
+        </div>
+      )}
     </div>
   );
 }
