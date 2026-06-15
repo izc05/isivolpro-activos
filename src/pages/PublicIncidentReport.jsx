@@ -18,7 +18,7 @@ export default function PublicIncidentReport() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sentInfo, setSentInfo] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export default function PublicIncidentReport() {
     setError('');
     setSubmitting(true);
     try {
-      await submitPublicIncident(token, form);
-      setSent(true);
+      const result = await submitPublicIncident(token, form);
+      setSentInfo(result);
       setForm(emptyForm);
     } catch (err) {
       setError(err.message);
@@ -59,14 +59,15 @@ export default function PublicIncidentReport() {
   }
 
   const targetName = [context?.installation_name, context?.location_name, context?.asset_name].filter(Boolean).join(' / ');
+  const shortRef = sentInfo?.incidencia_id ? sentInfo.incidencia_id.slice(0, 8).toUpperCase() : '';
 
   return (
     <main className="public-report-page">
       <section className="public-report-hero">
         <div>
           <span className="brand-mark">IV</span>
-          <h1>Aviso tecnico IsiVoltPro</h1>
-          <p>Comunica una incidencia de esta instalacion sin acceder a documentacion privada.</p>
+          <h1>Aviso técnico IsiVoltPro</h1>
+          <p>Comunica una incidencia de esta instalación sin acceder a documentación privada.</p>
         </div>
       </section>
 
@@ -76,27 +77,28 @@ export default function PublicIncidentReport() {
         {!loading && !context && (
           <div className="empty-state">
             <AlertTriangle size={24} />
-            <strong>QR no valido o revocado</strong>
-            <span>Comprueba que has escaneado el codigo correcto.</span>
+            <strong>QR no válido o revocado</strong>
+            <span>Comprueba que has escaneado el código correcto.</span>
           </div>
         )}
 
-        {context && sent && (
+        {context && sentInfo && (
           <div className="empty-state success-state">
             <CheckCircle2 size={28} />
             <strong>Aviso enviado</strong>
-            <span>Gracias. El equipo autorizado revisara la incidencia. Para evitar duplicados, no se permite repetir avisos iguales en poco tiempo.</span>
+            <span>Referencia del aviso: {shortRef || 'registrada'}</span>
+            <span>El equipo autorizado revisará la incidencia y, si procede, la convertirá en una orden de trabajo.</span>
             <Link className="ghost-button" to="/login">Acceso privado</Link>
           </div>
         )}
 
-        {context && !sent && (
+        {context && !sentInfo && (
           <>
             <div className="public-target-card">
               <ShieldCheck size={22} />
               <div>
-                <strong>{targetName || 'Elemento tecnico'}</strong>
-                <span>Solo se enviara el aviso. No se muestran documentos, fotos privadas ni datos internos.</span>
+                <strong>{targetName || 'Elemento técnico'}</strong>
+                <span>Solo se enviará el aviso. No se muestran documentos, fotos privadas ni datos internos.</span>
               </div>
             </div>
 
@@ -104,10 +106,10 @@ export default function PublicIncidentReport() {
               <FormField label="Nombre">
                 <input value={form.nombre} onChange={(event) => updateField('nombre', event.target.value)} maxLength={120} required />
               </FormField>
-              <FormField label="Telefono o email de contacto">
+              <FormField label="Teléfono o email de contacto">
                 <input value={form.contacto} onChange={(event) => updateField('contacto', event.target.value)} maxLength={160} required />
               </FormField>
-              <FormField label="Titulo del aviso">
+              <FormField label="Título del aviso">
                 <input value={form.titulo} onChange={(event) => updateField('titulo', event.target.value)} maxLength={160} placeholder="Ej. No funciona la puerta del garaje" required />
               </FormField>
               <FormField label="Prioridad">
@@ -116,12 +118,14 @@ export default function PublicIncidentReport() {
                   <option value="media">Media</option>
                   <option value="alta">Alta</option>
                   <option value="urgente">Urgente</option>
+                  <option value="critica">Crítica</option>
                 </select>
               </FormField>
-              <FormField label="Descripcion">
-                <textarea rows="5" value={form.descripcion} onChange={(event) => updateField('descripcion', event.target.value)} maxLength={1200} placeholder="Cuenta que ocurre, desde cuando y cualquier detalle util." required />
+              <FormField label="Descripción">
+                <textarea rows="5" value={form.descripcion} onChange={(event) => updateField('descripcion', event.target.value)} maxLength={1200} placeholder="Cuenta qué ocurre, desde cuándo y cualquier detalle útil." required />
               </FormField>
-              <p className="muted">Para reducir spam, se limita el envio repetido desde el mismo contacto y QR durante 1 hora.</p>
+              <p className="muted">Para reducir duplicados, se limita el envío repetido desde el mismo contacto y QR durante 1 hora.</p>
+              <p className="warning-text">Para emergencias o riesgos inmediatos, avisa también por el canal urgente establecido por la empresa o el centro.</p>
               {error && <p className="error-text">{error}</p>}
               <button className="primary-button" disabled={submitting} type="submit">{submitting ? 'Enviando...' : 'Enviar aviso'}</button>
             </form>
