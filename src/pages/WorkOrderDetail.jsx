@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Mail, Navigation, Phone } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Mail, Navigation, Phone } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
+import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import { useTenant } from '../hooks/useTenant';
+import { getWorkOrder, REQUIREMENT_FIELDS } from '../services/workOrderService';
+import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
 import {
-  getWorkOrder,
-  REQUIREMENT_FIELDS,
-  updateWorkOrderStatus,
+  isWorkOrderClosed,
+  priorityLabel,
+  priorityTone,
+  statusLabel,
+  statusTransitionHelp,
   validNextActions,
-  WORK_ORDER_TYPE_LABELS,
-  statusLabel
-} from '../services/workOrderService';
+  workOrderTypeLabel
+} from '../utils/workOrderLifecycle';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
 
@@ -46,7 +50,7 @@ export default function WorkOrderDetail() {
     try {
       const reopenReason = status === 'REABRIR' ? window.prompt('Motivo de reapertura') : '';
       if (status === 'REABRIR' && !reopenReason) return;
-      const updated = await updateWorkOrderStatus({ ...row, reopen_reason: reopenReason }, status);
+      const updated = await updateWorkOrderLifecycleStatus(row, status, { reopenReason });
       setRow((current) => ({ ...current, ...updated }));
     } catch (err) {
       setError(err.message);
@@ -55,7 +59,8 @@ export default function WorkOrderDetail() {
 
   if (loading) return <p className="muted">Cargando orden de trabajo...</p>;
   if (!row) return <p className="error-text">No se ha encontrado la orden de trabajo.</p>;
-  const isClosed = row.estado === 'CERRADA';
+
+  const isClosed = isWorkOrderClosed(row);
   const nextActions = validNextActions(row);
   const requirements = REQUIREMENT_FIELDS.filter(([field]) => row.configuracion?.[field]);
 
@@ -68,55 +73,51 @@ export default function WorkOrderDetail() {
       />
       {error && <p className="error-text">{error}</p>}
 
-      <div className="grid two">
-        <section className="card">
-          <h2 className="section-heading">Estado de la OT</h2>
-          <div className="detail-list">
-            <Detail label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} />
-            <Detail label="Prioridad" value={<span className={`badge ${row.prioridad === 'urgente' ? 'danger' : row.prioridad === 'alta' ? 'warn' : ''}`}>{row.prioridad}</span>} />
-            <Detail label="Tipo" value={WORK_ORDER_TYPE_LABELS[row.tipo_ot || row.tipo] || row.tipo_ot || row.tipo || '-'} />
-            {row.tipo_ot_detalle && <Detail label="Detalle tipo" value={row.tipo_ot_detalle} />}
-            <Detail label="Tecnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} />
-            <Detail label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
-            <Detail label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} />
-            <Detail label="Fecha limite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} />
-            <Detail label="Duracion estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
-            <Detail label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
-            <Detail label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
-          </div>
-          {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
-          <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            {nextActions.map((status) => (
-              <button
-                key={status}
-                className={status === 'CERRADA' ? 'primary-button' : 'secondary-button'}
-                type="button"
-                onClick={() => changeStatus(status)}
-              >
-                {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
-              </button>
-            ))}
-          </div>
-        </section>
+      <CollapsibleSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validacion final" icon={ClipboardCheck} badge={row.estado} defaultOpen>
+        <div className="detail-list">
+          <Detail label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} />
+          <Detail label="Prioridad" value={<span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad)}</span>} />
+          <Detail label="Tipo" value={workOrderTypeLabel(row.tipo_ot || row.tipo)} />
+          {row.tipo_ot_detalle && <Detail label="Detalle tipo" value={row.tipo_ot_detalle} />}
+          <Detail label="Tecnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} />
+          <Detail label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
+          <Detail label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} />
+          <Detail label="Fecha limite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} />
+          <Detail label="Duracion estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
+          <Detail label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
+          <Detail label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
+        </div>
+        {statusTransitionHelp(row.estado) && <p className="muted">{statusTransitionHelp(row.estado)}</p>}
+        {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
+        <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+          {nextActions.map((status) => (
+            <button
+              key={status}
+              className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'}
+              type="button"
+              onClick={() => changeStatus(status)}
+            >
+              {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
+            </button>
+          ))}
+        </div>
+      </CollapsibleSection>
 
-        <section className="card">
-          <h2 className="section-heading">Instalacion y activo</h2>
-          <div className="detail-list">
-            <Detail label="Instalacion" value={row.instalaciones?.nombre || '-'} />
-            <Detail label="Direccion" value={row.instalaciones?.direccion || '-'} />
-            <Detail label="Contacto" value={row.instalaciones?.contacto_nombre || '-'} />
-            <Detail label="Telefono" value={row.instalaciones?.contacto_telefono || '-'} />
-            <Detail label="Ubicacion" value={row.ubicaciones?.nombre || '-'} />
-            <Detail label="Activo" value={row.activos?.nombre || '-'} />
-            <Detail label="Marca / modelo" value={[row.activos?.marca, row.activos?.modelo].filter(Boolean).join(' / ') || '-'} />
-            <Detail label="Nº serie" value={row.activos?.numero_serie || '-'} />
-          </div>
-          <InstallationContactPanel installation={row.instalaciones} />
-        </section>
-      </div>
+      <CollapsibleSection title="Instalacion y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen>
+        <div className="detail-list">
+          <Detail label="Instalacion" value={row.instalaciones?.nombre || '-'} />
+          <Detail label="Direccion" value={row.instalaciones?.direccion || '-'} />
+          <Detail label="Contacto" value={row.instalaciones?.contacto_nombre || '-'} />
+          <Detail label="Telefono" value={row.instalaciones?.contacto_telefono || '-'} />
+          <Detail label="Ubicacion" value={row.ubicaciones?.nombre || '-'} />
+          <Detail label="Activo" value={row.activos?.nombre || '-'} />
+          <Detail label="Marca / modelo" value={[row.activos?.marca, row.activos?.modelo].filter(Boolean).join(' / ') || '-'} />
+          <Detail label="Nº serie" value={row.activos?.numero_serie || '-'} />
+        </div>
+        <InstallationContactPanel installation={row.instalaciones} />
+      </CollapsibleSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Descripcion del trabajo</h2>
+      <CollapsibleSection title="Descripcion del trabajo" subtitle="Sintomas, trabajo solicitado, instrucciones y resultado esperado" icon={ClipboardCheck} defaultOpen={false}>
         <p>{row.descripcion || 'Sin descripcion adicional.'}</p>
         <div className="detail-list">
           <Detail label="Sintomas / situacion" value={row.sintomas || '-'} />
@@ -125,10 +126,9 @@ export default function WorkOrderDetail() {
           <Detail label="Riesgos / precauciones" value={row.riesgos_precauciones || '-'} />
           <Detail label="Resultado esperado" value={row.resultado_esperado || '-'} />
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Requisitos configurados</h2>
+      <CollapsibleSection title="Requisitos de cierre" subtitle="Checklist, fotos, firma, mediciones e informe" icon={CheckCircle2} badge={`${requirements.length}`} defaultOpen={false}>
         {requirements.length === 0 ? (
           <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p>
         ) : (
@@ -136,10 +136,9 @@ export default function WorkOrderDetail() {
             {requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Trabajo en campo</h2>
+      <CollapsibleSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
         <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist, firmar con el cliente y generar el informe final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
@@ -148,7 +147,7 @@ export default function WorkOrderDetail() {
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>}
         </div>
-      </section>
+      </CollapsibleSection>
     </>
   );
 }
@@ -173,27 +172,11 @@ function InstallationContactPanel({ installation }) {
   return (
     <div className="ot-installation-panel">
       <div className="quick-actions">
-        {mapsUrl && (
-          <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
-            <Navigation size={18} /> Como llegar
-          </a>
-        )}
-        {phone && (
-          <a className="secondary-button" href={`tel:${phone}`}>
-            <Phone size={18} /> Llamar
-          </a>
-        )}
-        {email && (
-          <a className="ghost-button" href={`mailto:${email}`}>
-            <Mail size={18} /> Email
-          </a>
-        )}
+        {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Como llegar</a>}
+        {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
+        {email && <a className="ghost-button" href={`mailto:${email}`}><Mail size={18} /> Email</a>}
       </div>
-      {embedUrl && (
-        <div className="ot-map-frame">
-          <iframe title={`Mapa de ${installation.nombre || 'instalacion'}`} src={embedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-        </div>
-      )}
+      {embedUrl && <div className="ot-map-frame"><iframe title={`Mapa de ${installation.nombre || 'instalacion'}`} src={embedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" /></div>}
     </div>
   );
 }
