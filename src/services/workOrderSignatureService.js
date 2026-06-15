@@ -1,11 +1,12 @@
 import { supabase } from './supabaseClient';
 import { buildStoragePath, createSignedUrl, uploadPrivateFile } from './fileService';
 import { logAudit } from './auditService';
-import { updateWorkOrderStatus } from './workOrderService';
+import { updateWorkOrderLifecycleStatus } from './workOrderLifecycleService';
+import { isWorkOrderClosed } from '../utils/workOrderLifecycle';
 
 export async function uploadVisitSignature({ workOrder, visit, file, nombreFirmante, dniFirmante = '' }) {
   if (!workOrder?.id) throw new Error('No se ha encontrado la OT.');
-  if (workOrder.estado === 'CERRADA') throw new Error('La OT esta cerrada y no admite nuevas firmas.');
+  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevas firmas.');
   if (!visit?.id) throw new Error('Selecciona una visita para firmar.');
   if (!file) throw new Error('No hay firma para guardar.');
   if (!nombreFirmante?.trim()) throw new Error('Introduce el nombre del firmante.');
@@ -47,8 +48,8 @@ export async function uploadVisitSignature({ workOrder, visit, file, nombreFirma
 
   if (error) throw error;
 
-  if (!['FIRMADA', 'INFORME_GENERADO', 'CERRADA'].includes(workOrder.estado)) {
-    await updateWorkOrderStatus(workOrder, 'FIRMADA');
+  if (!['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(workOrder.estado)) {
+    await updateWorkOrderLifecycleStatus(workOrder, 'FINALIZADA');
   }
 
   await logAudit({
