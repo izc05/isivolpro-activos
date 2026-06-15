@@ -48,6 +48,41 @@ export async function updateTenantMember({ tenantId, memberId, role, estado }) {
   return data;
 }
 
+function isMissingRpc(error, rpcName) {
+  const message = String(error?.message || '');
+  return error?.code === '42883' || message.includes(rpcName) || message.includes('function');
+}
+
+export async function setTenantMemberStatus({ tenantId, memberId, estado }) {
+  const rpc = await supabase.rpc('set_tenant_member_status', {
+    member_uuid: memberId,
+    status_text: estado
+  });
+
+  if (!rpc.error) return rpc.data;
+  if (!isMissingRpc(rpc.error, 'set_tenant_member_status')) throw rpc.error;
+
+  const { data, error } = await supabase
+    .from('tenant_members')
+    .update({ estado })
+    .eq('id', memberId)
+    .eq('tenant_id', tenantId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId, action: 'update_member_status', entityType: 'tenant_member', entityId: memberId, metadata: { estado } });
+  return data;
+}
+
+export async function deactivateTenantMember(row) {
+  return setTenantMemberStatus({ tenantId: row.tenant_id, memberId: row.id, estado: 'inactivo' });
+}
+
+export async function activateTenantMember(row) {
+  return setTenantMemberStatus({ tenantId: row.tenant_id, memberId: row.id, estado: 'activo' });
+}
+
 export async function revokeInvitation(row) {
   const { error } = await supabase
     .from('tenant_invitations')
