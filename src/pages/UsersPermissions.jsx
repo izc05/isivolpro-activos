@@ -1,6 +1,6 @@
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Copy, Mail, UserPlus } from 'lucide-react';
 import { useTenant } from '../hooks/useTenant';
 import { listTenantMembers } from '../services/tenantService';
@@ -8,8 +8,10 @@ import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import { listInstallationsForTenant } from '../services/entityService';
 import {
+  activateTenantMember,
   createInstallationAccessGrant,
   createTenantInvitation,
+  deactivateTenantMember,
   listInstallationAccessGrants,
   listTenantInvitations,
   revokeInstallationAccessGrant,
@@ -19,6 +21,12 @@ import {
 } from '../services/permissionService';
 
 const TENANT_ROLES = ['admin_cliente', 'tecnico', 'tecnico_externo', 'cliente_lectura'];
+const ROLE_LABELS = {
+  admin_cliente: 'Administrador',
+  tecnico: 'Tecnico propio',
+  tecnico_externo: 'Tecnico externo',
+  cliente_lectura: 'Cliente lectura'
+};
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const plusHoursLocal = (hours) => new Date(Date.now() + hours * 60 * 60 * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const buildInvitationUrl = (invitation) => {
@@ -54,7 +62,12 @@ export default function UsersPermissions() {
   const [accessMessage, setAccessMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
+  const [memberMessage, setMemberMessage] = useState('');
+  const [memberError, setMemberError] = useState('');
+  const [updatingMemberId, setUpdatingMemberId] = useState('');
   const pendingInvitations = invitations.filter((invitation) => invitation.estado === 'pendiente');
+  const activeMembers = rows.filter((member) => member.estado === 'activo');
+  const ownTechnicians = rows.filter((member) => member.role === 'tecnico' && member.estado === 'activo');
 
   async function refresh() {
     if (!activeTenantId) return;
@@ -70,7 +83,7 @@ export default function UsersPermissions() {
     setAccessGrants(grants);
     setAccessForm((current) => ({
       ...current,
-      userId: current.userId || members.find((member) => member.role !== 'admin_cliente')?.user_id || members[0]?.user_id || '',
+      userId: current.userId || members.find((member) => member.role !== 'admin_cliente' && member.estado === 'activo')?.user_id || members[0]?.user_id || '',
       instalacionId: current.instalacionId || tenantInstallations[0]?.id || ''
     }));
   }
@@ -78,6 +91,11 @@ export default function UsersPermissions() {
   useEffect(() => {
     refresh().catch(console.error);
   }, [activeTenantId]);
+
+  const assignableMembers = useMemo(
+    () => rows.filter((member) => member.estado === 'activo' && ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(member.role)),
+    [rows]
+  );
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -138,18 +156,56 @@ export default function UsersPermissions() {
   }
 
   async function changeMember(row, patch) {
-    await updateTenantMember({
-      tenantId: row.tenant_id,
-      memberId: row.id,
-      role: patch.role || row.role,
-      estado: patch.estado || row.estado
-    });
-    await refresh();
+    setMemberMessage('');
+    setMemberError('');
+    setUpdatingMemberId(row.id);
+    try {
+      await updateTenantMember({
+        tenantId: row.tenant_id,
+        memberId: row.id,
+        role: patch.role || row.role,
+        estado: patch.estado || row.estado
+      });
+      await refresh();
+      setMemberMessage('Usuario actualizado correctamente.');
+    } catch (error) {
+      setMemberError(error.message);
+    } finally {
+      setUpdatingMemberId('');
+    }
+  }
+
+  async function setMemberStatus(row, estado) {
+    const label = row.profiles?.nombre || row.profiles?.email || row.user_id;
+    if (estado === 'inactivo' && !window.confirm(`Desactivar acceso de ${label}? No podra entrar al cliente ni ver sus OT hasta reactivarlo.`)) return;
+    setMemberMessage('');
+    setMemberError('');
+    setUpdatingMemberId(row.id);
+    try {
+      if (estado === 'activo') await activateTenantMember(row);
+      else await deactivateTenantMember(row);
+      await refresh();
+      setMemberMessage(estado === 'activo' ? 'Usuario reactivado correctamente.' : 'Usuario desactivado correctamente.');
+    } catch (error) {
+      setMemberError(error.message);
+    } finally {
+      setUpdatingMemberId('');
+    }
   }
 
   async function toggleMfa(row, checked) {
-    await setMemberMfaRequired(row.user_id, checked);
-    await refresh();
+    setMemberMessage('');
+    setMemberError('');
+    setUpdatingMemberId(row.id);
+    try {
+      await setMemberMfaRequired(row.user_id, checked);
+      await refresh();
+      setMemberMessage('MFA actualizado correctamente.');
+    } catch (error) {
+      setMemberError(error.message);
+    } finally {
+      setUpdatingMemberId('');
+    }
   }
 
   async function revoke(row) {
@@ -196,14 +252,24 @@ export default function UsersPermissions() {
       <section className="card users-summary-card">
         <div>
           <span className="muted">Usuarios activos</span>
-          <strong>{rows.length}</strong>
+          <strong>{activeMembers.length}</strong>
+        </div>
+        <div>
+          <span className="muted">Tecnicos propios</span>
+          <strong>{ownTechnicians.length}</strong>
+        </div>
+        <div>
+          <span className="muted">Instalaciones del cliente</span>
+          <strong>{installations.length}</strong>
         </div>
         <div>
           <span className="muted">Invitaciones pendientes</span>
           <strong>{pendingInvitations.length}</strong>
         </div>
-        <p className="muted">Un tecnico invitado aparece como pendiente hasta que abre el enlace, crea su contrasena y acepta. Despues pasa automaticamente a usuarios activos y ya se puede asignar a una OT.</p>
+        <p className="muted">Un tecnico propio con rol tecnico queda disponible para asignarse a cualquier OT de cualquier instalacion del cliente activo. No necesita acceso por instalacion, salvo que quieras darle permisos especiales por QR fuera de una OT.</p>
       </section>
+      {memberMessage && <p className="success-text">{memberMessage}</p>}
+      {memberError && <p className="error-text">{memberError}</p>}
       {pendingInvitations.length > 0 && (
         <section className="pending-invitations">
           <h2 className="section-heading">Pendientes de aceptar</h2>
@@ -216,7 +282,7 @@ export default function UsersPermissions() {
                   <div>
                     <strong>{invitation.nombre || invitation.email}</strong>
                     <span><Mail size={15} /> {invitation.email}</span>
-                    <span>Rol: {invitation.role.replaceAll('_', ' ')}</span>
+                    <span>Rol: {ROLE_LABELS[invitation.role] || invitation.role.replaceAll('_', ' ')}</span>
                     <span>Caduca: {new Date(invitation.expires_at).toLocaleString()}</span>
                     <small>Estado: esperando confirmacion del tecnico. Aun no es asignable.</small>
                   </div>
@@ -238,29 +304,43 @@ export default function UsersPermissions() {
           key: 'role',
           label: 'Rol',
           render: (row) => (
-            <select value={row.role} onChange={(event) => changeMember(row, { role: event.target.value })}>
-              {TENANT_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+            <select value={row.role} disabled={updatingMemberId === row.id} onChange={(event) => changeMember(row, { role: event.target.value })}>
+              {TENANT_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role] || role}</option>)}
             </select>
           )
         },
         {
-          key: 'mfa',
-          label: 'MFA requerido',
-          render: (row) => <input type="checkbox" checked={Boolean(row.profiles?.mfa_required)} onChange={(event) => toggleMfa(row, event.target.checked)} />
+          key: 'alcance',
+          label: 'Alcance',
+          render: (row) => row.role === 'tecnico'
+            ? <span className="badge ok">Todas las instalaciones por OT</span>
+            : row.role === 'tecnico_externo'
+              ? <span className="badge warn">OT asignadas / accesos concretos</span>
+              : <span className="badge">{ROLE_LABELS[row.role] || row.role}</span>
         },
         {
-          key: 'estado',
-          label: 'Estado',
-          render: (row) => (
-            <select value={row.estado} onChange={(event) => changeMember(row, { estado: event.target.value })}>
-              <option value="activo">activo</option>
-              <option value="inactivo">inactivo</option>
-            </select>
+          key: 'mfa',
+          label: 'MFA requerido',
+          render: (row) => <input type="checkbox" checked={Boolean(row.profiles?.mfa_required)} disabled={updatingMemberId === row.id} onChange={(event) => toggleMfa(row, event.target.checked)} />
+        },
+        { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${row.estado === 'activo' ? 'ok' : 'danger'}`}>{row.estado}</span> },
+        {
+          key: 'actions',
+          label: 'Acciones',
+          render: (row) => row.estado === 'activo' ? (
+            <button className="danger-button" type="button" disabled={updatingMemberId === row.id} onClick={() => setMemberStatus(row, 'inactivo')}>
+              {updatingMemberId === row.id ? 'Actualizando...' : 'Desactivar'}
+            </button>
+          ) : (
+            <button className="secondary-button" type="button" disabled={updatingMemberId === row.id} onClick={() => setMemberStatus(row, 'activo')}>
+              {updatingMemberId === row.id ? 'Actualizando...' : 'Reactivar'}
+            </button>
           )
         }
       ]} rows={rows} empty="Todavia no hay usuarios activos. Crea una invitacion y espera a que el tecnico la acepte." />
       <div style={{ marginTop: 16 }}>
         <h2 className="section-heading">Accesos por instalacion</h2>
+        <p className="muted">Usa estos accesos para tecnicos externos o accesos QR puntuales. Los tecnicos propios no necesitan aparecer aqui para recibir OT de cualquier instalacion.</p>
         <DataTable columns={[
           { key: 'usuario', label: 'Usuario', render: (row) => row.profiles?.nombre || row.profiles?.email || row.user_id },
           { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || row.instalacion_id },
@@ -281,7 +361,7 @@ export default function UsersPermissions() {
         <DataTable columns={[
           { key: 'nombre', label: 'Nombre', render: (row) => row.nombre || '-' },
           { key: 'email', label: 'Invitacion' },
-          { key: 'role', label: 'Rol', render: (row) => <span className="badge">{row.role}</span> },
+          { key: 'role', label: 'Rol', render: (row) => <span className="badge">{ROLE_LABELS[row.role] || row.role}</span> },
           { key: 'estado', label: 'Estado' },
           { key: 'expires_at', label: 'Caduca', render: (row) => new Date(row.expires_at).toLocaleString() },
           { key: 'actions', label: 'Acciones', render: (row) => row.estado === 'pendiente' ? <button className="danger-button" onClick={() => revoke(row)}>Revocar</button> : null }
@@ -297,14 +377,14 @@ export default function UsersPermissions() {
           </FormField>
           <FormField label="Rol">
             <select value={form.role} onChange={(event) => updateField('role', event.target.value)}>
-              {TENANT_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+              {TENANT_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role] || role}</option>)}
             </select>
           </FormField>
           <label className="checkbox-row">
             <input type="checkbox" checked={form.mfaRequired} onChange={(event) => updateField('mfaRequired', event.target.checked)} />
             <span>Requerir MFA para este usuario</span>
           </label>
-          <p className="muted">Para tecnicos de la empresa usa el rol tecnico. Para visitas puntuales usa tecnico_externo y despues concede acceso solo a la instalacion necesaria. El token se muestra una sola vez y no se guarda en claro.</p>
+          <p className="muted">Para tecnicos de la empresa usa Tecnico propio. Ese usuario se podra asignar a cualquier OT de cualquier instalacion del cliente. Para visitas puntuales usa Tecnico externo y despues concede acceso solo a la instalacion necesaria.</p>
           {message && <p className="error-text">{message}</p>}
           {lastInvitation && (
             <div className="invitation-created-box">
@@ -332,12 +412,12 @@ export default function UsersPermissions() {
       </Modal>
       <Modal title="Acceso a instalacion" open={accessOpen} onClose={() => setAccessOpen(false)}>
         <form className="form-grid" onSubmit={submitAccessGrant}>
-          <p className="muted">Da acceso a una instalacion concreta. El tecnico podra escanear QR de esa instalacion, sus ubicaciones y sus activos mientras el permiso este activo.</p>
+          <p className="muted">Da acceso a una instalacion concreta. Esto se recomienda para tecnicos externos o accesos QR puntuales. Para tecnicos propios basta con asignarles una OT.</p>
           <FormField label="Usuario">
             <select value={accessForm.userId} onChange={(event) => setAccessForm((current) => ({ ...current, userId: event.target.value }))} required>
               <option value="">Selecciona usuario</option>
-              {rows.map((member) => (
-                <option key={member.user_id} value={member.user_id}>{member.profiles?.nombre || member.profiles?.email || member.user_id}</option>
+              {assignableMembers.map((member) => (
+                <option key={member.user_id} value={member.user_id}>{member.profiles?.nombre || member.profiles?.email || member.user_id} · {ROLE_LABELS[member.role] || member.role}</option>
               ))}
             </select>
           </FormField>
