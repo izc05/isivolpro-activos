@@ -20,6 +20,8 @@ export async function updateWorkOrderLifecycleStatus(row, status, options = {}) 
       reopened_by: userId,
       reopened_at: new Date().toISOString(),
       reopen_reason: options.reopenReason || 'Reapertura manual',
+      revision_admin_estado: 'correccion_solicitada',
+      revision_admin_notas: options.reopenReason || row.revision_admin_notas || null,
       fecha_fin: null
     };
     const { data, error } = await supabase
@@ -36,11 +38,18 @@ export async function updateWorkOrderLifecycleStatus(row, status, options = {}) 
 
   const patch = { estado: status };
   if (status === 'EN_CURSO' && !row.fecha_inicio) patch.fecha_inicio = new Date().toISOString();
-  if (status === 'FINALIZADA' && !row.fecha_fin) patch.fecha_fin = new Date().toISOString();
+  if (status === 'FINALIZADA' && !row.fecha_fin) {
+    patch.fecha_fin = new Date().toISOString();
+    patch.revision_admin_estado = row.configuracion?.requiere_revision_admin ? 'pendiente' : row.revision_admin_estado || 'no_requerida';
+  }
   if (status === 'VALIDADA') {
     patch.fecha_fin = row.fecha_fin || new Date().toISOString();
     patch.closed_by = userId;
     patch.closed_at = new Date().toISOString();
+    patch.revision_admin_estado = 'validada';
+    patch.revision_admin_by = userId;
+    patch.revision_admin_at = new Date().toISOString();
+    patch.revision_admin_notas = options.adminNotes || row.revision_admin_notas || null;
   }
   if (status === 'CANCELADA') {
     patch.fecha_fin = row.fecha_fin || new Date().toISOString();
@@ -55,6 +64,6 @@ export async function updateWorkOrderLifecycleStatus(row, status, options = {}) 
     .single();
 
   if (error) throw error;
-  await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_status', entityType: 'orden_trabajo', entityId: row.id, metadata: { from: row.estado, to: status } });
+  await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_status', entityType: 'orden_trabajo', entityId: row.id, metadata: { from: row.estado, to: status, adminNotes: options.adminNotes || null } });
   return data;
 }
