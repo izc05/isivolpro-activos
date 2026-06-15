@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, UserPlus, Users, Wrench, Eye, Clock3, KeyRound, ClipboardCheck, Settings, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, UserPlus, Users, Wrench, Eye, Clock3, ClipboardCheck, AlertTriangle } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import { useTenant } from '../hooks/useTenant';
 import { listTenantMembers } from '../services/tenantService';
 import { listInstallationAccessGrants, listTenantInvitations } from '../services/permissionService';
 import { listInstallationsForTenant } from '../services/entityService';
+import '../styles/userModule.css';
 
 const ROLE_CARDS = [
   {
