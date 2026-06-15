@@ -1,15 +1,18 @@
-import { AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import FormField from '../components/Forms/FormField';
 import { publicQrContext, submitPublicIncident } from '../services/qrService';
+import { MAX_INCIDENT_PHOTO_SIZE, validateIncidentPhotoFile } from '../services/incidentPhotoService';
 
 const emptyForm = {
   nombre: '',
   contacto: '',
   titulo: '',
   descripcion: '',
-  prioridad: 'media'
+  prioridad: 'media',
+  foto: null,
+  comentarioFoto: ''
 };
 
 export default function PublicIncidentReport() {
@@ -19,6 +22,7 @@ export default function PublicIncidentReport() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sentInfo, setSentInfo] = useState(null);
+  const [preview, setPreview] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -43,6 +47,24 @@ export default function PublicIncidentReport() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updatePhoto(file) {
+    setError('');
+    setPreview('');
+    if (!file) {
+      setForm((current) => ({ ...current, foto: null }));
+      return;
+    }
+    try {
+      validateIncidentPhotoFile(file);
+      setForm((current) => ({ ...current, foto: file }));
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+    } catch (err) {
+      setForm((current) => ({ ...current, foto: null }));
+      setError(err.message);
+    }
+  }
+
   async function submit(event) {
     event.preventDefault();
     setError('');
@@ -51,6 +73,7 @@ export default function PublicIncidentReport() {
       const result = await submitPublicIncident(token, form);
       setSentInfo(result);
       setForm(emptyForm);
+      setPreview('');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -124,6 +147,17 @@ export default function PublicIncidentReport() {
               <FormField label="Descripción">
                 <textarea rows="5" value={form.descripcion} onChange={(event) => updateField('descripcion', event.target.value)} maxLength={1200} placeholder="Cuenta qué ocurre, desde cuándo y cualquier detalle útil." required />
               </FormField>
+              <FormField label="Foto del problema opcional">
+                <div className="incident-photo-picker">
+                  <label className="secondary-button">
+                    <ImagePlus size={18} /> Adjuntar foto
+                    <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(event) => updatePhoto(event.target.files?.[0] || null)} hidden />
+                  </label>
+                  <small className="muted">Máximo {Math.round(MAX_INCIDENT_PHOTO_SIZE / 1024 / 1024)} MB. JPG, PNG o WEBP.</small>
+                </div>
+              </FormField>
+              {preview && <img className="incident-photo-preview" src={preview} alt="Vista previa de la incidencia" />}
+              {form.foto && <FormField label="Comentario de la foto"><input value={form.comentarioFoto} onChange={(event) => updateField('comentarioFoto', event.target.value)} maxLength={160} placeholder="Ej. fuga debajo de la bomba" /></FormField>}
               <p className="muted">Para reducir duplicados, se limita el envío repetido desde el mismo contacto y QR durante 1 hora.</p>
               <p className="warning-text">Para emergencias o riesgos inmediatos, avisa también por el canal urgente establecido por la empresa o el centro.</p>
               {error && <p className="error-text">{error}</p>}
