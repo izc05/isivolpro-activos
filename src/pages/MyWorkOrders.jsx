@@ -8,6 +8,7 @@ import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsUrl } from '../utils/mapUtils';
+import { priorityLabel, priorityTone } from '../utils/workOrderLifecycle';
 
 export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId } = useTenant();
@@ -82,7 +83,7 @@ function AssignedWorkOrderCards({ rows }) {
               </div>
               <h2>{row.titulo}</h2>
               <div className="assigned-ot-meta">
-                <span className={`badge ${row.prioridad === 'urgente' ? 'danger' : row.prioridad === 'alta' ? 'warn' : ''}`}>{row.prioridad || 'normal'}</span>
+                <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad || 'normal')}</span>
                 <span>{row.fecha_prevista ? formatDateTime(row.fecha_prevista) : 'Sin fecha prevista'}</span>
               </div>
               <div className="assigned-ot-place">
@@ -100,16 +101,8 @@ function AssignedWorkOrderCards({ rows }) {
               <strong>{row.instalaciones?.contacto_nombre || 'Sin contacto indicado'}</strong>
               <span>{phone || 'Sin telefono indicado'}</span>
               <div className="quick-actions">
-                {mapsUrl && (
-                  <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
-                    <Navigation size={18} /> Ruta
-                  </a>
-                )}
-                {phone && (
-                  <a className="secondary-button" href={`tel:${phone}`}>
-                    <Phone size={18} /> Llamar
-                  </a>
-                )}
+                {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Ruta</a>}
+                {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
                 <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>
               </div>
             </div>
