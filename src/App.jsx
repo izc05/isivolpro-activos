@@ -21,6 +21,7 @@ import Photos from './pages/Photos';
 import MaintenanceHistory from './pages/MaintenanceHistory';
 import WorkOrderDashboard from './pages/WorkOrderDashboard';
 import WorkOrders from './pages/WorkOrders';
+import CompletedWorkOrders from './pages/CompletedWorkOrders';
 import MyWorkOrders from './pages/MyWorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
 import WorkOrderVisit from './pages/WorkOrderVisit';
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="mantenimiento" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
         <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
         <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />
+        <Route path="ots-realizadas" element={<WorkOrderManagerRoute><CompletedWorkOrders /></WorkOrderManagerRoute>} />
         <Route path="mis-ots" element={<MyWorkOrders />} />
         <Route path="ots-creadas" element={<WorkOrderManagerRoute><MyWorkOrders mode="created" /></WorkOrderManagerRoute>} />
         <Route path="ots/:id" element={<WorkOrderDetail />} />
