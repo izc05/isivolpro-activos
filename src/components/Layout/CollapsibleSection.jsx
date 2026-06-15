@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import '../../styles/collapsible.css';
 
 export default function CollapsibleSection({
   title,
@@ -28,7 +29,7 @@ export default function CollapsibleSection({
           <ChevronDown size={18} />
         </span>
       </button>
-      {actions && <div className="collapsible-actions">{actions}</div>}
+      {actions && open && <div className="collapsible-actions">{actions}</div>}
       {open && <div className="collapsible-content">{children}</div>}
     </section>
   );
