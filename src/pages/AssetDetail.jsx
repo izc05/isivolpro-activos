@@ -1,13 +1,16 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, ClipboardList, FileText, MapPin, QrCode, ShieldAlert, Wrench } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ClipboardList, FileText, History, Image, MapPin, Package, QrCode, ShieldAlert, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
+import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import QRCodeCard from '../components/QR/QRCodeCard';
 import DataTable from '../components/Cards/DataTable';
 import { useRowById } from '../hooks/useRowById';
 import { useTenantRows } from '../hooks/useTenantRows';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import { exportAssetPdf } from '../utils/pdfExport';
 import { qrDataUrl } from '../services/qrService';
+import { loadAssetTimeline } from '../services/assetTimelineService';
 import EntityImageViewer from '../components/Media/EntityImageViewer';
 
 export default function AssetDetail() {
@@ -16,17 +19,37 @@ export default function AssetDetail() {
   const { rows: documents } = useTenantRows('documentos', '*', { order: 'created_at' });
   const { rows: history } = useTenantRows('historial_mantenimiento', '*', { order: 'fecha' });
   const { rows: incidents } = useTenantRows('incidencias', '*', { order: 'fecha_apertura' });
+  const [timelineData, setTimelineData] = useState(null);
+  const [timelineError, setTimelineError] = useState('');
+
+  useEffect(() => {
+    if (!asset?.tenant_id || !id) return;
+    let mounted = true;
+    setTimelineError('');
+    loadAssetTimeline(asset.tenant_id, id)
+      .then((data) => {
+        if (mounted) setTimelineData(data);
+      })
+      .catch((err) => {
+        if (mounted) setTimelineError(err.message);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [asset?.tenant_id, id]);
 
   if (!asset) return <PageHeader title="Activo" subtitle="Cargando ficha tecnica..." />;
 
   const assetDocuments = documents.filter((item) => item.activo_id === id);
   const assetHistory = history.filter((item) => item.activo_id === id);
   const assetIncidents = incidents.filter((item) => item.activo_id === id);
-  const openIncidents = assetIncidents.filter((item) => item.estado !== 'cerrada');
+  const openIncidents = assetIncidents.filter((item) => item.estado !== 'cerrada' && item.estado !== 'descartada' && item.estado !== 'convertida_en_ot');
   const nextReview = asset.fecha_proxima_revision ? new Date(asset.fecha_proxima_revision) : null;
   const reviewDue = nextReview ? nextReview <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : false;
   const statusClass = asset.estado === 'correcto' ? 'ok' : asset.estado === 'averiado' || asset.estado === 'fuera_servicio' ? 'danger' : 'warn';
   const criticalClass = ['alta', 'critica'].includes(asset.criticidad) ? 'danger' : asset.criticidad === 'media' ? 'warn' : 'ok';
+  const timeline = timelineData?.timeline || [];
+  const metrics = timelineData?.metrics || { workOrders: 0, openWorkOrders: 0, incidents: 0, openIncidents: 0, materials: 0, reports: 0, photos: 0 };
 
   async function handlePdf() {
     exportAssetPdf({
@@ -43,7 +66,7 @@ export default function AssetDetail() {
     <>
       <PageHeader
         title={asset.nombre}
-        subtitle="Ficha tecnica, mantenimiento, incidencias y QR del activo."
+        subtitle="Ficha tecnica, mantenimiento, incidencias, OT, materiales, fotos e historial del activo."
         action={<button className="primary-button" onClick={handlePdf}>Exportar PDF</button>}
       />
 
@@ -71,27 +94,53 @@ export default function AssetDetail() {
       </section>
 
       <section className="asset-summary-grid">
-        <article className="asset-summary-card">
-          <FileText size={20} />
-          <span>Documentos</span>
-          <strong>{assetDocuments.length}</strong>
-        </article>
-        <article className="asset-summary-card">
-          <ClipboardList size={20} />
-          <span>Revisiones</span>
-          <strong>{assetHistory.length}</strong>
-        </article>
-        <article className={`asset-summary-card ${openIncidents.length ? 'danger' : ''}`}>
-          <AlertTriangle size={20} />
-          <span>Incidencias abiertas</span>
-          <strong>{openIncidents.length}</strong>
-        </article>
-        <article className={`asset-summary-card ${reviewDue ? 'warn' : ''}`}>
-          <CalendarClock size={20} />
-          <span>Proxima revision</span>
-          <strong>{formatDate(asset.fecha_proxima_revision)}</strong>
-        </article>
+        <article className="asset-summary-card"><FileText size={20} /><span>Documentos</span><strong>{assetDocuments.length}</strong></article>
+        <article className="asset-summary-card"><ClipboardList size={20} /><span>Revisiones</span><strong>{assetHistory.length}</strong></article>
+        <article className={`asset-summary-card ${metrics.openIncidents ? 'danger' : ''}`}><AlertTriangle size={20} /><span>Incidencias abiertas</span><strong>{metrics.openIncidents || openIncidents.length}</strong></article>
+        <article className={`asset-summary-card ${reviewDue ? 'warn' : ''}`}><CalendarClock size={20} /><span>Proxima revision</span><strong>{formatDate(asset.fecha_proxima_revision)}</strong></article>
+        <article className="asset-summary-card"><Wrench size={20} /><span>OT realizadas</span><strong>{metrics.workOrders}</strong></article>
+        <article className="asset-summary-card"><Package size={20} /><span>Materiales</span><strong>{metrics.materials}</strong></article>
+        <article className="asset-summary-card"><Image size={20} /><span>Fotos incidencia</span><strong>{metrics.photos}</strong></article>
+        <article className="asset-summary-card"><FileText size={20} /><span>Informes OT</span><strong>{metrics.reports}</strong></article>
       </section>
+
+      <CollapsibleSection title="Historial automatico del activo" subtitle="Linea temporal unificada de incidencias, OT, materiales, fotos e informes" icon={History} badge={`${timeline.length} eventos`} defaultOpen>
+        {timelineError && <p className="error-text">{timelineError}</p>}
+        {!timelineData && !timelineError && <p className="muted">Cargando historial automatico...</p>}
+        {timelineData && timeline.length === 0 && <p className="muted">Todavia no hay eventos automaticos para este activo.</p>}
+        {timeline.length > 0 && (
+          <div className="asset-timeline">
+            {timeline.map((event) => <TimelineEvent event={event} key={event.id} />)}
+          </div>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Ordenes de trabajo del activo" subtitle="OT vinculadas directamente a este activo" icon={Wrench} badge={`${timelineData?.workOrders?.length || 0}`} defaultOpen={false}>
+        <DataTable columns={[
+          { key: 'codigo_ot', label: 'OT', render: (row) => <Link className="table-link" to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
+          { key: 'titulo', label: 'Trabajo' },
+          { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${['VALIDADA', 'CERRADA'].includes(row.estado) ? 'ok' : row.estado === 'CANCELADA' ? 'danger' : 'warn'}`}>{row.estado}</span> },
+          { key: 'tecnico', label: 'Tecnico', render: (row) => row.assigned?.nombre || row.assigned?.email || 'Sin tecnico' },
+          { key: 'materials', label: 'Materiales', render: (row) => row.materials?.length || 0 },
+          { key: 'reports', label: 'Informes', render: (row) => row.reports?.length || 0 }
+        ]} rows={timelineData?.workOrders || []} empty="No hay OT vinculadas a este activo." />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Fotos de incidencias" subtitle="Evidencias recibidas desde QR o añadidas internamente" icon={Image} badge={`${metrics.photos}`} defaultOpen={false}>
+        {(timelineData?.incidentPhotos || []).length === 0 ? (
+          <p className="muted">No hay fotos de incidencias vinculadas a este activo.</p>
+        ) : (
+          <div className="incident-photo-grid">
+            {timelineData.incidentPhotos.map((photo) => (
+              <article className="incident-photo-card" key={photo.id}>
+                <img src={photo.data_url} alt={photo.comentario || photo.file_name || 'Foto de incidencia'} />
+                <small>{photo.source === 'public_qr' ? 'QR publico' : 'Interna'} · {formatDateTime(photo.created_at)}</small>
+                {photo.comentario && <span>{photo.comentario}</span>}
+              </article>
+            ))}
+          </div>
+        )}
+      </CollapsibleSection>
 
       <div className="grid two asset-detail-grid">
         <section className="card">
@@ -130,20 +179,20 @@ export default function AssetDetail() {
         </section>
 
         <section>
-          <h2 className="section-heading"><ClipboardList size={20} /> Historial de mantenimiento</h2>
+          <h2 className="section-heading"><ClipboardList size={20} /> Historial de mantenimiento manual</h2>
           <DataTable columns={[
             { key: 'fecha', label: 'Fecha', render: (row) => formatDate(row.fecha) },
             { key: 'tipo', label: 'Tipo' },
             { key: 'titulo', label: 'Trabajo realizado' }
-          ]} rows={assetHistory} empty="Todavia no hay historial para este activo." />
+          ]} rows={assetHistory} empty="Todavia no hay historial manual para este activo." />
         </section>
 
         <section>
           <h2 className="section-heading"><AlertTriangle size={20} /> Incidencias</h2>
           <DataTable columns={[
             { key: 'titulo', label: 'Incidencia' },
-            { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${row.prioridad === 'urgente' ? 'danger' : 'warn'}`}>{row.prioridad}</span> },
-            { key: 'estado', label: 'Estado', render: (row) => <span className={row.estado === 'cerrada' ? 'badge ok' : 'badge warn'}>{row.estado}</span> }
+            { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${row.prioridad === 'urgente' || row.prioridad === 'critica' ? 'danger' : 'warn'}`}>{row.prioridad}</span> },
+            { key: 'estado', label: 'Estado', render: (row) => <span className={row.estado === 'cerrada' || row.estado === 'convertida_en_ot' ? 'badge ok' : 'badge warn'}>{row.estado}</span> }
           ]} rows={assetIncidents} empty="No hay incidencias registradas." />
         </section>
 
@@ -157,11 +206,30 @@ export default function AssetDetail() {
   );
 }
 
-function Detail({ label, value }) {
+function TimelineEvent({ event }) {
+  const isOt = event.source === 'ot';
   return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value || '-'}</strong>
-    </div>
+    <article className={`asset-timeline-item ${isOt ? 'ot' : 'incident'}`}>
+      <span className="asset-timeline-dot">{isOt ? <Wrench size={16} /> : <AlertTriangle size={16} />}</span>
+      <div>
+        <div className="asset-timeline-head">
+          <strong>{event.title}</strong>
+          <span className="muted">{formatDateTime(event.date)}</span>
+        </div>
+        <p>{event.subtitle}</p>
+        <div className="quick-actions">
+          <span className={`badge ${event.status === 'VALIDADA' || event.status === 'convertida_en_ot' || event.status === 'cerrada' ? 'ok' : event.status === 'CANCELADA' || event.status === 'descartada' ? 'danger' : 'warn'}`}>{event.status}</span>
+          {event.priority && <span className="badge">{event.priority}</span>}
+          {isOt ? <span className="badge">{event.meta.visits} visita(s)</span> : <span className="badge">{event.meta.photos} foto(s)</span>}
+          {isOt && <span className="badge">{event.meta.materials} material(es)</span>}
+          {isOt && <span className="badge">{event.meta.reports} informe(s)</span>}
+          <Link className="secondary-button" to={event.link}>{isOt ? 'Abrir OT' : event.meta.hasOt ? 'Abrir OT' : 'Ver incidencias'}</Link>
+        </div>
+      </div>
+    </article>
   );
+}
+
+function Detail({ label, value }) {
+  return <div className="detail-item"><span>{label}</span><strong>{value || '-'}</strong></div>;
 }
