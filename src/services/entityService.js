@@ -86,12 +86,14 @@ export async function updateInstallation(row, payload) {
 }
 
 export async function listInstallationsForTenant(tenantId) {
-  const { data, error } = await supabase
+  let query = supabase
     .from('instalaciones')
-    .select('id,nombre,direccion,tipo')
+    .select('id,nombre,codigo,direccion,tipo,estado')
     .eq('tenant_id', tenantId)
     .order('nombre', { ascending: true });
 
+  query = query.is('deleted_at', null);
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -258,41 +260,6 @@ export async function createMaintenanceEntry(tenantId, payload) {
     .single();
 
   if (error) throw error;
-  await logAudit({ tenantId, action: 'create_maintenance', entityType: 'historial_mantenimiento', entityId: data.id });
+  await logAudit({ tenantId, action: 'create_maintenance_entry', entityType: 'historial_mantenimiento', entityId: data.id });
   return data;
-}
-
-export async function createIncident(tenantId, payload) {
-  const { data: userData } = await supabase.auth.getUser();
-  const { data, error } = await supabase
-    .from('incidencias')
-    .insert({
-      tenant_id: tenantId,
-      instalacion_id: payload.instalacion_id,
-      ubicacion_id: payload.ubicacion_id || null,
-      activo_id: payload.activo_id || null,
-      titulo: payload.titulo,
-      descripcion: payload.descripcion || null,
-      prioridad: payload.prioridad || 'media',
-      estado: 'abierta',
-      created_by: userData.user?.id || null,
-      assigned_to: payload.assigned_to || null
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  await logAudit({ tenantId, action: 'create_incident', entityType: 'incidencia', entityId: data.id });
-  return data;
-}
-
-export async function softDeleteEntity({ table, tenantId, id, entityType, auditAction }) {
-  const { error } = await supabase
-    .from(table)
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('tenant_id', tenantId);
-
-  if (error) throw error;
-  await logAudit({ tenantId, action: auditAction, entityType, entityId: id });
 }
