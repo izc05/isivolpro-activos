@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, ClipboardCheck, Filter, FileText, Image, Package, Wrench } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Download, Filter, FileText, Image, Package, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
@@ -13,6 +13,7 @@ import {
   listWorkOrders,
   signedChecklistPhotoUrl
 } from '../services/workOrderService';
+import { generateWorkOrderPdfBlob } from '../services/workOrderPdfService';
 import { formatDateTime } from '../utils/dateUtils';
 import { normalizedStatus, priorityLabel, priorityTone, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 import { supabase } from '../services/supabaseClient';
@@ -30,6 +31,7 @@ export default function CompletedWorkOrders() {
   const [checklistRows, setChecklistRows] = useState([]);
   const [checklistPhotos, setChecklistPhotos] = useState({});
   const [loadingChecklist, setLoadingChecklist] = useState(false);
+  const [generatingPdfId, setGeneratingPdfId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: '', status: 'todas', date: 'todas' });
@@ -125,21 +127,41 @@ export default function CompletedWorkOrders() {
     }
   }
 
+  async function downloadFinalActa(row) {
+    setError('');
+    setGeneratingPdfId(row.id);
+    try {
+      const { blob, filename } = await generateWorkOrderPdfBlob(row.tenant_id, row.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGeneratingPdfId('');
+    }
+  }
+
   if (loading) return <p className="muted">Cargando OT realizadas...</p>;
 
   return (
     <>
-      <PageHeader title="OT realizadas" subtitle="Histórico de trabajos finalizados, validados, checklist completo, fotos, materiales e informes." action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
+      <PageHeader title="OT realizadas" subtitle="Historico de trabajos finalizados, validados, checklist completo, fotos, materiales e informes." action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
         <Link to="/ots">Todas</Link>
         <Link className="active" to="/ots-realizadas">OT realizadas</Link>
         <Link to="/mis-ots">OT asignadas</Link>
-        <Link to="/ots-creadas">Creadas por mí</Link>
+        <Link to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}
 
-      <CollapsibleSection title="Resumen OT realizadas" subtitle="Trabajos cerrados o pendientes solo de validación" icon={CheckCircle2} badge={`${metrics.realizadas}`} defaultOpen>
+      <CollapsibleSection title="Resumen OT realizadas" subtitle="Trabajos cerrados o pendientes solo de validacion" icon={CheckCircle2} badge={`${metrics.realizadas}`} defaultOpen>
         <section className="grid metrics user-module-metrics">
           <article className="metric-card"><span>Realizadas</span><strong>{metrics.realizadas}</strong></article>
           <article className="metric-card warn"><span>Finalizadas sin validar</span><strong>{metrics.finalizadas}</strong></article>
@@ -150,14 +172,14 @@ export default function CompletedWorkOrders() {
         </section>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Filtros" subtitle="Busca por OT, instalación, activo o técnico" icon={Filter} badge={`${filteredRows.length}/${rows.length}`} defaultOpen>
+      <CollapsibleSection title="Filtros" subtitle="Busca por OT, instalacion, activo o tecnico" icon={Filter} badge={`${filteredRows.length}/${rows.length}`} defaultOpen>
         <div className="user-filter-grid">
-          <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Código, trabajo, instalación, activo o técnico" /></label>
+          <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, trabajo, instalacion, activo o tecnico" /></label>
           <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Finalizada</option><option value="VALIDADA">Validada</option><option value="CERRADA">Cerrada</option><option value="FIRMADA">Firmada</option><option value="INFORME_GENERADO">Informe generado</option></select></label>
-          <label><span>Fecha</span><select value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))}><option value="todas">Todas</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="year">Este año</option></select></label>
-          <label><span>Vista rápida</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Pendientes validar</option><option value="VALIDADA">Validadas</option></select></label>
+          <label><span>Fecha</span><select value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))}><option value="todas">Todas</option><option value="30">Ultimos 30 dias</option><option value="90">Ultimos 90 dias</option><option value="year">Este ano</option></select></label>
+          <label><span>Vista rapida</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Pendientes validar</option><option value="VALIDADA">Validadas</option></select></label>
         </div>
-        <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'FINALIZADA' }))}>Pendientes validar</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, date: '30' }))}>Últimos 30 días</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todas', date: 'todas' })}>Limpiar</button></div>
+        <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'FINALIZADA' }))}>Pendientes validar</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, date: '30' }))}>Ultimos 30 dias</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todas', date: 'todas' })}>Limpiar</button></div>
       </CollapsibleSection>
 
       <CollapsibleSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con checklist, fotos, informe y detalle" icon={Wrench} defaultOpen>
@@ -166,19 +188,19 @@ export default function CompletedWorkOrders() {
             { key: 'codigo_ot', label: 'OT', render: (row) => <Link className="table-link" to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
             { key: 'titulo', label: 'Trabajo' },
             { key: 'tipo_ot', label: 'Tipo', render: (row) => workOrderTypeLabel(row.tipo_ot || row.tipo) },
-            { key: 'instalacion', label: 'Instalación', render: (row) => row.instalaciones?.nombre || '-' },
+            { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || '-' },
             { key: 'activo', label: 'Activo', render: (row) => row.activos?.nombre || '-' },
-            { key: 'tecnico', label: 'Técnico', render: (row) => row.assigned?.nombre || row.assigned?.email || 'Sin técnico' },
+            { key: 'tecnico', label: 'Tecnico', render: (row) => row.assigned?.nombre || row.assigned?.email || 'Sin tecnico' },
             { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad)}</span> },
             { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> },
-            { key: 'fecha_fin', label: 'Finalización', render: (row) => row.fecha_fin || row.closed_at ? formatDateTime(row.fecha_fin || row.closed_at) : '-' },
+            { key: 'fecha_fin', label: 'Finalizacion', render: (row) => row.fecha_fin || row.closed_at ? formatDateTime(row.fecha_fin || row.closed_at) : '-' },
             { key: 'fotos', label: 'Fotos', render: (row) => <span className="badge"><Image size={14} /> {photoCountByOt.get(row.id) || 0}</span> },
             { key: 'materiales', label: 'Materiales', render: (row) => <span className="badge"><Package size={14} /> {materialCountByOt.get(row.id) || 0}</span> },
             { key: 'informes', label: 'Informes', render: (row) => <span className="badge"><FileText size={14} /> {reportCountByOt.get(row.id) || 0}</span> },
-            { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><button className="secondary-button" type="button" onClick={() => openChecklist(row)}><ClipboardCheck size={16} /> Checklist + fotos</button><Link className="secondary-button" to={`/ots/${row.id}`}>Ver OT</Link><Link className="primary-button" to={`/ots/${row.id}/informe`}>Informe</Link></div> }
+            { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><button className="secondary-button" type="button" onClick={() => openChecklist(row)}><ClipboardCheck size={16} /> Checklist + fotos</button><button className="primary-button" type="button" disabled={generatingPdfId === row.id} onClick={() => downloadFinalActa(row)}><Download size={16} /> {generatingPdfId === row.id ? 'Generando...' : 'Acta PDF'}</button><Link className="secondary-button" to={`/ots/${row.id}`}>Ver OT</Link></div> }
           ]}
           rows={filteredRows}
-          empty="Todavía no hay OT realizadas."
+          empty="Todavia no hay OT realizadas."
         />
       </CollapsibleSection>
 
@@ -189,6 +211,7 @@ export default function CompletedWorkOrders() {
               <div className="ot-checklist-review-header">
                 <strong>{selectedOrder.titulo}</strong>
                 <span>{selectedOrder.instalaciones?.nombre || '-'} · {selectedOrder.activos?.nombre || 'Sin activo'}</span>
+                <button className="primary-button" type="button" disabled={generatingPdfId === selectedOrder.id} onClick={() => downloadFinalActa(selectedOrder)}><Download size={16} /> {generatingPdfId === selectedOrder.id ? 'Generando acta...' : 'Descargar acta final PDF'}</button>
               </div>
             )}
             {checklistRows.length === 0 && <p className="muted">Esta OT no tiene checklist registrado.</p>}
@@ -199,8 +222,8 @@ export default function CompletedWorkOrders() {
                   <span className={`badge ${item.resultado === 'ok' ? 'ok' : item.resultado === 'no_ok' ? 'danger' : 'warn'}`}>{item.resultado || 'pendiente'}</span>
                 </div>
                 {item.observacion && <p>{item.observacion}</p>}
-                {item.medicion_valor && <small>Medición: {item.medicion_valor}</small>}
-                {item.accion_realizada && <small>Acción: {item.accion_realizada}</small>}
+                {item.medicion_valor && <small>Medicion: {item.medicion_valor}</small>}
+                {item.accion_realizada && <small>Accion: {item.accion_realizada}</small>}
                 {(checklistPhotos[item.id] || []).length > 0 ? (
                   <div className="incident-photo-grid">
                     {(checklistPhotos[item.id] || []).map((photo) => (
