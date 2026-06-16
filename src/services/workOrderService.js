@@ -197,6 +197,16 @@ export async function listWorkOrderVisits(tenantId, workOrderId) {
   return data || [];
 }
 
+export async function listWorkOrderVisitsForTenant(tenantId) {
+  const { data, error } = await supabase
+    .from('ot_visitas')
+    .select('*, tecnico:profiles!ot_visitas_tecnico_id_fkey(nombre,email), orden:ordenes_trabajo(codigo_ot,titulo,estado)')
+    .eq('tenant_id', tenantId)
+    .order('fecha_inicio', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function startWorkOrderVisit(workOrder, location = {}, payload = {}) {
   assertEditable(workOrder);
   const userId = await currentUserId();

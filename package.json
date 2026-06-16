@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "node scripts/restore-source-html.mjs",
+    "predev": "node scripts/restore-source-html.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

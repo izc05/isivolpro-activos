@@ -3,6 +3,13 @@ import { logAudit } from './auditService';
 import { claimDemoAccess } from './authService';
 import { uploadEntityImage } from './imageService';
 
+const SOFT_DELETE_TABLES = new Set([
+  'instalaciones',
+  'ubicaciones',
+  'activos',
+  'historial_mantenimiento'
+]);
+
 async function ensureDemoAccessIfEnabled() {
   if (import.meta.env.VITE_ENABLE_DEMO_SIGNUP !== 'true') return null;
   const { data, error } = await claimDemoAccess('');
@@ -211,6 +218,20 @@ export async function createLocation(tenantId, payload) {
   return data;
 }
 
+export async function softDeleteEntity({ table, tenantId, id, entityType, auditAction }) {
+  if (!SOFT_DELETE_TABLES.has(table)) throw new Error('Tabla no permitida para baja logica.');
+  if (!tenantId || !id) throw new Error('No se ha podido identificar el registro a dar de baja.');
+
+  const { error } = await supabase
+    .from(table)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
+
+  if (error) throw error;
+  await logAudit({ tenantId, action: auditAction, entityType, entityId: id });
+}
+
 export async function updateLocation(row, payload) {
   const { data, error } = await supabase
     .from('ubicaciones')
@@ -261,5 +282,32 @@ export async function createMaintenanceEntry(tenantId, payload) {
 
   if (error) throw error;
   await logAudit({ tenantId, action: 'create_maintenance_entry', entityType: 'historial_mantenimiento', entityId: data.id });
+  return data;
+}
+
+export async function createIncident(tenantId, payload) {
+  if (!tenantId) throw new Error('No hay cliente activo para crear la incidencia.');
+  if (!payload.instalacion_id) throw new Error('Selecciona una instalacion.');
+  if (!payload.titulo?.trim()) throw new Error('Introduce un titulo para la incidencia.');
+
+  const { data: userData } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('incidencias')
+    .insert({
+      tenant_id: tenantId,
+      instalacion_id: payload.instalacion_id,
+      ubicacion_id: payload.ubicacion_id || null,
+      activo_id: payload.activo_id || null,
+      titulo: payload.titulo.trim(),
+      descripcion: payload.descripcion || null,
+      prioridad: payload.prioridad || 'media',
+      estado: 'abierta',
+      created_by: userData.user?.id || null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId, action: 'create_incident', entityType: 'incidencia', entityId: data.id });
   return data;
 }
