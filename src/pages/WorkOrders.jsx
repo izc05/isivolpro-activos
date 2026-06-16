@@ -37,10 +37,10 @@ function requirementsForType(type) {
   return defaultRequirementsForType(REQUIREMENT_TYPE_MAP[type] || type);
 }
 
-function buildInitialForm() {
+function buildInitialForm(activeInstallationId = '') {
   const tipo = 'preventiva';
   return {
-    instalacion_id: '',
+    instalacion_id: activeInstallationId || '',
     ubicacion_id: '',
     activo_id: '',
     activos_relacionados: [],
@@ -64,7 +64,7 @@ function buildInitialForm() {
 }
 
 export default function WorkOrders() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -76,7 +76,7 @@ export default function WorkOrders() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState('');
-  const [form, setForm] = useState(buildInitialForm);
+  const [form, setForm] = useState(() => buildInitialForm(activeInstallationId));
   const [filters, setFilters] = useState({ search: '', status: 'todos', priority: 'todas', type: 'todos' });
 
   async function refresh() {
@@ -94,6 +94,10 @@ export default function WorkOrders() {
   useEffect(() => {
     refresh().catch((err) => setError(err.message));
   }, [activeTenantId]);
+
+  useEffect(() => {
+    if (!open) setForm(buildInitialForm(activeInstallationId));
+  }, [activeInstallationId, open]);
 
   const technicians = useMemo(
     () => members.filter((member) => ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(member.role) && member.estado !== 'inactivo'),
@@ -121,19 +125,34 @@ export default function WorkOrders() {
     [invitations]
   );
 
-  const filteredLocations = useMemo(() => locations.filter((location) => !form.instalacion_id || location.instalacion_id === form.instalacion_id), [locations, form.instalacion_id]);
+  const visibleInstallations = useMemo(
+    () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
+    [installations, activeInstallationId]
+  );
+
+  const visibleRows = useMemo(
+    () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
+    [rows, activeInstallationId]
+  );
+
+  const filteredLocations = useMemo(() => {
+    const installationId = form.instalacion_id || activeInstallationId;
+    return locations.filter((location) => !installationId || location.instalacion_id === installationId);
+  }, [locations, form.instalacion_id, activeInstallationId]);
+
   const filteredAssets = useMemo(
     () => assets.filter((asset) => {
       if (form.ubicacion_id) return asset.ubicacion_id === form.ubicacion_id;
-      if (form.instalacion_id) return asset.instalacion_id === form.instalacion_id;
+      const installationId = form.instalacion_id || activeInstallationId;
+      if (installationId) return asset.instalacion_id === installationId;
       return true;
     }),
-    [assets, form.instalacion_id, form.ubicacion_id]
+    [assets, form.instalacion_id, form.ubicacion_id, activeInstallationId]
   );
 
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
-    return rows.filter((row) => {
+    return visibleRows.filter((row) => {
       const searchable = `${row.codigo_ot || ''} ${row.titulo || ''} ${row.instalaciones?.nombre || ''} ${row.assigned?.nombre || ''} ${row.assigned?.email || ''}`.toLowerCase();
       const matchText = !text || searchable.includes(text);
       const matchStatus = filters.status === 'todos' || row.estado === filters.status;
@@ -141,10 +160,22 @@ export default function WorkOrders() {
       const matchType = filters.type === 'todos' || (row.tipo_ot || row.tipo) === filters.type;
       return matchText && matchStatus && matchPriority && matchType;
     });
-  }, [rows, filters]);
+  }, [visibleRows, filters]);
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'instalacion_id') {
+        next.ubicacion_id = '';
+        next.activo_id = '';
+        next.activos_relacionados = [];
+      }
+      if (field === 'ubicacion_id') {
+        next.activo_id = '';
+        next.activos_relacionados = [];
+      }
+      return next;
+    });
   }
 
   function updateType(value) {
@@ -163,6 +194,13 @@ export default function WorkOrders() {
     setForm((current) => ({ ...current, configuracion: { ...current.configuracion, [field]: checked } }));
   }
 
+  function openCreate() {
+    setForm(buildInitialForm(activeInstallationId));
+    setError('');
+    setMessage('');
+    setOpen(true);
+  }
+
   async function submit(event, status) {
     event.preventDefault();
     setError('');
@@ -170,10 +208,10 @@ export default function WorkOrders() {
     setSaving(true);
     try {
       const finalStatus = status || (form.assigned_to ? 'ASIGNADA' : 'NUEVA');
-      const payload = { ...form, estado: finalStatus };
+      const payload = { ...form, instalacion_id: form.instalacion_id || activeInstallationId, estado: finalStatus };
       const created = await createWorkOrder(activeTenantId, payload);
       if (payload.configuracion?.requiere_checklist) await ensureDefaultChecklist(created);
-      setForm(buildInitialForm());
+      setForm(buildInitialForm(activeInstallationId));
       setOpen(false);
       await refresh();
       setMessage(finalStatus === 'BORRADOR' ? 'Borrador de OT guardado.' : 'OT creada correctamente.');
@@ -205,19 +243,21 @@ export default function WorkOrders() {
     <>
       <PageHeader
         title="Ordenes de trabajo"
-        subtitle="Crea OT con ciclo profesional: nueva, asignada, en curso, pendientes, finalizada y validada."
-        action={<div className="quick-actions"><Link className="secondary-button" to="/ots-dashboard">Dashboard OT</Link><button className="primary-button" onClick={() => setOpen(true)}>Nueva OT</button></div>}
+        subtitle={activeInstallation ? `Mostrando OT de ${activeInstallation.nombre}.` : 'Crea OT con ciclo profesional: nueva, asignada, en curso, pendientes, finalizada y validada.'}
+        action={<div className="quick-actions"><Link className="secondary-button" to="/ots-dashboard">Dashboard OT</Link><button className="primary-button" onClick={openCreate}>Nueva OT</button></div>}
       />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
         <Link className="active" to="/ots">Todas</Link>
+        <Link to="/ots-realizadas">OT realizadas</Link>
         <Link to="/mis-ots">OT asignadas</Link>
         <Link to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <CollapsibleSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalacion o tecnico" icon={Filter} badge={`${filteredRows.length}/${rows.length}`} defaultOpen>
+      <CollapsibleSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalacion o tecnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, titulo, instalacion o tecnico" /></label>
           <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todos">Todos</option>{['BORRADOR', 'NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
@@ -240,14 +280,14 @@ export default function WorkOrders() {
           { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><Link className="secondary-button" to={`/ots/${row.id}`}>Ver</Link><button className="danger-button" type="button" disabled={deletingId === row.id} onClick={() => deleteOrder(row)}>{deletingId === row.id ? 'Borrando...' : 'Cancelar'}</button></div> }
         ]}
         rows={filteredRows}
-        empty="Sin ordenes de trabajo creadas"
+        empty="Sin ordenes de trabajo para la instalación activa"
       />
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid workorder-form" onSubmit={(event) => submit(event)}>
           <CollapsibleSection title="1. Destino" subtitle="Instalacion, ubicacion y activo" icon={ClipboardCheck} defaultOpen>
             <div className="grid two">
-              <FormField label="Instalacion obligatoria"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required><option value="">Seleccionar</option>{installations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
+              <FormField label="Instalacion obligatoria"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId)}><option value="">Seleccionar</option>{visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Ubicacion opcional"><select value={form.ubicacion_id} onChange={(event) => updateField('ubicacion_id', event.target.value)}><option value="">Sin ubicacion concreta</option>{filteredLocations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Activo principal opcional"><select value={form.activo_id} onChange={(event) => updateField('activo_id', event.target.value)}><option value="">Sin activo concreto</option>{filteredAssets.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Activos relacionados"><select multiple value={form.activos_relacionados} onChange={(event) => updateField('activos_relacionados', Array.from(event.target.selectedOptions).map((option) => option.value))}>{filteredAssets.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
