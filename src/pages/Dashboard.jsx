@@ -9,20 +9,21 @@ import { dashboardMetrics } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
 
 export default function Dashboard() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
   const [metrics, setMetrics] = useState(null);
 
   useEffect(() => {
-    if (activeTenantId) dashboardMetrics(activeTenantId).then(setMetrics).catch(console.error);
-  }, [activeTenantId]);
+    if (activeTenantId) dashboardMetrics(activeTenantId, activeInstallationId).then(setMetrics).catch(console.error);
+  }, [activeTenantId, activeInstallationId]);
 
   const data = metrics || { totalInstalaciones: 0, totalActivos: 0, pendientesRevision: 0, incidenciasAbiertas: 0, documentosRecientes: [] };
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Estado operativo de instalaciones, activos e incidencias." />
+      <PageHeader title="Dashboard" subtitle={activeInstallation ? `Estado operativo de ${activeInstallation.nombre}.` : 'Estado operativo de instalaciones, activos e incidencias.'} />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       <div className="grid metrics">
-        <MetricCard label="Instalaciones" value={data.totalInstalaciones} />
+        <MetricCard label={activeInstallation ? 'Instalación activa' : 'Instalaciones'} value={data.totalInstalaciones} />
         <MetricCard label="Activos" value={data.totalActivos} />
         <MetricCard label="Pendientes revision" value={data.pendientesRevision} tone="warn" />
         <MetricCard label="Incidencias abiertas" value={data.incidenciasAbiertas} tone="danger" />
@@ -43,6 +44,7 @@ export default function Dashboard() {
             { key: 'created_at', label: 'Fecha', render: (row) => formatDateTime(row.created_at) }
           ]}
           rows={data.documentosRecientes}
+          empty="Sin documentos recientes para la instalación activa"
         />
       </div>
     </>
