@@ -143,7 +143,7 @@ function addFooter(doc) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`IsiVoltPro · Informe OT · Pagina ${i}/${pageCount}`, PAGE.margin, 290);
+    doc.text(`IsiVoltPro - Acta final OT - Pagina ${i}/${pageCount}`, PAGE.margin, 290);
   }
 }
 
@@ -192,7 +192,7 @@ async function collectReportData(tenantId, workOrderId) {
 export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
   const { workOrder, visits, checklist, photosByChecklistId, materials } = await collectReportData(tenantId, workOrderId);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-  let y = addHeader(doc, 'Informe de Orden de Trabajo', `${workOrder.codigo_ot || workOrder.id} · ${workOrder.titulo}`);
+  let y = addHeader(doc, 'Acta final de trabajo realizado', `${workOrder.codigo_ot || workOrder.id} - ${workOrder.titulo}`);
 
   y = addSection(doc, y, '1. Datos generales');
   y = addKeyValue(doc, y, 'OT', workOrder.codigo_ot || workOrder.id);
@@ -202,7 +202,8 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
   y = addKeyValue(doc, y, 'Tecnico', workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar');
   y = addKeyValue(doc, y, 'Fecha prevista', formatDate(workOrder.fecha_prevista));
   y = addKeyValue(doc, y, 'Fecha inicio', formatDate(workOrder.fecha_inicio));
-  y = addKeyValue(doc, y, 'Fecha fin', formatDate(workOrder.fecha_fin));
+  y = addKeyValue(doc, y, 'Fecha fin', formatDate(workOrder.fecha_fin || workOrder.closed_at));
+  y = addKeyValue(doc, y, 'Revision admin', workOrder.revision_admin_estado || '-');
 
   y = addSection(doc, y, '2. Instalacion / activo');
   y = addKeyValue(doc, y, 'Instalacion', workOrder.instalaciones?.nombre);
@@ -224,7 +225,7 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
   if (visits.length === 0) {
     y = addParagraph(doc, y, 'No hay visitas registradas.');
   } else {
-    visits.forEach((visit, index) => {
+    for (const [index, visit] of visits.entries()) {
       y = addPageIfNeeded(doc, y, 30);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
@@ -236,32 +237,37 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
       y = addKeyValue(doc, y, 'Estado', visit.estado);
       y = addKeyValue(doc, y, 'Ubicacion GPS', visit.latitud && visit.longitud ? `${visit.latitud}, ${visit.longitud}` : '-');
       y = addParagraph(doc, y, visit.trabajo_realizado || visit.observaciones || 'Sin observaciones.');
-    });
+    }
   }
 
-  y = addSection(doc, y, '5. Checklist');
+  y = addSection(doc, y, '5. Checklist completo con fotos');
   if (checklist.length === 0) {
     y = addParagraph(doc, y, 'No hay checklist registrado.');
   } else {
     for (const item of checklist) {
-      y = addPageIfNeeded(doc, y, 18);
+      y = addPageIfNeeded(doc, y, 22);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text(`${item.punto}. ${item.descripcion}`, PAGE.margin, y);
-      y += 5;
+      const titleLines = doc.splitTextToSize(`${item.punto}. ${item.descripcion}`, 180);
+      doc.text(titleLines, PAGE.margin, y);
+      y += Math.max(5, titleLines.length * 5);
       y = addKeyValue(doc, y, 'Resultado', resultLabel(item.resultado));
       y = addKeyValue(doc, y, 'Requiere foto', item.requiere_foto ? 'Si' : 'No');
+      if (item.medicion_valor) y = addKeyValue(doc, y, 'Medicion', item.medicion_valor);
+      if (item.accion_realizada) y = addKeyValue(doc, y, 'Accion realizada', item.accion_realizada);
       y = addParagraph(doc, y, item.observacion || 'Sin observacion.');
       const photos = photosByChecklistId[item.id] || [];
       if (photos.length > 0) {
         for (const photo of photos) {
           try {
             const dataUrl = await urlToDataUrl(photo.signedUrl);
-            y = await addImageBlock(doc, y, dataUrl, `${photo.comentario || 'Foto del punto'} · ${formatDate(photo.created_at)}`);
+            y = await addImageBlock(doc, y, dataUrl, `${photo.comentario || 'Foto del punto'} - ${formatDate(photo.created_at)}`);
           } catch (error) {
             y = addParagraph(doc, y, `No se pudo incluir una foto: ${photo.file_name || photo.id}`);
           }
         }
+      } else if (item.requiere_foto) {
+        y = addParagraph(doc, y, 'Punto marcado con foto requerida, sin foto asociada.');
       }
     }
   }
@@ -302,13 +308,13 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 
   addFooter(doc);
   const blob = doc.output('blob');
-  const filename = `informe-${workOrder.codigo_ot || workOrder.id}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const filename = `acta-final-${workOrder.codigo_ot || workOrder.id}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '-');
   return { blob, filename, workOrder };
 }
 
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   const { blob, filename, workOrder } = await generateWorkOrderPdfBlob(tenantId, workOrderId);
-  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevos informes.');
+  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevos informes. Descarga el acta final desde OT realizadas.');
   const file = new File([blob], filename, { type: 'application/pdf' });
   const path = buildStoragePath({ tenantId, scope: 'ordenes-trabajo', scopeId: workOrderId, folder: 'informes', file });
 
