@@ -39,11 +39,13 @@ export async function uploadEntityImage({ tenantId, entityType, entityId, file }
     image_bucket: 'photos-private',
     image_path: path,
     image_file_name: file.name,
-    image_mime_type: file.type
+    image_mime_type: file.type,
+    image_data_url: null
   };
 }
 
 export async function signedEntityImageUrl(row, entityType) {
+  if (row?.image_data_url) return row.image_data_url;
   if (!row?.image_bucket || !row?.image_path) return '';
   return createSignedUrl({
     tenantId: row.tenant_id,
