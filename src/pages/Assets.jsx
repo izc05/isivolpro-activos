@@ -5,19 +5,21 @@ import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import { useTenantRows } from '../hooks/useTenantRows';
+import { useTenant } from '../hooks/useTenant';
 import { formatDate } from '../utils/dateUtils';
 import { createAsset, softDeleteEntity, updateAsset } from '../services/entityService';
 import { usePermissions } from '../hooks/usePermissions';
 import EntityIdentity from '../components/Cards/EntityIdentity';
 
 export default function Assets() {
+  const { activeInstallationId, activeInstallation } = useTenant();
   const { rows, activeTenantId, refresh } = useTenantRows('activos', '*, instalaciones(nombre), ubicaciones(nombre)', { order: 'created_at' });
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const emptyForm = {
-    instalacion_id: '',
+    instalacion_id: activeInstallationId || '',
     ubicacion_id: '',
     nombre: '',
     tipo: '',
@@ -44,13 +46,31 @@ export default function Assets() {
     permissions.canManageTenant().then(setCanManage).catch(() => setCanManage(false));
   }, [permissions]);
 
+  const visibleRows = useMemo(
+    () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
+    [rows, activeInstallationId]
+  );
+
+  const visibleInstallations = useMemo(
+    () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
+    [installations, activeInstallationId]
+  );
+
   const filteredLocations = useMemo(
     () => locations.filter((location) => !form.instalacion_id || location.instalacion_id === form.instalacion_id),
     [locations, form.instalacion_id]
   );
 
+  function buildEmptyForm() {
+    return { ...emptyForm, instalacion_id: activeInstallationId || '' };
+  }
+
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'instalacion_id') next.ubicacion_id = '';
+      return next;
+    });
   }
 
   async function submit(event) {
@@ -66,7 +86,7 @@ export default function Assets() {
       } else {
         await createAsset(activeTenantId, form);
       }
-      setForm(emptyForm);
+      setForm(buildEmptyForm());
       setEditingRow(null);
       formElement.reset();
       setOpen(false);
@@ -87,7 +107,7 @@ export default function Assets() {
 
   function startCreate() {
     setEditingRow(null);
-    setForm(emptyForm);
+    setForm(buildEmptyForm());
     setError('');
     setSuccess('');
     setOpen(true);
@@ -96,7 +116,7 @@ export default function Assets() {
   function startEdit(row) {
     setEditingRow(row);
     setForm({
-      instalacion_id: row.instalacion_id || '',
+      instalacion_id: row.instalacion_id || activeInstallationId || '',
       ubicacion_id: row.ubicacion_id || '',
       nombre: row.nombre || '',
       tipo: row.tipo || '',
@@ -121,13 +141,18 @@ export default function Assets() {
     if (saving) return;
     setOpen(false);
     setEditingRow(null);
-    setForm(emptyForm);
+    setForm(buildEmptyForm());
     setError('');
   }
 
   return (
     <>
-      <PageHeader title="Activos/equipos" subtitle="Ficha tecnica, estado, revisiones, documentos y QR por activo." action={canManage ? <button className="primary-button" onClick={startCreate}>Nuevo activo</button> : null} />
+      <PageHeader
+        title="Activos/equipos"
+        subtitle={activeInstallation ? `Mostrando solo activos de ${activeInstallation.nombre}.` : 'Ficha tecnica, estado, revisiones, documentos y QR por activo.'}
+        action={canManage ? <button className="primary-button" onClick={startCreate}>Nuevo activo</button> : null}
+      />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       {success && <p className="success-text">{success}</p>}
       <DataTable columns={[
         { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}><EntityIdentity row={row} entityType="activo" title={row.nombre} subtitle={row.tipo || row.modelo} /></Link> },
@@ -143,13 +168,13 @@ export default function Assets() {
             <button className="danger-button" onClick={() => remove(row)}>Baja</button>
           </div>
         ) : <span className="muted">Solo lectura</span> }
-      ]} rows={rows} />
+      ]} rows={visibleRows} empty="Sin activos para la instalación activa" />
       <Modal title={editingRow ? 'Editar activo' : 'Nuevo activo'} open={open} onClose={closeModal}>
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Instalacion">
-            <select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required>
+            <select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId && !editingRow)}>
               <option value="">Seleccionar</option>
-              {installations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+              {visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
             </select>
           </FormField>
           <FormField label="Ubicacion">
