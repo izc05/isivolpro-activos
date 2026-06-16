@@ -21,7 +21,7 @@ import { supabase } from '../services/supabaseClient';
 const DONE_STATUSES = ['FINALIZADA', 'VALIDADA', 'CERRADA', 'FIRMADA', 'INFORME_GENERADO'];
 
 export default function CompletedWorkOrders() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
   const [rows, setRows] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [reports, setReports] = useState([]);
@@ -67,14 +67,24 @@ export default function CompletedWorkOrders() {
     refresh();
   }, [activeTenantId]);
 
-  const materialCountByOt = useMemo(() => countBy(materials, 'ot_id'), [materials]);
-  const reportCountByOt = useMemo(() => countBy(reports, 'ot_id'), [reports]);
-  const photoCountByOt = useMemo(() => countBy(photos, 'ot_id'), [photos]);
+  const visibleRows = useMemo(
+    () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
+    [rows, activeInstallationId]
+  );
+
+  const visibleOtIds = useMemo(() => new Set(visibleRows.map((row) => row.id)), [visibleRows]);
+  const visibleMaterials = useMemo(() => materials.filter((item) => visibleOtIds.has(item.ot_id)), [materials, visibleOtIds]);
+  const visibleReports = useMemo(() => reports.filter((item) => visibleOtIds.has(item.ot_id)), [reports, visibleOtIds]);
+  const visiblePhotos = useMemo(() => photos.filter((item) => visibleOtIds.has(item.ot_id)), [photos, visibleOtIds]);
+
+  const materialCountByOt = useMemo(() => countBy(visibleMaterials, 'ot_id'), [visibleMaterials]);
+  const reportCountByOt = useMemo(() => countBy(visibleReports, 'ot_id'), [visibleReports]);
+  const photoCountByOt = useMemo(() => countBy(visiblePhotos, 'ot_id'), [visiblePhotos]);
 
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
     const now = new Date();
-    return rows.filter((row) => {
+    return visibleRows.filter((row) => {
       const searchable = `${row.codigo_ot || ''} ${row.titulo || ''} ${row.instalaciones?.nombre || ''} ${row.ubicaciones?.nombre || ''} ${row.activos?.nombre || ''} ${row.assigned?.nombre || ''} ${row.assigned?.email || ''}`.toLowerCase();
       const matchText = !text || searchable.includes(text);
       const matchStatus = filters.status === 'todas' || normalizedStatus(row.estado) === filters.status || row.estado === filters.status;
@@ -86,16 +96,16 @@ export default function CompletedWorkOrders() {
         || (filters.date === 'year' && date && date.getFullYear() === now.getFullYear());
       return matchText && matchStatus && matchDate;
     });
-  }, [rows, filters]);
+  }, [visibleRows, filters]);
 
   const metrics = useMemo(() => ({
-    realizadas: rows.length,
-    finalizadas: rows.filter((row) => normalizedStatus(row.estado) === 'FINALIZADA').length,
-    validadas: rows.filter((row) => normalizedStatus(row.estado) === 'VALIDADA' || row.estado === 'CERRADA').length,
-    materiales: materials.length,
-    informes: reports.length,
-    fotos: photos.length
-  }), [rows, materials, reports, photos]);
+    realizadas: visibleRows.length,
+    finalizadas: visibleRows.filter((row) => normalizedStatus(row.estado) === 'FINALIZADA').length,
+    validadas: visibleRows.filter((row) => normalizedStatus(row.estado) === 'VALIDADA' || row.estado === 'CERRADA').length,
+    materiales: visibleMaterials.length,
+    informes: visibleReports.length,
+    fotos: visiblePhotos.length
+  }), [visibleRows, visibleMaterials, visibleReports, visiblePhotos]);
 
   async function openChecklist(row) {
     setSelectedOrder(row);
@@ -151,7 +161,8 @@ export default function CompletedWorkOrders() {
 
   return (
     <>
-      <PageHeader title="OT realizadas" subtitle="Historico de trabajos finalizados, validados, checklist completo, fotos, materiales e informes." action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
+      <PageHeader title="OT realizadas" subtitle={activeInstallation ? `Histórico de trabajos realizados en ${activeInstallation.nombre}.` : 'Historico de trabajos finalizados, validados, checklist completo, fotos, materiales e informes.'} action={<Link className="primary-button" to="/ots">Nueva / todas las OT</Link>} />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
         <Link to="/ots">Todas</Link>
@@ -172,7 +183,7 @@ export default function CompletedWorkOrders() {
         </section>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Filtros" subtitle="Busca por OT, instalacion, activo o tecnico" icon={Filter} badge={`${filteredRows.length}/${rows.length}`} defaultOpen>
+      <CollapsibleSection title="Filtros" subtitle="Busca por OT, instalacion, activo o tecnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, trabajo, instalacion, activo o tecnico" /></label>
           <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Finalizada</option><option value="VALIDADA">Validada</option><option value="CERRADA">Cerrada</option><option value="FIRMADA">Firmada</option><option value="INFORME_GENERADO">Informe generado</option></select></label>
@@ -200,7 +211,7 @@ export default function CompletedWorkOrders() {
             { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><button className="secondary-button" type="button" onClick={() => openChecklist(row)}><ClipboardCheck size={16} /> Checklist + fotos</button><button className="primary-button" type="button" disabled={generatingPdfId === row.id} onClick={() => downloadFinalActa(row)}><Download size={16} /> {generatingPdfId === row.id ? 'Generando...' : 'Acta PDF'}</button><Link className="secondary-button" to={`/ots/${row.id}`}>Ver OT</Link></div> }
           ]}
           rows={filteredRows}
-          empty="Todavia no hay OT realizadas."
+          empty="Todavia no hay OT realizadas para la instalación activa."
         />
       </CollapsibleSection>
 
