@@ -50,6 +50,8 @@ export default function AppLayout() {
   const { isSuperAdmin, profile } = useAuth();
   const tenant = useTenant();
   const {
+    tenants,
+    activeTenantId,
     activeTenant,
     installations,
     activeInstallationId,
@@ -65,6 +67,7 @@ export default function AppLayout() {
     canViewAudit,
     canUseQrGenerator,
     canCreateIncidents,
+    setActiveTenantId,
     setActiveInstallationId
   } = tenant;
   const location = useLocation();
@@ -127,9 +130,19 @@ export default function AppLayout() {
         <header className="topbar app-topbar-context">
           <div className="topbar-user-block">
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>{activeTenant?.nombre || 'Cliente activo'} · {isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
+            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
           </div>
           <div className="topbar-selectors">
+            {tenants.length > 0 && (
+              <label className="topbar-selector client-selector">
+                <span>Cliente activo</span>
+                <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
+                  {tenants.map((tenantItem) => (
+                    <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             {installations.length > 0 && (
               <label className="topbar-selector active-installation-selector">
                 <span>Instalacion activa</span>
@@ -140,7 +153,7 @@ export default function AppLayout() {
                 </select>
               </label>
             )}
-            {activeInstallation && <span className="active-installation-pill">Trabajando en: {activeInstallation.nombre}</span>}
+            {activeTenant && activeInstallation && <span className="active-installation-pill">{activeTenant.nombre} · {activeInstallation.nombre}</span>}
             {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
           </div>
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
