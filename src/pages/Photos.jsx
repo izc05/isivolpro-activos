@@ -97,6 +97,11 @@ export default function Photos() {
   }
 
   async function openSigned(row) {
+    if (row.data_url) {
+      const win = window.open('', '_blank', 'noopener,noreferrer');
+      if (win) win.document.write(`<img src="${row.data_url}" style="max-width:100%;height:auto" alt="${row.titulo || row.file_name || 'Foto'}" />`);
+      return;
+    }
     const url = await createSignedUrl({ tenantId: row.tenant_id, bucket: row.bucket, path: row.storage_path, entityType: 'foto', entityId: row.id });
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -117,6 +122,7 @@ export default function Photos() {
       {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       {error && <p className="error-text">{error}</p>}
       <DataTable columns={[
+        { key: 'preview', label: 'Vista', render: (row) => row.data_url ? <img className="photo-thumb" src={row.data_url} alt={row.titulo || row.file_name || 'Foto'} /> : <span className="muted">Sin vista</span> },
         { key: 'titulo', label: 'Titulo' },
         { key: 'entity', label: 'Asociada a', render: entityLabel },
         { key: 'visibilidad', label: 'Visibilidad', render: (row) => <span className="badge">{row.visibilidad || 'cliente'}</span> },
