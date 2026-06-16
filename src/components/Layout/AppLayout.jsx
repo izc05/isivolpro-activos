@@ -50,8 +50,6 @@ export default function AppLayout() {
   const { isSuperAdmin, profile } = useAuth();
   const tenant = useTenant();
   const {
-    tenants,
-    activeTenantId,
     activeTenant,
     installations,
     activeInstallationId,
@@ -67,7 +65,6 @@ export default function AppLayout() {
     canViewAudit,
     canUseQrGenerator,
     canCreateIncidents,
-    setActiveTenantId,
     setActiveInstallationId
   } = tenant;
   const location = useLocation();
@@ -130,17 +127,9 @@ export default function AppLayout() {
         <header className="topbar app-topbar-context">
           <div className="topbar-user-block">
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
+            <span>{activeTenant?.nombre || 'Cliente activo'} · {isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
           </div>
           <div className="topbar-selectors">
-            {tenants.length > 1 && (
-              <label className="topbar-selector">
-                <span>Cliente</span>
-                <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-                  {tenants.map((tenantItem) => <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>)}
-                </select>
-              </label>
-            )}
             {installations.length > 0 && (
               <label className="topbar-selector active-installation-selector">
                 <span>Instalacion activa</span>
