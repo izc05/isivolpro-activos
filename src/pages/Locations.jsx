@@ -1,20 +1,22 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import { useTenantRows } from '../hooks/useTenantRows';
+import { useTenant } from '../hooks/useTenant';
 import { createLocation, softDeleteEntity, updateLocation } from '../services/entityService';
 import EntityIdentity from '../components/Cards/EntityIdentity';
 import { usePermissions } from '../hooks/usePermissions';
 
 export default function Locations() {
+  const { activeInstallationId, activeInstallation } = useTenant();
   const { rows, activeTenantId, refresh } = useTenantRows('ubicaciones', '*, instalaciones(nombre)', { order: 'created_at' });
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
-  const emptyForm = { instalacion_id: '', nombre: '', tipo: '', planta: '', zona: '', descripcion: '', image_file: null };
+  const emptyForm = { instalacion_id: activeInstallationId || '', nombre: '', tipo: '', planta: '', zona: '', descripcion: '', image_file: null };
   const [form, setForm] = useState(emptyForm);
   const [editingRow, setEditingRow] = useState(null);
   const [canManage, setCanManage] = useState(false);
@@ -23,6 +25,20 @@ export default function Locations() {
   useEffect(() => {
     permissions.canManageTenant().then(setCanManage).catch(() => setCanManage(false));
   }, [permissions]);
+
+  const visibleRows = useMemo(
+    () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
+    [rows, activeInstallationId]
+  );
+
+  const visibleInstallations = useMemo(
+    () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
+    [installations, activeInstallationId]
+  );
+
+  function buildEmptyForm() {
+    return { ...emptyForm, instalacion_id: activeInstallationId || '' };
+  }
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -38,7 +54,7 @@ export default function Locations() {
       } else {
         await createLocation(activeTenantId, form);
       }
-      setForm(emptyForm);
+      setForm(buildEmptyForm());
       setEditingRow(null);
       formElement.reset();
       setOpen(false);
@@ -56,7 +72,7 @@ export default function Locations() {
 
   function startCreate() {
     setEditingRow(null);
-    setForm(emptyForm);
+    setForm(buildEmptyForm());
     setError('');
     setOpen(true);
   }
@@ -64,7 +80,7 @@ export default function Locations() {
   function startEdit(row) {
     setEditingRow(row);
     setForm({
-      instalacion_id: row.instalacion_id || '',
+      instalacion_id: row.instalacion_id || activeInstallationId || '',
       nombre: row.nombre || '',
       tipo: row.tipo || '',
       planta: row.planta || '',
@@ -79,13 +95,18 @@ export default function Locations() {
   function closeModal() {
     setOpen(false);
     setEditingRow(null);
-    setForm(emptyForm);
+    setForm(buildEmptyForm());
     setError('');
   }
 
   return (
     <>
-      <PageHeader title="Ubicaciones" subtitle="Paso intermedio: cada ubicacion pertenece a una instalacion y agrupa sus activos." action={canManage ? <button className="primary-button" onClick={startCreate}>Nueva ubicacion</button> : null} />
+      <PageHeader
+        title="Ubicaciones"
+        subtitle={activeInstallation ? `Mostrando solo ubicaciones de ${activeInstallation.nombre}.` : 'Paso intermedio: cada ubicacion pertenece a una instalacion y agrupa sus activos.'}
+        action={canManage ? <button className="primary-button" onClick={startCreate}>Nueva ubicacion</button> : null}
+      />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       {error && <p className="error-text">{error}</p>}
       <DataTable columns={[
         { key: 'nombre', label: 'Ubicacion', render: (row) => <Link to={`/ubicaciones/${row.id}`}><EntityIdentity row={row} entityType="ubicacion" title={row.nombre} subtitle={row.tipo || row.zona} /></Link> },
@@ -98,13 +119,13 @@ export default function Locations() {
             <button className="danger-button" onClick={() => remove(row)}>Baja</button>
           </div>
         ) : <span className="muted">Solo lectura</span> }
-      ]} rows={rows} />
+      ]} rows={visibleRows} empty="Sin ubicaciones para la instalación activa" />
       <Modal title={editingRow ? 'Editar ubicacion' : 'Nueva ubicacion'} open={open} onClose={closeModal}>
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Instalacion">
-            <select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required>
+            <select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId && !editingRow)}>
               <option value="">Seleccionar</option>
-              {installations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+              {visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
             </select>
           </FormField>
           <FormField label="Nombre"><input value={form.nombre} onChange={(event) => updateField('nombre', event.target.value)} required /></FormField>
