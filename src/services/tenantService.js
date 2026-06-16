@@ -73,12 +73,20 @@ export async function updateTenant(payload) {
   return data;
 }
 
-export async function dashboardMetrics(tenantId) {
+export async function dashboardMetrics(tenantId, installationId = null) {
   const [installations, assets, incidents, documents] = await Promise.all([
-    supabase.from('instalaciones').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
-    supabase.from('activos').select('id,estado,fecha_proxima_revision', { count: 'exact' }).eq('tenant_id', tenantId),
-    supabase.from('incidencias').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).neq('estado', 'cerrada'),
-    supabase.from('documentos').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(5)
+    installationId
+      ? supabase.from('instalaciones').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('id', installationId)
+      : supabase.from('instalaciones').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+    installationId
+      ? supabase.from('activos').select('id,estado,fecha_proxima_revision', { count: 'exact' }).eq('tenant_id', tenantId).eq('instalacion_id', installationId)
+      : supabase.from('activos').select('id,estado,fecha_proxima_revision', { count: 'exact' }).eq('tenant_id', tenantId),
+    installationId
+      ? supabase.from('incidencias').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('instalacion_id', installationId).neq('estado', 'cerrada')
+      : supabase.from('incidencias').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).neq('estado', 'cerrada'),
+    installationId
+      ? supabase.from('documentos').select('*, instalaciones(nombre), activos(instalacion_id), ubicaciones(instalacion_id)').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(20)
+      : supabase.from('documentos').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(5)
   ]);
 
   if (installations.error) throw installations.error;
@@ -93,11 +101,15 @@ export async function dashboardMetrics(tenantId) {
     return new Date(asset.fecha_proxima_revision) <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   }).length;
 
+  const recentDocuments = installationId
+    ? (documents.data || []).filter((document) => document.instalacion_id === installationId || document.activos?.instalacion_id === installationId || document.ubicaciones?.instalacion_id === installationId).slice(0, 5)
+    : documents.data || [];
+
   return {
     totalInstalaciones: installations.count || 0,
     totalActivos: assets.count || 0,
     pendientesRevision: pendingReview,
     incidenciasAbiertas: incidents.count || 0,
-    documentosRecientes: documents.data || []
+    documentosRecientes: recentDocuments
   };
 }
