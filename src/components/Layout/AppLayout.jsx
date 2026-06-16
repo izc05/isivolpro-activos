@@ -52,6 +52,10 @@ export default function AppLayout() {
   const {
     tenants,
     activeTenantId,
+    activeTenant,
+    installations,
+    activeInstallationId,
+    activeInstallation,
     activeRole,
     activeRoleLabel,
     isTenantAdmin,
@@ -63,7 +67,8 @@ export default function AppLayout() {
     canViewAudit,
     canUseQrGenerator,
     canCreateIncidents,
-    setActiveTenantId
+    setActiveTenantId,
+    setActiveInstallationId
   } = tenant;
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: true, workorders: true, users: true });
@@ -113,43 +118,42 @@ export default function AppLayout() {
           ) : (
             <>
               {visibleMainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
-              <NavGroup
-                title="Bloque Inventario"
-                items={visibleInventoryNavItems}
-                open={openGroups.inventory}
-                active={groupActive(visibleInventoryNavItems)}
-                onToggle={() => toggleGroup('inventory')}
-              />
-              <NavGroup
-                title="Bloque OT"
-                items={visibleWorkOrderNavItems}
-                open={openGroups.workorders}
-                active={groupActive(visibleWorkOrderNavItems)}
-                onToggle={() => toggleGroup('workorders')}
-              />
-              <NavGroup
-                title="Bloque Usuarios"
-                items={visibleUserNavItems}
-                open={openGroups.users}
-                active={groupActive(visibleUserNavItems)}
-                onToggle={() => toggleGroup('users')}
-              />
+              <NavGroup title="Bloque Inventario" items={visibleInventoryNavItems} open={openGroups.inventory} active={groupActive(visibleInventoryNavItems)} onToggle={() => toggleGroup('inventory')} />
+              <NavGroup title="Bloque OT" items={visibleWorkOrderNavItems} open={openGroups.workorders} active={groupActive(visibleWorkOrderNavItems)} onToggle={() => toggleGroup('workorders')} />
+              <NavGroup title="Bloque Usuarios" items={visibleUserNavItems} open={openGroups.users} active={groupActive(visibleUserNavItems)} onToggle={() => toggleGroup('users')} />
             </>
           )}
         </nav>
       </aside>
 
       <div className="main-column">
-        <header className="topbar">
-          <div>
+        <header className="topbar app-topbar-context">
+          <div className="topbar-user-block">
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
             <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
           </div>
-          {tenants.length > 1 && (
-            <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-              {tenants.map((tenantItem) => <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>)}
-            </select>
-          )}
+          <div className="topbar-selectors">
+            {tenants.length > 1 && (
+              <label className="topbar-selector">
+                <span>Cliente</span>
+                <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
+                  {tenants.map((tenantItem) => <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>)}
+                </select>
+              </label>
+            )}
+            {installations.length > 0 && (
+              <label className="topbar-selector active-installation-selector">
+                <span>Instalacion activa</span>
+                <select value={activeInstallationId || ''} onChange={(event) => setActiveInstallationId(event.target.value)}>
+                  {installations.map((installation) => (
+                    <option key={installation.id} value={installation.id}>{installation.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {activeInstallation && <span className="active-installation-pill">Trabajando en: {activeInstallation.nombre}</span>}
+            {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
+          </div>
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
         </header>
         <OfflineBanner />
