@@ -2,117 +2,24 @@ import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 import { buildStoragePath, createSignedUrl, uploadPrivateFile } from './fileService';
 
-export const WORK_ORDER_STATUSES = [
-  'BORRADOR',
-  'ASIGNADA',
-  'ACEPTADA',
-  'EN_CURSO',
-  'PENDIENTE_MATERIAL',
-  'PENDIENTE_CLIENTE',
-  'FINALIZADA',
-  'FIRMADA',
-  'INFORME_GENERADO',
-  'CERRADA',
-  'CANCELADA'
-];
-
-export const WORK_ORDER_PRIORITIES = ['baja', 'media', 'alta', 'urgente'];
-export const WORK_ORDER_TYPES = [
-  'presupuesto',
-  'visita_previa',
-  'toma_datos',
-  'diagnostico',
-  'reparacion',
-  'mantenimiento_preventivo',
-  'mantenimiento_correctivo',
-  'inspeccion',
-  'revision',
-  'instalacion',
-  'montaje',
-  'puesta_marcha',
-  'sustitucion',
-  'retirada',
-  'seguimiento',
-  'verificacion_funcionamiento',
-  'medicion',
-  'urgencia',
-  'formacion',
-  'otro'
-];
+export const WORK_ORDER_STATUSES = ['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'FIRMADA', 'INFORME_GENERADO', 'VALIDADA', 'CERRADA', 'CANCELADA'];
+export const WORK_ORDER_PRIORITIES = ['baja', 'media', 'normal', 'alta', 'urgente', 'critica'];
+export const WORK_ORDER_TYPES = ['presupuesto', 'visita_previa', 'toma_datos', 'diagnostico', 'reparacion', 'mantenimiento_preventivo', 'mantenimiento_correctivo', 'inspeccion', 'revision', 'instalacion', 'montaje', 'puesta_marcha', 'sustitucion', 'retirada', 'seguimiento', 'verificacion_funcionamiento', 'medicion', 'urgencia', 'formacion', 'otro'];
 export const WORK_ORDER_TYPE_LABELS = {
-  presupuesto: 'Presupuesto',
-  visita_previa: 'Visita previa',
-  toma_datos: 'Toma de datos',
-  diagnostico: 'Diagnostico',
-  reparacion: 'Reparacion',
-  mantenimiento_preventivo: 'Mantenimiento preventivo',
-  mantenimiento_correctivo: 'Mantenimiento correctivo',
-  inspeccion: 'Inspeccion',
-  revision: 'Revision',
-  instalacion: 'Instalacion',
-  montaje: 'Montaje',
-  puesta_marcha: 'Puesta en marcha',
-  sustitucion: 'Sustitucion',
-  retirada: 'Retirada',
-  seguimiento: 'Seguimiento',
-  verificacion_funcionamiento: 'Verificacion de funcionamiento',
-  medicion: 'Medicion',
-  urgencia: 'Urgencia',
-  formacion: 'Formacion',
-  otro: 'Otro'
+  presupuesto: 'Presupuesto', visita_previa: 'Visita previa', toma_datos: 'Toma de datos', diagnostico: 'Diagnostico', reparacion: 'Reparacion', mantenimiento_preventivo: 'Mantenimiento preventivo', mantenimiento_correctivo: 'Mantenimiento correctivo', inspeccion: 'Inspeccion', revision: 'Revision', instalacion: 'Instalacion', montaje: 'Montaje', puesta_marcha: 'Puesta en marcha', sustitucion: 'Sustitucion', retirada: 'Retirada', seguimiento: 'Seguimiento', verificacion_funcionamiento: 'Verificacion de funcionamiento', medicion: 'Medicion', urgencia: 'Urgencia', formacion: 'Formacion', otro: 'Otro'
 };
 export const VISIT_TYPES = ['diagnostico', 'reparacion', 'sustitucion', 'verificacion_funcionamiento', 'presupuesto', 'toma_datos', 'mantenimiento_preventivo', 'inspeccion', 'seguimiento', 'otro'];
 export const VISIT_CLOSE_RESULTS = ['trabajo_completado', 'pendiente_material', 'pendiente_cliente', 'necesita_otra_visita', 'no_realizado'];
 export const ASSET_FINAL_STATUSES = ['operativo', 'operativo_limitaciones', 'fuera_servicio', 'pendiente_reparacion', 'no_comprobado', 'no_aplica'];
 export const PHOTO_TYPES = ['estado_inicial', 'defecto', 'trabajo_proceso', 'material_retirado', 'material_instalado', 'estado_final', 'placa_caracteristicas', 'medicion', 'general', 'otra'];
 export const MATERIAL_MOVEMENT_TYPES = ['utilizado', 'retirado', 'pendiente_pedir', 'devuelto', 'no_utilizado'];
-export const MATERIAL_MOVEMENT_LABELS = {
-  utilizado: 'Utilizado',
-  retirado: 'Retirado',
-  pendiente_pedir: 'Pendiente de pedir',
-  devuelto: 'Devuelto',
-  no_utilizado: 'No utilizado'
-};
+export const MATERIAL_MOVEMENT_LABELS = { utilizado: 'Utilizado', retirado: 'Retirado', pendiente_pedir: 'Pendiente de pedir', devuelto: 'Devuelto', no_utilizado: 'No utilizado' };
 export const CHECKLIST_RESULTS = ['pendiente', 'ok', 'no_ok', 'no_aplica'];
-
 export const REQUIREMENT_FIELDS = [
-  ['requiere_checklist', 'Checklist'],
-  ['requiere_fotos_iniciales', 'Fotografias iniciales'],
-  ['requiere_fotos_finales', 'Fotografias finales'],
-  ['requiere_verificacion_qr', 'Verificacion mediante QR'],
-  ['requiere_mediciones', 'Registro de mediciones'],
-  ['requiere_materiales', 'Registro de materiales'],
-  ['requiere_firma_tecnico', 'Firma del tecnico'],
-  ['requiere_firma_cliente', 'Firma del cliente'],
-  ['requiere_informe', 'Informe PDF'],
-  ['requiere_revision_admin', 'Revision del administrador'],
-  ['requiere_geolocalizacion', 'Geolocalizacion'],
-  ['requiere_fecha_prevista', 'Fecha prevista'],
-  ['requiere_tiempo_empleado', 'Tiempo empleado'],
-  ['requiere_valoracion_economica', 'Valoracion economica o presupuesto'],
-  ['requiere_documentacion_adjunta', 'Documentacion adjunta'],
-  ['requiere_prueba_funcional_final', 'Prueba funcional final']
+  ['requiere_checklist', 'Checklist'], ['requiere_fotos_iniciales', 'Fotografias iniciales'], ['requiere_fotos_finales', 'Fotografias finales'], ['requiere_verificacion_qr', 'Verificacion mediante QR'], ['requiere_mediciones', 'Registro de mediciones'], ['requiere_materiales', 'Registro de materiales'], ['requiere_firma_tecnico', 'Firma del tecnico'], ['requiere_firma_cliente', 'Firma del cliente'], ['requiere_informe', 'Informe PDF'], ['requiere_revision_admin', 'Revision del administrador'], ['requiere_geolocalizacion', 'Geolocalizacion'], ['requiere_fecha_prevista', 'Fecha prevista'], ['requiere_tiempo_empleado', 'Tiempo empleado'], ['requiere_valoracion_economica', 'Valoracion economica o presupuesto'], ['requiere_documentacion_adjunta', 'Documentacion adjunta'], ['requiere_prueba_funcional_final', 'Prueba funcional final']
 ];
 
-const BASE_REQUIREMENTS = {
-  requiere_checklist: false,
-  requiere_fotos_iniciales: false,
-  requiere_fotos_finales: false,
-  requiere_verificacion_qr: false,
-  requiere_mediciones: false,
-  requiere_materiales: false,
-  requiere_firma_tecnico: false,
-  requiere_firma_cliente: false,
-  requiere_informe: false,
-  requiere_revision_admin: false,
-  requiere_geolocalizacion: false,
-  requiere_fecha_prevista: false,
-  requiere_tiempo_empleado: false,
-  requiere_valoracion_economica: false,
-  requiere_documentacion_adjunta: false,
-  requiere_prueba_funcional_final: false
-};
-
+const BASE_REQUIREMENTS = { requiere_checklist: false, requiere_fotos_iniciales: false, requiere_fotos_finales: false, requiere_verificacion_qr: false, requiere_mediciones: false, requiere_materiales: false, requiere_firma_tecnico: false, requiere_firma_cliente: false, requiere_informe: false, requiere_revision_admin: false, requiere_geolocalizacion: false, requiere_fecha_prevista: false, requiere_tiempo_empleado: false, requiere_valoracion_economica: false, requiere_documentacion_adjunta: false, requiere_prueba_funcional_final: false };
 const TYPE_REQUIREMENTS = {
   presupuesto: { requiere_fotos_iniciales: true, requiere_mediciones: true, requiere_valoracion_economica: true, requiere_informe: true },
   visita_previa: { requiere_fotos_iniciales: true },
@@ -135,37 +42,6 @@ const TYPE_REQUIREMENTS = {
   formacion: { requiere_firma_cliente: true, requiere_informe: true },
   otro: {}
 };
-
-export function defaultRequirementsForType(type = 'mantenimiento_preventivo') {
-  return { ...BASE_REQUIREMENTS, ...(TYPE_REQUIREMENTS[type] || TYPE_REQUIREMENTS.otro) };
-}
-
-export function normalizeWorkOrderType(type) {
-  const legacy = { averia: 'diagnostico', mantenimiento: 'mantenimiento_preventivo' };
-  return legacy[type] || type || 'mantenimiento_preventivo';
-}
-
-export function statusLabel(status = '') {
-  return status.replaceAll('_', ' ').toLowerCase();
-}
-
-export function validNextActions(row = {}) {
-  if (!row?.estado) return [];
-  if (row.estado === 'CERRADA') return ['REABRIR'];
-  if (row.estado === 'CANCELADA') return [];
-  const actions = {
-    BORRADOR: ['ASIGNADA', 'CANCELADA'],
-    ASIGNADA: ['ACEPTADA', 'CANCELADA'],
-    ACEPTADA: ['EN_CURSO', 'CANCELADA'],
-    EN_CURSO: ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'CANCELADA'],
-    PENDIENTE_MATERIAL: ['EN_CURSO', 'CANCELADA'],
-    PENDIENTE_CLIENTE: ['EN_CURSO', 'CANCELADA'],
-    FINALIZADA: ['FIRMADA', 'INFORME_GENERADO', 'CERRADA'],
-    FIRMADA: ['INFORME_GENERADO', 'CERRADA'],
-    INFORME_GENERADO: ['CERRADA']
-  };
-  return actions[row.estado] || [];
-}
 
 const CHECKLIST_TEMPLATES = {
   averia: [['Confirmar el sintoma comunicado por el cliente o responsable', false], ['Registrar estado inicial y evidencias del defecto', true], ['Identificar causa probable y actuacion realizada', true], ['Verificar que la averia queda resuelta o documentar pendiente', false]],
@@ -192,20 +68,35 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   { punto: '8', descripcion: 'Informar al cliente o responsable de la actuacion realizada', requiere_foto: false }
 ];
 
+export function defaultRequirementsForType(type = 'mantenimiento_preventivo') {
+  return { ...BASE_REQUIREMENTS, ...(TYPE_REQUIREMENTS[type] || TYPE_REQUIREMENTS.otro) };
+}
+
+export function normalizeWorkOrderType(type) {
+  const legacy = { averia: 'diagnostico', mantenimiento: 'mantenimiento_preventivo' };
+  return legacy[type] || type || 'mantenimiento_preventivo';
+}
+
+export function statusLabel(status = '') {
+  return String(status || '').replaceAll('_', ' ').toLowerCase();
+}
+
+export function validNextActions(row = {}) {
+  if (!row?.estado) return [];
+  if (row.estado === 'CERRADA') return ['REABRIR'];
+  if (row.estado === 'CANCELADA') return [];
+  const actions = {
+    BORRADOR: ['ASIGNADA', 'CANCELADA'], NUEVA: ['ASIGNADA', 'CANCELADA'], ASIGNADA: ['ACEPTADA', 'EN_CURSO', 'CANCELADA'], ACEPTADA: ['EN_CURSO', 'CANCELADA'], EN_CURSO: ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'CANCELADA'], PENDIENTE_MATERIAL: ['EN_CURSO', 'CANCELADA'], PENDIENTE_CLIENTE: ['EN_CURSO', 'CANCELADA'], FINALIZADA: ['FIRMADA', 'INFORME_GENERADO', 'VALIDADA', 'CERRADA'], FIRMADA: ['INFORME_GENERADO', 'VALIDADA', 'CERRADA'], INFORME_GENERADO: ['VALIDADA', 'CERRADA'], VALIDADA: ['CERRADA']
+  };
+  return actions[row.estado] || [];
+}
+
 export function checklistTemplateForType(type = 'mantenimiento') {
   const normalizedType = normalizeWorkOrderType(type);
   const base = [['Comprobar acceso seguro a la zona de trabajo', false], ['Identificar instalacion, ubicacion y activo intervenido', true], ['Revisar estado visual general antes de intervenir', true]];
   const specific = CHECKLIST_TEMPLATES[normalizedType] || CHECKLIST_TEMPLATES.otro;
   const closing = [['Realizar prueba funcional final', false], ['Registrar material utilizado o material pendiente', false], ['Dejar la zona limpia, segura y operativa', true], ['Informar al cliente o responsable de la actuacion realizada', false]];
   return [...base, ...specific, ...closing].map(([descripcion, requiere_foto], index) => ({ punto: String(index + 1), descripcion, requiere_foto }));
-}
-
-function withTimeout(promise, label = 'La operacion', timeoutMs = 15000) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} ha tardado demasiado. Revisa la conexion y pulsa Reintentar.`)), timeoutMs);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function normalizePayload(payload) {
@@ -230,6 +121,7 @@ function normalizePayload(payload) {
     resultado_esperado: payload.resultado_esperado || null,
     fecha_limite: payload.fecha_limite || null,
     tiempo_estimado_min: payload.tiempo_estimado_min ? Number(payload.tiempo_estimado_min) : null,
+    duracion_estimada_minutos: payload.duracion_estimada_minutos ? Number(payload.duracion_estimada_minutos) : null,
     coste_estimado: payload.coste_estimado ? Number(payload.coste_estimado) : null,
     configuracion
   };
@@ -245,45 +137,91 @@ async function assertWorkOrderOpen(tenantId, workOrderId) {
   assertEditable(data);
 }
 
+async function currentUserId() {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id || null;
+}
+
 export async function listWorkOrders(tenantId) {
-  const { data, error } = await withTimeout(
-    supabase.from('ordenes_trabajo').select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
-    'Cargar ordenes de trabajo'
-  );
+  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
 
 export async function getWorkOrder(tenantId, id) {
-  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(nombre,direccion,contacto_nombre,contacto_telefono), ubicaciones(nombre), activos(nombre,marca,modelo,numero_serie), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email), created_by_profile:profiles!ordenes_trabajo_created_by_fkey(nombre,email)').eq('tenant_id', tenantId).eq('id', id).single();
+  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(nombre), activos(nombre,marca,modelo,numero_serie), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email), created_by_profile:profiles!ordenes_trabajo_created_by_fkey(nombre,email)').eq('tenant_id', tenantId).eq('id', id).single();
   if (error) throw error;
   return data;
 }
 
 export async function createWorkOrder(tenantId, payload) {
-  const { data: userData } = await supabase.auth.getUser();
+  const userId = await currentUserId();
   const normalized = normalizePayload(payload);
-  const { data, error } = await withTimeout(
-    supabase.from('ordenes_trabajo').insert({ tenant_id: tenantId, ...normalized, created_by: userData.user?.id || null }).select().single(),
-    'Crear orden de trabajo'
-  );
+  const { data, error } = await supabase.from('ordenes_trabajo').insert({ tenant_id: tenantId, ...normalized, created_by: userId }).select().single();
   if (error) throw error;
-  await seedChecklist(tenantId, data.id, normalized.tipo, userData.user?.id || null);
+  if (normalized.configuracion?.requiere_checklist !== false) await ensureDefaultChecklist(data);
   await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: data.id, metadata: { status: data.estado, type: data.tipo } });
   return data;
 }
 
 export async function seedChecklist(tenantId, workOrderId, type = 'mantenimiento', createdBy = null) {
+  const existing = await supabase.from('ot_checklist_respuestas').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('ot_id', workOrderId);
+  if (existing.error) throw existing.error;
+  if ((existing.count || 0) > 0) return [];
   const items = checklistTemplateForType(type).map((item, index) => ({ tenant_id: tenantId, ot_id: workOrderId, orden: index + 1, punto: item.punto, descripcion: item.descripcion, requiere_foto: item.requiere_foto, created_by: createdBy }));
   const { data, error } = await supabase.from('ot_checklist_respuestas').insert(items).select();
   if (error) throw error;
   return data || [];
 }
 
+export async function ensureDefaultChecklist(workOrder) {
+  const userId = await currentUserId();
+  return seedChecklist(workOrder.tenant_id, workOrder.id, workOrder.tipo_ot || workOrder.tipo, userId);
+}
+
+export async function createChecklistItem(workOrder, payload) {
+  assertEditable(workOrder);
+  const userId = await currentUserId();
+  const existing = await supabase.from('ot_checklist_respuestas').select('orden').eq('tenant_id', workOrder.tenant_id).eq('ot_id', workOrder.id).order('orden', { ascending: false }).limit(1);
+  if (existing.error) throw existing.error;
+  const nextOrder = (existing.data?.[0]?.orden || 0) + 1;
+  const { data, error } = await supabase.from('ot_checklist_respuestas').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: payload.visita_id || null, orden: nextOrder, punto: String(nextOrder), descripcion: payload.descripcion, requiere_foto: Boolean(payload.requiere_foto), resultado: 'pendiente', created_by: userId }).select().single();
+  if (error) throw error;
+  await logAudit({ tenantId: workOrder.tenant_id, action: 'create_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: data.id, metadata: { otId: workOrder.id } });
+  return data;
+}
+
 export async function listWorkOrderVisits(tenantId, workOrderId) {
   const { data, error } = await supabase.from('ot_visitas').select('*, tecnico:profiles!ot_visitas_tecnico_id_fkey(nombre,email)').eq('tenant_id', tenantId).eq('ot_id', workOrderId).order('fecha_inicio', { ascending: false });
   if (error) throw error;
   return data || [];
+}
+
+export async function startWorkOrderVisit(workOrder, location = {}, payload = {}) {
+  assertEditable(workOrder);
+  const userId = await currentUserId();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase.from('ot_visitas').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, tecnico_id: userId || workOrder.assigned_to || null, fecha_inicio: now, estado: 'EN_CURSO', latitud: location.latitude || null, longitud: location.longitude || null, tipo_visita: payload.tipo_visita || workOrder.tipo_ot || workOrder.tipo || 'diagnostico', tipo_visita_detalle: payload.tipo_visita_detalle || null, estado_inicial: payload.estado_inicial || null, situacion_encontrada: payload.situacion_encontrada || null, observaciones: payload.observaciones || null }).select().single();
+  if (error) throw error;
+  await supabase.from('ordenes_trabajo').update({ estado: 'EN_CURSO', fecha_inicio: workOrder.fecha_inicio || now, updated_at: now }).eq('tenant_id', workOrder.tenant_id).eq('id', workOrder.id);
+  await logAudit({ tenantId: workOrder.tenant_id, action: 'start_work_order_visit', entityType: 'ot_visita', entityId: data.id, metadata: { otId: workOrder.id } });
+  return data;
+}
+
+export async function updateWorkOrderVisit(visit, payload = {}) {
+  const { data, error } = await supabase.from('ot_visitas').update({ tipo_visita: payload.tipo_visita || visit.tipo_visita, tipo_visita_detalle: payload.tipo_visita_detalle || null, estado_inicial: payload.estado_inicial || null, situacion_encontrada: payload.situacion_encontrada || null, trabajo_realizado: payload.trabajo_realizado || null, diagnostico: payload.diagnostico || null, causa: payload.causa || null, pruebas_realizadas: payload.pruebas_realizadas || null, recomendaciones: payload.recomendaciones || null, trabajo_pendiente: payload.trabajo_pendiente || null, estado_final_activo: payload.estado_final_activo || null, observaciones: payload.observaciones || null, updated_at: new Date().toISOString() }).eq('tenant_id', visit.tenant_id).eq('id', visit.id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function finishWorkOrderVisit(visit, payload = {}) {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase.from('ot_visitas').update({ ...payload, estado: 'FINALIZADA', fecha_fin: now, resultado_cierre: payload.resultado_cierre || 'trabajo_completado', motivo_cierre: payload.motivo_cierre || null, proxima_accion: payload.proxima_accion || null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.id).select().single();
+  if (error) throw error;
+  const nextStatus = payload.resultado_cierre === 'pendiente_material' ? 'PENDIENTE_MATERIAL' : payload.resultado_cierre === 'pendiente_cliente' ? 'PENDIENTE_CLIENTE' : payload.resultado_cierre === 'necesita_otra_visita' ? 'PAUSADA' : 'FINALIZADA';
+  await supabase.from('ordenes_trabajo').update({ estado: nextStatus, fecha_fin: nextStatus === 'FINALIZADA' ? now : null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.ot_id);
+  await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id, result: payload.resultado_cierre } });
+  return data;
 }
 
 export async function listWorkOrderChecklist(tenantId, workOrderId) {
@@ -309,10 +247,10 @@ export async function listChecklistPhotos(tenantId, checklistItemId) {
 export async function uploadChecklistPhoto({ workOrder, checklistItem, visitId = null, file, comentario = '', tipoFoto = 'otra' }) {
   assertEditable(workOrder);
   if (!file) throw new Error('Selecciona una foto.');
-  const { data: userData } = await supabase.auth.getUser();
+  const userId = await currentUserId();
   const path = buildStoragePath({ tenantId: workOrder.tenant_id, scope: 'ordenes-trabajo', scopeId: workOrder.id, folder: `checklist/${checklistItem.id}`, file });
   await uploadPrivateFile({ tenantId: workOrder.tenant_id, bucket: 'photos-private', path, file, metadata: { auditAction: 'upload_work_order_checklist_photo', entityType: 'ot_checklist_respuesta', entityId: checklistItem.id } });
-  const insertPayload = { tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: visitId || checklistItem.visita_id || null, checklist_respuesta_id: checklistItem.id, bucket: 'photos-private', path, file_name: file.name, mime_type: file.type, comentario: comentario || null, created_by: userData.user?.id || null };
+  const insertPayload = { tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: visitId || checklistItem.visita_id || null, checklist_respuesta_id: checklistItem.id, bucket: 'photos-private', path, file_name: file.name, mime_type: file.type, comentario: comentario || null, tipo_foto: tipoFoto || 'otra', size_bytes: file.size || null, created_by: userId };
   const { data, error } = await supabase.from('ot_fotos').insert(insertPayload).select().single();
   if (error) throw error;
   await logAudit({ tenantId: workOrder.tenant_id, action: 'register_work_order_checklist_photo', entityType: 'ot_foto', entityId: data.id, metadata: { otId: workOrder.id, checklistItemId: checklistItem.id } });
@@ -334,8 +272,8 @@ export async function listWorkOrderMaterials(tenantId, workOrderId) {
 export async function createVisitMaterial(workOrder, visit, payload) {
   assertEditable(workOrder);
   if (!payload.descripcion_libre && !payload.material_id) throw new Error('Indica material o descripcion libre.');
-  const { data: userData } = await supabase.auth.getUser();
-  const { data, error } = await supabase.from('ot_visita_materiales').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: visit?.id || null, material_id: payload.material_id || null, descripcion_libre: payload.descripcion_libre || null, referencia: payload.referencia || null, cantidad: payload.cantidad ? Number(payload.cantidad) : 1, unidad: payload.unidad || 'ud', tipo_movimiento: payload.tipo_movimiento || 'utilizado', numero_serie: payload.numero_serie || null, observaciones: payload.observaciones || null, created_by: userData.user?.id || null }).select().single();
+  const userId = await currentUserId();
+  const { data, error } = await supabase.from('ot_visita_materiales').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: visit?.id || null, material_id: payload.material_id || null, descripcion_libre: payload.descripcion_libre || null, referencia: payload.referencia || null, cantidad: payload.cantidad ? Number(payload.cantidad) : 1, unidad: payload.unidad || 'ud', tipo_movimiento: payload.tipo_movimiento || 'utilizado', numero_serie: payload.numero_serie || null, observaciones: payload.observaciones || null, created_by: userId }).select().single();
   if (error) throw error;
   await logAudit({ tenantId: workOrder.tenant_id, action: 'create_work_order_visit_material', entityType: 'ot_visita_material', entityId: data.id, metadata: { otId: workOrder.id, visitId: visit?.id || null } });
   return data;
