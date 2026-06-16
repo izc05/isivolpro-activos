@@ -21,7 +21,6 @@ import {
 } from '../services/incidentWorkflowService';
 import { OFFICIAL_WORK_ORDER_TYPES, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 
-const INITIAL_FORM = { instalacion_id: '', ubicacion_id: '', activo_id: '', titulo: '', descripcion: '', prioridad: 'media' };
 const INITIAL_CONVERT = {
   titulo: '',
   tipo_ot: 'aviso_cliente',
@@ -39,6 +38,10 @@ const INITIAL_CONVERT = {
 const PRIORITY_LABELS = { baja: 'Baja', media: 'Media', normal: 'Normal', alta: 'Alta', urgente: 'Urgente', critica: 'Crítica' };
 const PRIORITY_TONE = { urgente: 'danger', critica: 'danger', alta: 'warn', media: 'warn', normal: '', baja: '' };
 
+function buildInitialForm(activeInstallationId = '') {
+  return { instalacion_id: activeInstallationId || '', ubicacion_id: '', activo_id: '', titulo: '', descripcion: '', prioridad: 'media' };
+}
+
 function normalizePriorityForOt(priority) {
   if (priority === 'media') return 'normal';
   return priority || 'normal';
@@ -54,7 +57,7 @@ function incidentPhotos(row) {
 
 export default function Incidents() {
   const { rows, activeTenantId, refresh } = useTenantRows('incidencias', '*, instalaciones(nombre), ubicaciones(nombre), activos(nombre), external_incident_reports(id,reporter_name,reporter_contact,created_at), incident_photos(id,source,tipo_foto,file_name,mime_type,size_bytes,data_url,comentario,created_at)', { order: 'fecha_apertura' });
-  const { canManageWorkOrders } = useTenant();
+  const { canManageWorkOrders, activeInstallationId, activeInstallation } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -71,7 +74,7 @@ export default function Incidents() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [form, setForm] = useState(() => buildInitialForm(activeInstallationId));
   const [convertForm, setConvertForm] = useState(INITIAL_CONVERT);
   const [filters, setFilters] = useState({ search: '', estado: 'abiertas', prioridad: 'todas' });
 
@@ -82,25 +85,44 @@ export default function Incidents() {
       .catch((err) => console.warn('No se pudieron cargar tecnicos', err));
   }, [activeTenantId]);
 
-  const filteredLocations = useMemo(() => locations.filter((location) => !form.instalacion_id || location.instalacion_id === form.instalacion_id), [locations, form.instalacion_id]);
+  useEffect(() => {
+    if (!open) setForm(buildInitialForm(activeInstallationId));
+  }, [activeInstallationId, open]);
+
+  const visibleRows = useMemo(
+    () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
+    [rows, activeInstallationId]
+  );
+
+  const visibleInstallations = useMemo(
+    () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
+    [installations, activeInstallationId]
+  );
+
+  const filteredLocations = useMemo(() => {
+    const installationId = form.instalacion_id || activeInstallationId;
+    return locations.filter((location) => !installationId || location.instalacion_id === installationId);
+  }, [locations, form.instalacion_id, activeInstallationId]);
+
   const filteredAssets = useMemo(() => assets.filter((asset) => {
     if (form.ubicacion_id) return asset.ubicacion_id === form.ubicacion_id;
-    if (form.instalacion_id) return asset.instalacion_id === form.instalacion_id;
+    const installationId = form.instalacion_id || activeInstallationId;
+    if (installationId) return asset.instalacion_id === installationId;
     return true;
-  }), [assets, form.instalacion_id, form.ubicacion_id]);
+  }), [assets, form.instalacion_id, form.ubicacion_id, activeInstallationId]);
 
   const stats = useMemo(() => ({
-    abiertas: rows.filter((row) => ['abierta', 'en_revision'].includes(row.estado)).length,
-    revision: rows.filter((row) => row.estado === 'en_revision').length,
-    externas: rows.filter((row) => externalReport(row)).length,
-    conFotos: rows.filter((row) => incidentPhotos(row).length > 0).length,
-    convertidas: rows.filter((row) => row.estado === 'convertida_en_ot').length,
-    urgentes: rows.filter((row) => ['urgente', 'critica'].includes(row.prioridad) && !['cerrada', 'descartada', 'convertida_en_ot'].includes(row.estado)).length
-  }), [rows]);
+    abiertas: visibleRows.filter((row) => ['abierta', 'en_revision'].includes(row.estado)).length,
+    revision: visibleRows.filter((row) => row.estado === 'en_revision').length,
+    externas: visibleRows.filter((row) => externalReport(row)).length,
+    conFotos: visibleRows.filter((row) => incidentPhotos(row).length > 0).length,
+    convertidas: visibleRows.filter((row) => row.estado === 'convertida_en_ot').length,
+    urgentes: visibleRows.filter((row) => ['urgente', 'critica'].includes(row.prioridad) && !['cerrada', 'descartada', 'convertida_en_ot'].includes(row.estado)).length
+  }), [visibleRows]);
 
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
-    return rows.filter((row) => {
+    return visibleRows.filter((row) => {
       const report = externalReport(row);
       const searchable = `${row.titulo || ''} ${row.descripcion || ''} ${row.instalaciones?.nombre || ''} ${row.ubicaciones?.nombre || ''} ${row.activos?.nombre || ''} ${report?.reporter_name || ''} ${report?.reporter_contact || ''}`.toLowerCase();
       const matchText = !text || searchable.includes(text);
@@ -110,14 +132,29 @@ export default function Incidents() {
         || row.estado === filters.estado;
       return matchText && matchPriority && matchStatus;
     });
-  }, [rows, filters]);
+  }, [visibleRows, filters]);
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'instalacion_id') {
+        next.ubicacion_id = '';
+        next.activo_id = '';
+      }
+      if (field === 'ubicacion_id') next.activo_id = '';
+      return next;
+    });
   }
 
   function updateConvertField(field, value) {
     setConvertForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function openCreate() {
+    setForm(buildInitialForm(activeInstallationId));
+    setError('');
+    setMessage('');
+    setOpen(true);
   }
 
   async function submit(event) {
@@ -125,8 +162,8 @@ export default function Incidents() {
     setError('');
     setMessage('');
     try {
-      await createIncident(activeTenantId, form);
-      setForm(INITIAL_FORM);
+      await createIncident(activeTenantId, { ...form, instalacion_id: form.instalacion_id || activeInstallationId });
+      setForm(buildInitialForm(activeInstallationId));
       setOpen(false);
       setMessage('Incidencia creada correctamente.');
       refresh();
@@ -263,7 +300,8 @@ export default function Incidents() {
 
   return (
     <>
-      <PageHeader title="Incidencias" subtitle="Entrada de avisos desde QR, revisión y conversión controlada en OT." action={<button className="primary-button" onClick={() => setOpen(true)}>Nueva incidencia</button>} />
+      <PageHeader title="Incidencias" subtitle={activeInstallation ? `Avisos de ${activeInstallation.nombre}.` : 'Entrada de avisos desde QR, revisión y conversión controlada en OT.'} action={<button className="primary-button" onClick={openCreate}>Nueva incidencia</button>} />
+      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
@@ -278,7 +316,7 @@ export default function Incidents() {
         </section>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Filtros" subtitle="Busca por aviso, instalación, ubicación, activo o contacto" icon={Filter} badge={`${filteredRows.length}/${rows.length}`} defaultOpen>
+      <CollapsibleSection title="Filtros" subtitle="Busca por aviso, instalación, ubicación, activo o contacto" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Título, descripción, instalación, activo o contacto" /></label>
           <label><span>Estado</span><select value={filters.estado} onChange={(event) => setFilters((current) => ({ ...current, estado: event.target.value }))}><option value="abiertas">Abiertas y en revisión</option><option value="todas">Todas</option><option value="abierta">Abierta</option><option value="en_revision">En revisión</option><option value="convertida_en_ot">Convertida en OT</option><option value="descartada">Descartada</option><option value="cerrada">Cerrada</option></select></label>
@@ -300,12 +338,12 @@ export default function Incidents() {
           { key: 'fecha_apertura', label: 'Apertura', render: (row) => formatDateTime(row.fecha_apertura) },
           { key: 'ot', label: 'OT', render: (row) => row.ot_id ? <Link className="table-link" to={`/ots/${row.ot_id}`}>Ver OT</Link> : '-' },
           { key: 'actions', label: 'Acciones', render: (row) => <IncidentActions row={row} canManageWorkOrders={canManageWorkOrders} onReview={markReview} onConvert={openConvert} onClose={closeIncident} onDiscard={discard} /> }
-        ]} rows={filteredRows} empty="Sin incidencias con los filtros actuales" />
+        ]} rows={filteredRows} empty="Sin incidencias para la instalación activa" />
       </CollapsibleSection>
 
       <Modal title="Nueva incidencia" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid" onSubmit={submit}>
-          <FormField label="Instalación"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required><option value="">Seleccionar</option>{installations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
+          <FormField label="Instalación"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId)}><option value="">Seleccionar</option>{visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
           <FormField label="Ubicación"><select value={form.ubicacion_id} onChange={(event) => updateField('ubicacion_id', event.target.value)}><option value="">Sin ubicación</option>{filteredLocations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
           <FormField label="Activo"><select value={form.activo_id} onChange={(event) => updateField('activo_id', event.target.value)}><option value="">Sin activo concreto</option>{filteredAssets.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
           <FormField label="Título"><input value={form.titulo} onChange={(event) => updateField('titulo', event.target.value)} required /></FormField>
