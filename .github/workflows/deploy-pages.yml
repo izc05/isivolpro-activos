@@ -15,10 +15,6 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-environment:
-  name: github-pages
-  url: ${{ steps.deployment.outputs.page_url }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,9 +35,6 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-          VITE_ENABLE_DEMO_SIGNUP: ${{ vars.VITE_ENABLE_DEMO_SIGNUP || 'false' }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
