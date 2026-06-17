@@ -33,6 +33,7 @@ function resultLabel(value) {
 }
 
 async function urlToDataUrl(url) {
+  if (typeof url === 'string' && url.startsWith('data:image/')) return normalizeImageForPdf(url);
   const response = await fetch(url);
   if (!response.ok) throw new Error('No se pudo cargar una imagen del informe.');
   const blob = await response.blob();
@@ -336,24 +337,4 @@ export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   if (!['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(workOrder.estado)) await updateWorkOrderLifecycleStatus(workOrder, 'FINALIZADA');
   await logAudit({ tenantId, action: 'generate_work_order_pdf_report', entityType: 'ot_informe', entityId: data.id, metadata: { otId: workOrderId, filename } });
   return data;
-}
-
-export async function listWorkOrderReports(tenantId, workOrderId) {
-  const { data, error } = await supabase.from('ot_informes').select('*').eq('tenant_id', tenantId).eq('ot_id', workOrderId).order('created_at', { ascending: false });
-  if (error) throw error;
-  const reports = data || [];
-  const userIds = [...new Set(reports.map((report) => report.created_by).filter(Boolean))];
-  if (userIds.length === 0) return reports;
-  const { data: profiles, error: profileError } = await supabase.from('profiles').select('id,nombre,email').in('id', userIds);
-  if (profileError) {
-    console.warn('No se pudieron cargar perfiles de informes OT', profileError);
-    return reports;
-  }
-  const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
-  return reports.map((report) => ({ ...report, created_by_profile: profileById.get(report.created_by) || null }));
-}
-
-export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
-  if (!report?.bucket || !report?.path) return '';
-  return createSignedUrl({ tenantId: report.tenant_id, bucket: report.bucket, path: report.path, entityType: 'ot_informe', entityId: report.id, expiresIn });
 }
