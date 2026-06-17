@@ -202,92 +202,40 @@
   color: #075985;
 }
 
-.clients-grid-view {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-.client-main-card {
-  background: #fff;
-  border: 1px solid #d9e5ee;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, .07);
-}
-
-.client-main-card.active {
-  border-color: #38bdf8;
-  box-shadow: 0 16px 36px rgba(14, 116, 144, .16);
-}
-
-.client-card-main {
-  width: 100%;
-  border: 0;
-  background: linear-gradient(135deg, #f8fbff, #eefbff);
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 13px;
-  text-align: left;
-  cursor: pointer;
-  color: #0f172a;
-}
-
-.client-avatar {
-  width: 56px;
+.client-logo-photo,
+.client-logo-placeholder {
+  width: 74px;
   height: 56px;
-  border-radius: 16px;
-  background: #0f2742;
-  color: #e0f7ff;
+  border-radius: 12px;
+  border: 1px solid #c9e8f2;
+  background: #f0fbff;
+  object-fit: cover;
   display: grid;
   place-items: center;
+  color: #075985;
   font-size: 11px;
   font-weight: 900;
+  overflow: hidden;
 }
 
-.client-avatar strong {
+.client-logo-placeholder strong {
   font-size: 12px;
 }
 
-.client-card-content {
-  min-width: 0;
+.client-table-name {
+  min-width: 210px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
-.client-card-content > strong {
-  font-size: 18px;
+.client-table-name strong {
+  color: #0f172a;
   line-height: 1.15;
 }
 
-.client-card-content small {
+.client-table-name span {
   color: #64748b;
-  line-height: 1.25;
-}
-
-.client-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.client-card-meta em {
-  font-style: normal;
-  border-radius: 999px;
-  background: #e0f2fe;
-  color: #075985;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.client-card-actions {
-  padding: 12px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  border-top: 1px solid #eef3f7;
+  font-size: 12px;
 }
 
 .photo-thumb {
@@ -436,13 +384,6 @@
     flex-direction: column;
   }
 
-  .client-card-actions .primary-button,
-  .client-card-actions .secondary-button,
-  .client-card-actions .danger-button {
-    flex: 1 1 140px;
-    justify-content: center;
-  }
-
   .installation-main-photo,
   .table-card td[data-label="Foto"] .installation-list-photo {
     width: min(100%, 360px);
@@ -455,17 +396,7 @@
   }
 
   .client-card-grid,
-  .installation-card-grid,
-  .clients-grid-view {
+  .installation-card-grid {
     grid-template-columns: 1fr;
-  }
-
-  .client-card-main {
-    grid-template-columns: 48px 1fr;
-  }
-
-  .client-avatar {
-    width: 48px;
-    height: 48px;
   }
 }
