@@ -70,6 +70,37 @@
   display: block;
 }
 
+.table-image-preview {
+  width: 118px;
+  height: 82px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #c9e8f2;
+  background: #f0fbff;
+  display: block;
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+}
+
+.table-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.table-image-preview > span {
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(7, 89, 133, .85);
+  color: white;
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+}
+
 .entity-image-empty {
   min-height: 92px;
   border: 1px dashed #bfdbfe;
