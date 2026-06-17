@@ -12,7 +12,7 @@ const mainNavItems = [
 ];
 
 const inventoryNavItems = [
-  { to: '/clientes', label: 'Clientes', icon: Building2, permission: 'super_admin' },
+  { to: '/clientes', label: 'Clientes', icon: Building2, permission: 'admin' },
   { to: '/instalaciones', label: 'Instalaciones', icon: Home, permission: 'inventory' },
   { to: '/ubicaciones', label: 'Ubicaciones', icon: MapPin, permission: 'inventory' },
   { to: '/activos', label: 'Activos', icon: Wrench, permission: 'inventory' },
@@ -76,7 +76,7 @@ export default function AppLayout() {
   const canSeeItem = (item) => {
     if (item.permission === 'all') return true;
     if (item.permission === 'super_admin') return isSuperAdmin;
-    if (item.permission === 'admin') return isTenantAdmin;
+    if (item.permission === 'admin') return isTenantAdmin || isSuperAdmin;
     if (item.permission === 'inventory') return canViewInventory;
     if (item.permission === 'qr') return canUseQrGenerator;
     if (item.permission === 'workorders_manage') return canManageWorkOrders;
