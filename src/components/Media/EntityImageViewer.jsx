@@ -1,4 +1,4 @@
-import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { signedEntityImageUrl } from '../../services/imageService';
 
@@ -59,6 +59,7 @@ export default function EntityImageViewer({ row, entityType, title, className = 
                 <button className="secondary-button" type="button" onClick={() => changeZoom(zoom - 0.25)}><ZoomOut size={16} /> Alejar</button>
                 <button className="secondary-button" type="button" onClick={() => setZoom(1)}><RotateCcw size={16} /> 100%</button>
                 <button className="secondary-button" type="button" onClick={() => changeZoom(zoom + 0.25)}><ZoomIn size={16} /> Acercar</button>
+                <a className="secondary-button" href={realSrc} target="_blank" rel="noreferrer"><ExternalLink size={16} /> Original</a>
                 <button className="ghost-button" type="button" onClick={close}>Cerrar</button>
               </div>
             </header>
@@ -67,7 +68,7 @@ export default function EntityImageViewer({ row, entityType, title, className = 
                 src={realSrc}
                 alt={title}
                 style={{
-                  width: `${zoom * 100}%`,
+                  width: zoom === 1 ? 'auto' : `${zoom * 100}%`,
                   maxWidth: zoom === 1 ? '100%' : 'none',
                   maxHeight: zoom === 1 ? '100%' : 'none'
                 }}
