@@ -1,25 +1,38 @@
 import { ExternalLink, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { signedEntityImageUrl } from '../../services/imageService';
 
 export default function EntityImageViewer({ row, entityType, title, className = '' }) {
-  const [realSrc, setRealSrc] = useState('');
+  const imageKey = useMemo(() => `${entityType || 'entity'}-${row?.id || 'none'}-${row?.image_path || ''}-${row?.image_data_url ? row.image_data_url.length : 0}`, [entityType, row?.id, row?.image_path, row?.image_data_url]);
+  const [realSrc, setRealSrc] = useState(row?.image_data_url || '');
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     let mounted = true;
+    setOpen(false);
+    setZoom(1);
+    setRealSrc(row?.image_data_url || '');
+
+    if (!row) {
+      setRealSrc('');
+      return () => {
+        mounted = false;
+      };
+    }
+
     signedEntityImageUrl(row, entityType)
       .then((url) => {
         if (mounted) setRealSrc(url || '');
       })
       .catch(() => {
-        if (mounted) setRealSrc('');
+        if (mounted) setRealSrc(row?.image_data_url || '');
       });
+
     return () => {
       mounted = false;
     };
-  }, [row?.id, row?.image_path, entityType]);
+  }, [imageKey, entityType, row]);
 
   function close() {
     setOpen(false);
@@ -43,7 +56,11 @@ export default function EntityImageViewer({ row, entityType, title, className = 
       <button
         className={`entity-image-viewer ${className}`}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(true);
+        }}
         aria-label={`Ampliar imagen de ${title}`}
       >
         <img src={realSrc} alt={title} />
@@ -54,7 +71,10 @@ export default function EntityImageViewer({ row, entityType, title, className = 
         <div className="image-lightbox-backdrop" role="presentation" onMouseDown={close}>
           <section className="image-lightbox" role="dialog" aria-modal="true" aria-label={`Imagen de ${title}`} onMouseDown={(event) => event.stopPropagation()}>
             <header>
-              <h2>{title}</h2>
+              <div>
+                <h2>{title}</h2>
+                <p>{entityType === 'instalacion' ? 'Foto principal de la instalación seleccionada' : 'Foto principal asociada al elemento seleccionado'}</p>
+              </div>
               <div className="inline-actions">
                 <button className="secondary-button" type="button" onClick={() => changeZoom(zoom - 0.25)}><ZoomOut size={16} /> Alejar</button>
                 <button className="secondary-button" type="button" onClick={() => setZoom(1)}><RotateCcw size={16} /> 100%</button>
@@ -65,6 +85,7 @@ export default function EntityImageViewer({ row, entityType, title, className = 
             </header>
             <div className="image-lightbox-stage">
               <img
+                key={imageKey}
                 src={realSrc}
                 alt={title}
                 style={{
