@@ -87,14 +87,11 @@ export default function Installations() {
     setError('');
   }
 
-  function installationIdentity(row) {
+  function installationName(row) {
     return (
-      <div className="installation-name-cell">
-        <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="installation-list-photo" />
-        <div className="installation-name-text">
-          <Link to={`/instalaciones/${row.id}`}><strong>{row.nombre}</strong></Link>
-          <span>{row.direccion || row.tipo || 'Sin direccion'}</span>
-        </div>
+      <div className="installation-text-cell">
+        <Link to={`/instalaciones/${row.id}`}><strong>{row.nombre}</strong></Link>
+        <span>{row.direccion || row.tipo || 'Sin direccion'}</span>
       </div>
     );
   }
@@ -103,7 +100,8 @@ export default function Installations() {
     <>
       <PageHeader title="Instalaciones" subtitle="Cada instalacion queda vinculada obligatoriamente a un cliente." action={<button className="primary-button" onClick={startCreate}>Nueva instalacion</button>} />
       <DataTable columns={[
-        { key: 'nombre', label: 'Instalacion', render: installationIdentity },
+        { key: 'foto', label: 'Foto', render: (row) => <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="installation-main-photo" /> },
+        { key: 'nombre', label: 'Nombre', render: installationName },
         { key: 'cliente', label: 'Cliente', render: (row) => row.tenants?.nombre || tenants.find((tenant) => tenant.id === row.tenant_id)?.nombre || row.tenant_id },
         { key: 'codigo', label: 'Codigo' },
         { key: 'tipo', label: 'Tipo' },
