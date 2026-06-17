@@ -60,6 +60,91 @@
   text-overflow: ellipsis;
 }
 
+.dashboard-flow-card {
+  background: #fff;
+  border: 1px solid #d9e5ee;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
+}
+
+.compact-title {
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+
+.compact-title h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.compact-title p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.client-card-grid,
+.installation-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.client-select-card,
+.installation-select-card {
+  border: 1px solid #d8e6ee;
+  background: #f8fbff;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px 12px;
+  align-items: center;
+  color: #0f172a;
+}
+
+.client-select-card:hover,
+.installation-select-card:hover,
+.client-select-card.active,
+.installation-select-card.active {
+  border-color: #38bdf8;
+  background: #edfaff;
+  box-shadow: 0 10px 24px rgba(14, 116, 144, .12);
+}
+
+.client-select-icon,
+.installation-select-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #e0f2fe;
+  color: #075985;
+  grid-row: span 3;
+}
+
+.client-select-card strong,
+.installation-select-card strong {
+  font-size: 15px;
+}
+
+.client-select-card small,
+.installation-select-card small {
+  color: #64748b;
+  line-height: 1.25;
+}
+
+.installation-select-card em {
+  font-style: normal;
+  color: #075985;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .photo-thumb {
   width: 72px;
   height: 54px;
@@ -197,5 +282,10 @@
 @media (max-width: 700px) {
   .topbar-selector {
     min-width: 100%;
+  }
+
+  .client-card-grid,
+  .installation-card-grid {
+    grid-template-columns: 1fr;
   }
 }
