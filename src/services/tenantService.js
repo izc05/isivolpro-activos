@@ -14,6 +14,31 @@ export async function listAllTenantsForManagement() {
   return listTenants({ includeInactive: true });
 }
 
+export async function listTenantInventoryStats(tenantIds = []) {
+  const ids = [...new Set((tenantIds || []).filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const entries = await Promise.all(ids.map(async (tenantId) => {
+    const [installations, assets, openIncidents] = await Promise.all([
+      supabase.from('instalaciones').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).is('deleted_at', null),
+      supabase.from('activos').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).is('deleted_at', null),
+      supabase.from('incidencias').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).neq('estado', 'cerrada')
+    ]);
+
+    if (installations.error) throw installations.error;
+    if (assets.error) throw assets.error;
+    if (openIncidents.error) throw openIncidents.error;
+
+    return [tenantId, {
+      instalaciones: installations.count || 0,
+      activos: assets.count || 0,
+      incidencias_abiertas: openIncidents.count || 0
+    }];
+  }));
+
+  return Object.fromEntries(entries);
+}
+
 export async function listTenantMembers(tenantId) {
   const { data, error } = await supabase
     .from('tenant_members')
