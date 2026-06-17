@@ -8,7 +8,7 @@ import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import QRScanner from './pages/QRScanner';
 import QRResolver from './pages/QRResolver';
-import Clients from './pages/Clients';
+import ClientsInventory from './pages/ClientsInventory';
 import Installations from './pages/Installations';
 import InstallationDetail from './pages/InstallationDetail';
 import Locations from './pages/Locations';
@@ -54,7 +54,7 @@ export default function App() {
         <Route index element={<HomeRedirect />} />
         <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="scanner" element={<QRScanner />} />
-        <Route path="clientes" element={<AdminRoute><Clients /></AdminRoute>} />
+        <Route path="clientes" element={<AdminRoute><ClientsInventory /></AdminRoute>} />
         <Route path="instalaciones" element={<InventoryRoute><Installations /></InventoryRoute>} />
         <Route path="instalaciones/:id" element={<InstallationDetail />} />
         <Route path="ubicaciones" element={<InventoryRoute><Locations /></InventoryRoute>} />
