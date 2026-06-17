@@ -39,8 +39,7 @@ export async function uploadEntityImage({ tenantId, entityType, entityId, file }
     image_bucket: 'photos-private',
     image_path: path,
     image_file_name: file.name,
-    image_mime_type: file.type,
-    image_data_url: null
+    image_mime_type: file.type
   };
 }
 

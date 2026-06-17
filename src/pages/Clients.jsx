@@ -107,14 +107,14 @@ export default function Clients() {
   }
 
   async function archiveClient(row) {
-    if (!window.confirm(`Archivar el cliente "${row.nombre}"? No se elimina su historial; dejara de aparecer como cliente activo.`)) return;
+    if (!window.confirm(`Dar de baja el cliente "${row.nombre}"? No se elimina su historial; dejara de aparecer como cliente activo.`)) return;
     setError('');
     setMessage('');
     try {
       await archiveTenant(row);
       await refreshTenants();
       await refreshClients();
-      setMessage(`Cliente ${row.nombre} archivado.`);
+      setMessage(`Cliente ${row.nombre} dado de baja.`);
     } catch (err) {
       setError(err.message);
     }
@@ -135,7 +135,7 @@ export default function Clients() {
 
   return (
     <>
-      <PageHeader title="Clientes" subtitle="Un cliente puede tener varias instalaciones. Archivar no borra historico ni datos tecnicos." action={<button className="primary-button" onClick={startCreate}>Nuevo cliente</button>} />
+      <PageHeader title="Clientes" subtitle="Un cliente puede tener varias instalaciones. Dar de baja no borra historico ni datos tecnicos." action={<button className="primary-button" onClick={startCreate}>Nuevo cliente</button>} />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
       {loading ? <p className="muted">Cargando clientes...</p> : (
@@ -146,7 +146,7 @@ export default function Clients() {
           { key: 'plan', label: 'Plan', render: (row) => <span className="badge">{row.plan || 'starter'}</span> },
           { key: 'billing_status', label: 'Suscripcion', render: (row) => <span className={row.billing_status === 'active' ? 'badge ok' : row.billing_status === 'suspended' ? 'badge danger' : 'badge warn'}>{row.billing_status || 'trial'}</span> },
           { key: 'estado', label: 'Estado', render: (row) => <span className={row.estado === 'activo' ? 'badge ok' : 'badge danger'}>{row.estado}</span> },
-          { key: 'actions', label: 'Acciones', render: (row) => <div className="inline-actions"><button className="secondary-button" onClick={() => startEdit(row)}>Editar</button>{row.estado === 'inactivo' ? <button className="primary-button" onClick={() => restoreClient(row)}>Reactivar</button> : <button className="danger-button" onClick={() => archiveClient(row)}>Archivar</button>}</div> }
+          { key: 'actions', label: 'Acciones', render: (row) => <div className="inline-actions"><button className="secondary-button" onClick={() => startEdit(row)}>Editar</button>{row.estado === 'inactivo' ? <button className="primary-button" onClick={() => restoreClient(row)}>Reactivar</button> : <button className="danger-button" onClick={() => archiveClient(row)}>Baja</button>}</div> }
         ]} rows={tenants} />
       )}
       <Modal title={editing ? 'Editar cliente' : 'Nuevo cliente'} open={open} onClose={() => setOpen(false)}>
@@ -170,7 +170,7 @@ export default function Clients() {
           )}
           <div className="card subtle-card">
             <h3>Cuenta comercial del cliente</h3>
-            <p className="muted">Estos datos preparan el modelo de pago por cliente. Archivar el cliente lo oculta del selector superior pero conserva sus datos.</p>
+            <p className="muted">Estos datos preparan el modelo de pago por cliente. Dar de baja el cliente lo oculta del selector superior pero conserva sus datos.</p>
             <div className="grid two">
               <FormField label="Plan"><select value={form.plan} onChange={(event) => updateField('plan', event.target.value)} disabled={!isSuperAdmin}><option value="starter">Starter</option><option value="pro">Pro</option><option value="empresa">Empresa</option></select></FormField>
               <FormField label="Estado suscripcion"><select value={form.billing_status} onChange={(event) => updateField('billing_status', event.target.value)} disabled={!isSuperAdmin}><option value="trial">Prueba</option><option value="active">Activa</option><option value="past_due">Pago pendiente</option><option value="cancelled">Cancelada</option><option value="suspended">Suspendida</option></select></FormField>
