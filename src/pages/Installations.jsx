@@ -7,7 +7,6 @@ import Modal from '../components/Layout/Modal';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createInstallation, softDeleteEntity, updateInstallation } from '../services/entityService';
-import EntityIdentity from '../components/Cards/EntityIdentity';
 import EntityImageViewer from '../components/Media/EntityImageViewer';
 import { buildMapsUrl } from '../utils/mapUtils';
 
@@ -88,12 +87,23 @@ export default function Installations() {
     setError('');
   }
 
+  function installationIdentity(row) {
+    return (
+      <div className="installation-name-cell">
+        <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="installation-list-photo" />
+        <div className="installation-name-text">
+          <Link to={`/instalaciones/${row.id}`}><strong>{row.nombre}</strong></Link>
+          <span>{row.direccion || row.tipo || 'Sin direccion'}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <PageHeader title="Instalaciones" subtitle="Cada instalacion queda vinculada obligatoriamente a un cliente." action={<button className="primary-button" onClick={startCreate}>Nueva instalacion</button>} />
       <DataTable columns={[
-        { key: 'foto', label: 'Foto', render: (row) => <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="table-image-preview" /> },
-        { key: 'nombre', label: 'Nombre', render: (row) => <Link to={`/instalaciones/${row.id}`}><EntityIdentity row={row} entityType="instalacion" title={row.nombre} subtitle={row.direccion || row.tipo} /></Link> },
+        { key: 'nombre', label: 'Instalacion', render: installationIdentity },
         { key: 'cliente', label: 'Cliente', render: (row) => row.tenants?.nombre || tenants.find((tenant) => tenant.id === row.tenant_id)?.nombre || row.tenant_id },
         { key: 'codigo', label: 'Codigo' },
         { key: 'tipo', label: 'Tipo' },
