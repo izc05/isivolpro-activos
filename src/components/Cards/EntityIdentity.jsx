@@ -3,13 +3,19 @@ import { useEffect, useState } from 'react';
 import { signedEntityImageUrl } from '../../services/imageService';
 
 export default function EntityIdentity({ row, entityType, title, subtitle, size = 'default' }) {
-  const [src, setSrc] = useState('');
+  const [src, setSrc] = useState(row?.image_data_url || '');
 
   useEffect(() => {
     let mounted = true;
+    if (row?.image_data_url) {
+      setSrc(row.image_data_url);
+      return () => {
+        mounted = false;
+      };
+    }
     signedEntityImageUrl(row, entityType)
       .then((url) => {
-        if (mounted) setSrc(url);
+        if (mounted) setSrc(url || '');
       })
       .catch(() => {
         if (mounted) setSrc('');
@@ -17,7 +23,7 @@ export default function EntityIdentity({ row, entityType, title, subtitle, size 
     return () => {
       mounted = false;
     };
-  }, [row?.id, row?.image_path, entityType]);
+  }, [row?.id, row?.image_path, row?.image_data_url, entityType]);
 
   return (
     <div className={`entity-identity ${size !== 'default' ? `entity-identity-${size}` : ''}`}>
