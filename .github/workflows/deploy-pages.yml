@@ -1,7 +1,5 @@
 name: Deploy GitHub Pages
 
-# Builds the Vite application and publishes the generated site to the
-# repository root. GitHub Pages is configured to deploy from the main branch.
 on:
   push:
     branches:
@@ -9,11 +7,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
+
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   build:
@@ -21,21 +25,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm install
 
-      - name: Restore source HTML
-        run: cp index.source.html index.html
-
-      - name: Build
+      - name: Build Vite app
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
@@ -43,23 +43,15 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_ENABLE_DEMO_SIGNUP: ${{ vars.VITE_ENABLE_DEMO_SIGNUP || 'false' }}
 
-      - name: Synchronize built site with repository root
-        if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[pages-build]')
-        run: |
-          rm -rf assets
-          cp -R dist/assets ./assets
-          cp dist/index.html ./index.html
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html assets
-
-          if git diff --cached --quiet; then
-            echo "The published files are already current."
-          else
-            git commit -m "chore: publish current application [pages-build]"
-            git push origin HEAD:main
-          fi
-
-      - name: Skip Actions Pages deploy
-        run: echo "Pages deploy is handled by the repository branch source."
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
