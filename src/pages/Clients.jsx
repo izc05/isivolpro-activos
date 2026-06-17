@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { Search, Building2, Home, Pencil, Archive, RotateCcw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../hooks/useTenant';
 import PageHeader from '../components/Layout/PageHeader';
-import DataTable from '../components/Cards/DataTable';
 import Modal from '../components/Layout/Modal';
 import FormField from '../components/Forms/FormField';
 import { archiveTenant, createTenantAsOwner, listAllTenantsForManagement, restoreTenant, updateTenant } from '../services/tenantService';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Clients() {
-  const { refreshTenants, setActiveTenantId } = useTenant();
+  const navigate = useNavigate();
+  const { activeTenantId, installations, refreshTenants, setActiveTenantId, setActiveInstallationId } = useTenant();
   const { profile } = useAuth();
   const isSuperAdmin = profile?.global_role === 'super_admin';
   const emptyForm = {
@@ -33,6 +35,8 @@ export default function Clients() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('activos');
 
   async function refreshClients() {
     setLoading(true);
@@ -49,6 +53,15 @@ export default function Clients() {
   useEffect(() => {
     refreshClients();
   }, []);
+
+  const filteredTenants = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    return tenants.filter((tenant) => {
+      const matchesSearch = !search || [tenant.nombre, tenant.cif, tenant.email, tenant.telefono, tenant.direccion].filter(Boolean).some((value) => String(value).toLowerCase().includes(search));
+      const matchesStatus = statusFilter === 'todos' || (statusFilter === 'activos' ? tenant.estado !== 'inactivo' : tenant.estado === 'inactivo');
+      return matchesSearch && matchesStatus;
+    });
+  }, [tenants, query, statusFilter]);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -133,22 +146,64 @@ export default function Clients() {
     }
   }
 
+  function openClient(row) {
+    setActiveTenantId(row.id);
+    const firstInstallation = row.id === activeTenantId ? installations[0] : null;
+    if (firstInstallation) setActiveInstallationId(firstInstallation.id);
+    navigate('/instalaciones');
+  }
+
+  function clientInitials(name) {
+    return String(name || 'C').split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  }
+
   return (
     <>
-      <PageHeader title="Clientes" subtitle="Un cliente puede tener varias instalaciones. Dar de baja no borra historico ni datos tecnicos." action={<button className="primary-button" onClick={startCreate}>Nuevo cliente</button>} />
+      <PageHeader title="Clientes" subtitle="Selecciona primero un cliente para ver y trabajar con sus instalaciones." action={<button className="primary-button" onClick={startCreate}>Nuevo cliente</button>} />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
+
+      <section className="client-search-panel">
+        <div className="client-search-box">
+          <Search size={18} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar cliente por nombre, CIF, email, telefono o direccion..." />
+        </div>
+        <div className="client-filter-tabs">
+          <button className={statusFilter === 'activos' ? 'active' : ''} type="button" onClick={() => setStatusFilter('activos')}>Activos</button>
+          <button className={statusFilter === 'inactivos' ? 'active' : ''} type="button" onClick={() => setStatusFilter('inactivos')}>Baja</button>
+          <button className={statusFilter === 'todos' ? 'active' : ''} type="button" onClick={() => setStatusFilter('todos')}>Todos</button>
+        </div>
+      </section>
+
       {loading ? <p className="muted">Cargando clientes...</p> : (
-        <DataTable columns={[
-          { key: 'nombre', label: 'Cliente' },
-          { key: 'cif', label: 'CIF' },
-          { key: 'email', label: 'Email' },
-          { key: 'plan', label: 'Plan', render: (row) => <span className="badge">{row.plan || 'starter'}</span> },
-          { key: 'billing_status', label: 'Suscripcion', render: (row) => <span className={row.billing_status === 'active' ? 'badge ok' : row.billing_status === 'suspended' ? 'badge danger' : 'badge warn'}>{row.billing_status || 'trial'}</span> },
-          { key: 'estado', label: 'Estado', render: (row) => <span className={row.estado === 'activo' ? 'badge ok' : 'badge danger'}>{row.estado}</span> },
-          { key: 'actions', label: 'Acciones', render: (row) => <div className="inline-actions"><button className="secondary-button" onClick={() => startEdit(row)}>Editar</button>{row.estado === 'inactivo' ? <button className="primary-button" onClick={() => restoreClient(row)}>Reactivar</button> : <button className="danger-button" onClick={() => archiveClient(row)}>Baja</button>}</div> }
-        ]} rows={tenants} />
+        <section className="clients-grid-view">
+          {filteredTenants.map((tenant) => (
+            <article key={tenant.id} className={`client-main-card ${tenant.id === activeTenantId ? 'active' : ''}`}>
+              <button className="client-card-main" type="button" onClick={() => openClient(tenant)}>
+                <span className="client-avatar"><Building2 size={22} /><strong>{clientInitials(tenant.nombre)}</strong></span>
+                <span className="client-card-content">
+                  <strong>{tenant.nombre}</strong>
+                  <small>{tenant.direccion || tenant.email || 'Sin direccion registrada'}</small>
+                  <span className="client-card-meta">
+                    <em>{tenant.estado || 'activo'}</em>
+                    <em>{tenant.plan || 'starter'}</em>
+                    <em>{tenant.billing_status || 'trial'}</em>
+                  </span>
+                </span>
+              </button>
+              <div className="client-card-actions">
+                <button className="primary-button" type="button" onClick={() => openClient(tenant)}><Home size={16} /> Ver instalaciones</button>
+                <button className="secondary-button" type="button" onClick={() => startEdit(tenant)}><Pencil size={16} /> Editar</button>
+                {tenant.estado === 'inactivo'
+                  ? <button className="secondary-button" type="button" onClick={() => restoreClient(tenant)}><RotateCcw size={16} /> Reactivar</button>
+                  : <button className="danger-button" type="button" onClick={() => archiveClient(tenant)}><Archive size={16} /> Baja</button>}
+              </div>
+            </article>
+          ))}
+          {filteredTenants.length === 0 && <div className="card"><p className="muted">No hay clientes que coincidan con la busqueda.</p></div>}
+        </section>
       )}
+
       <Modal title={editing ? 'Editar cliente' : 'Nuevo cliente'} open={open} onClose={() => setOpen(false)}>
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Nombre del cliente">
