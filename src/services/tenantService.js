@@ -1,10 +1,17 @@
 import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 
-export async function listTenants() {
-  const { data, error } = await supabase.from('tenants').select('*').order('nombre');
+export async function listTenants(options = {}) {
+  const includeInactive = Boolean(options.includeInactive);
+  let query = supabase.from('tenants').select('*').order('nombre');
+  if (!includeInactive) query = query.neq('estado', 'inactivo');
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
+}
+
+export async function listAllTenantsForManagement() {
+  return listTenants({ includeInactive: true });
 }
 
 export async function listTenantMembers(tenantId) {
@@ -70,6 +77,34 @@ export async function updateTenant(payload) {
 
   if (error) throw error;
   await logAudit({ tenantId: payload.id, action: 'update_tenant', entityType: 'tenant', entityId: payload.id });
+  return data;
+}
+
+export async function archiveTenant(row) {
+  if (!row?.id) throw new Error('Cliente no valido.');
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ estado: 'inactivo', billing_status: 'suspended' })
+    .eq('id', row.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: row.id, action: 'archive_tenant', entityType: 'tenant', entityId: row.id });
+  return data;
+}
+
+export async function restoreTenant(row) {
+  if (!row?.id) throw new Error('Cliente no valido.');
+  const { data, error } = await supabase
+    .from('tenants')
+    .update({ estado: 'activo', billing_status: row.billing_status === 'suspended' ? 'trial' : row.billing_status || 'trial' })
+    .eq('id', row.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  await logAudit({ tenantId: row.id, action: 'restore_tenant', entityType: 'tenant', entityId: row.id });
   return data;
 }
 
