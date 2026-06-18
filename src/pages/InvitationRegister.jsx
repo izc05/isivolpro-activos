@@ -5,6 +5,11 @@ import { acceptTenantInvitation } from '../services/permissionService';
 import { claimDemoAccess, resendInvitationConfirmationEmail, signOut, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 
+function isPositiveInvitationMessage(message) {
+  const text = String(message || '').toLowerCase();
+  return text.includes('aceptada') || text.includes('cuenta creada') || text.includes('correo confirmado');
+}
+
 export default function InvitationRegister() {
   const { isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();

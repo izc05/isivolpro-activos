@@ -314,12 +314,25 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 }
 
 export async function listWorkOrderReports(tenantId, workOrderId) {
-  const { data, error } = await supabase
+  const query = supabase
     .from('ot_informes')
-    .select('*')
+    .select('*, created_by_profile:profiles!ot_informes_created_by_fkey(nombre,email)')
     .eq('tenant_id', tenantId)
     .eq('ot_id', workOrderId)
     .order('created_at', { ascending: false });
+
+  let { data, error } = await query;
+
+  if (error && String(error.message || '').includes('relationship')) {
+    const fallback = await supabase
+      .from('ot_informes')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('ot_id', workOrderId)
+      .order('created_at', { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) throw error;
   return data || [];
@@ -327,7 +340,14 @@ export async function listWorkOrderReports(tenantId, workOrderId) {
 
 export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
   if (!report?.bucket || !report?.path) return '';
-  return createSignedUrl(report.bucket, report.path, expiresIn);
+  return createSignedUrl({
+    tenantId: report.tenant_id,
+    bucket: report.bucket,
+    path: report.path,
+    entityType: 'ot_informe',
+    entityId: report.id,
+    expiresIn
+  });
 }
 
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
