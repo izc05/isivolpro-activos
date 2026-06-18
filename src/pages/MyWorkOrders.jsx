@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Navigation, Phone } from 'lucide-react';
+import { Filter, MapPin, Navigation, Phone, Search } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -15,6 +15,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState({ search: '', status: 'todas', priority: 'todas' });
 
   async function refresh() {
     if (!activeTenantId) return;
@@ -31,6 +32,34 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   }, [activeTenantId, mode]);
 
   const isCreated = mode === 'created';
+  const filteredRows = useMemo(() => {
+    const text = filters.search.trim().toLowerCase();
+    return rows.filter((row) => {
+      const searchable = [
+        row.codigo_ot,
+        row.titulo,
+        row.descripcion,
+        row.instalaciones?.nombre,
+        row.instalaciones?.direccion,
+        row.instalaciones?.contacto_nombre,
+        row.instalaciones?.contacto_telefono,
+        row.ubicaciones?.nombre,
+        row.activos?.nombre
+      ].filter(Boolean).join(' ').toLowerCase();
+      const matchesSearch = !text || searchable.includes(text);
+      const matchesStatus = filters.status === 'todas' || row.estado === filters.status;
+      const matchesPriority = filters.priority === 'todas' || (row.prioridad || 'normal') === filters.priority;
+      return matchesSearch && matchesStatus && matchesPriority;
+    });
+  }, [rows, filters]);
+
+  function updateFilter(field, value) {
+    setFilters((current) => ({ ...current, [field]: value }));
+  }
+
+  function resetFilters() {
+    setFilters({ search: '', status: 'todas', priority: 'todas' });
+  }
 
   return (
     <>
@@ -46,6 +75,51 @@ export default function MyWorkOrders({ mode = 'mine' }) {
         <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
       </div>
       {error && <p className="error-text">{error}</p>}
+      <section className="assigned-ot-filter-panel">
+        <div className="assigned-ot-search">
+          <Search size={18} />
+          <input
+            value={filters.search}
+            onChange={(event) => updateFilter('search', event.target.value)}
+            placeholder="Buscar por OT, trabajo, instalacion, activo o contacto..."
+          />
+        </div>
+        <div className="assigned-ot-filter-grid">
+          <label>
+            <span><Filter size={15} /> Estado</span>
+            <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
+              <option value="todas">Todos</option>
+              <option value="NUEVA">Nueva</option>
+              <option value="ASIGNADA">Asignada</option>
+              <option value="ACEPTADA">Aceptada</option>
+              <option value="EN_CURSO">En curso</option>
+              <option value="PENDIENTE_MATERIAL">Pendiente material</option>
+              <option value="PENDIENTE_CLIENTE">Pendiente cliente</option>
+              <option value="FINALIZADA">Finalizada</option>
+              <option value="VALIDADA">Validada</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+          </label>
+          <label>
+            <span>Prioridad</span>
+            <select value={filters.priority} onChange={(event) => updateFilter('priority', event.target.value)}>
+              <option value="todas">Todas</option>
+              <option value="baja">Baja</option>
+              <option value="media">Media</option>
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+              <option value="critica">Critica</option>
+            </select>
+          </label>
+          <div className="assigned-ot-filter-actions">
+            <button className="secondary-button" type="button" onClick={() => updateFilter('status', 'EN_CURSO')}>En curso</button>
+            <button className="secondary-button" type="button" onClick={() => updateFilter('priority', 'urgente')}>Urgentes</button>
+            <button className="ghost-button" type="button" onClick={resetFilters}>Limpiar</button>
+          </div>
+        </div>
+        <p className="muted">Mostrando {filteredRows.length} de {rows.length} OT.</p>
+      </section>
       {isCreated ? (
         <DataTable
           columns={[
@@ -58,11 +132,11 @@ export default function MyWorkOrders({ mode = 'mine' }) {
             { key: 'fecha_prevista', label: 'Prevista', render: (row) => row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-' },
             { key: 'actions', label: 'Acciones', render: (row) => <Link className="primary-button" to={`/ots/${row.id}`}>Ver OT</Link> }
           ]}
-          rows={rows}
+          rows={filteredRows}
           empty="No has creado OT"
         />
       ) : (
-        <AssignedWorkOrderCards rows={rows} />
+        <AssignedWorkOrderCards rows={filteredRows} />
       )}
     </>
   );
