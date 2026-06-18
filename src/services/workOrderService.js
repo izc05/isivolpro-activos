@@ -143,13 +143,13 @@ async function currentUserId() {
 }
 
 export async function listWorkOrders(tenantId) {
-  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url,image_bucket,image_path), ubicaciones(id,tenant_id,nombre,image_bucket,image_path), activos(id,tenant_id,nombre,image_bucket,image_path), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(id,tenant_id,nombre), activos(id,tenant_id,nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
 
 export async function getWorkOrder(tenantId, id) {
-  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url,image_bucket,image_path), ubicaciones(id,tenant_id,nombre,image_bucket,image_path), activos(id,tenant_id,nombre,marca,modelo,numero_serie,image_bucket,image_path), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email), created_by_profile:profiles!ordenes_trabajo_created_by_fkey(nombre,email)').eq('tenant_id', tenantId).eq('id', id).single();
+  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(id,tenant_id,nombre), activos(id,tenant_id,nombre,marca,modelo,numero_serie), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email), created_by_profile:profiles!ordenes_trabajo_created_by_fkey(nombre,email)').eq('tenant_id', tenantId).eq('id', id).single();
   if (error) throw error;
   return data;
 }

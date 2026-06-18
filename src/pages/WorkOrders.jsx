@@ -10,6 +10,7 @@ import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOve
 import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
+import { useAuth } from '../hooks/useAuth';
 import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
 import { softDeleteWorkOrder } from '../services/workOrderDeleteService';
 import { listTenantMembers } from '../services/tenantService';
@@ -66,7 +67,8 @@ function buildInitialForm(activeInstallationId = '') {
 }
 
 export default function WorkOrders() {
-  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
+  const { user, profile } = useAuth();
+  const { activeTenantId, activeInstallationId, activeInstallation, activeRole, canManageWorkOrders, canUseWorkOrders } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -119,8 +121,15 @@ export default function WorkOrders() {
       .forEach((invitation) => {
         if (!byUserId.has(invitation.accepted_by)) byUserId.set(invitation.accepted_by, { id: invitation.accepted_by, label: invitation.nombre || invitation.email || invitation.accepted_by });
       });
+    const currentUserCanWork = user?.id && (canManageWorkOrders || canUseWorkOrders || ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(activeRole));
+    if (currentUserCanWork && !byUserId.has(user.id)) {
+      byUserId.set(user.id, {
+        id: user.id,
+        label: `${profile?.nombre || profile?.email || user.email || 'Usuario actual'} (usuario actual)`
+      });
+    }
     return Array.from(byUserId.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [technicians, invitations]);
+  }, [technicians, invitations, user, profile, activeRole, canManageWorkOrders, canUseWorkOrders]);
 
   const pendingTechnicianInvitations = useMemo(
     () => invitations.filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'pendiente'),

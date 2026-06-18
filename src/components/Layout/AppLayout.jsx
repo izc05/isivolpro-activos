@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { useState } from 'react';
-import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, ListChecks, MapPin, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, ListChecks, MapPin, PanelLeftClose, PanelLeftOpen, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -74,6 +74,11 @@ export default function AppLayout() {
   } = tenant;
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: true, workorders: true, users: true });
+  const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('isivoltpro-sidebar-hidden', sidebarHidden ? 'true' : 'false');
+  }, [sidebarHidden]);
 
   const canSeeItem = (item) => {
     if (item.permission === 'all') return true;
@@ -109,14 +114,19 @@ export default function AppLayout() {
     .filter(Boolean);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
       <aside className="sidebar">
-        <div className="brand">
-          <img className="brand-logo-img" src={homeserveLogo} alt="HomeServe" />
-          <div>
-            <strong>HomeServe</strong>
-            <small>Activos QR por IsiVoltPro</small>
+        <div className="brand sidebar-brand">
+          <div className="brand-lockup">
+            <img className="brand-logo-img" src={homeserveLogo} alt="HomeServe" />
+            <div>
+              <strong>HomeServe</strong>
+              <small>Activos QR por IsiVoltPro</small>
+            </div>
           </div>
+          <button className="sidebar-icon-button" type="button" onClick={() => setSidebarHidden(true)} title="Ocultar menu lateral" aria-label="Ocultar menu lateral">
+            <PanelLeftClose size={18} />
+          </button>
         </div>
         <nav className="nav-list">
           {desktopNavItems ? (
@@ -134,6 +144,11 @@ export default function AppLayout() {
 
       <div className="main-column">
         <header className="topbar app-topbar-context">
+          {sidebarHidden && (
+            <button className="ghost-button topbar-menu-button" type="button" onClick={() => setSidebarHidden(false)}>
+              <PanelLeftOpen size={18} /> Menu
+            </button>
+          )}
           <div className="topbar-brand-block">
             <img className="topbar-brand-logo" src={homeserveLogo} alt="HomeServe" />
             <div>

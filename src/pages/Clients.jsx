@@ -1,11 +1,11 @@
-import { Search, Building2, Home, Pencil, Archive, RotateCcw } from 'lucide-react';
+import { Search, Building2, Home, Pencil, Archive, RotateCcw, Image as ImageIcon, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../hooks/useTenant';
 import PageHeader from '../components/Layout/PageHeader';
 import Modal from '../components/Layout/Modal';
 import FormField from '../components/Forms/FormField';
-import { archiveTenant, createTenantAsOwner, listAllTenantsForManagement, restoreTenant, updateTenant } from '../services/tenantService';
+import { archiveTenant, createTenantAsOwner, listAllTenantsForManagement, listTenantInventoryStats, restoreTenant, updateTenant } from '../services/tenantService';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Clients() {
@@ -26,7 +26,8 @@ export default function Clients() {
     max_instalaciones: 5,
     max_activos: 100,
     max_storage_mb: 1024,
-    subscription_ends_at: ''
+    subscription_ends_at: '',
+    logo_data_url: ''
   };
   const [tenants, setTenants] = useState([]);
   const [open, setOpen] = useState(false);
@@ -37,12 +38,14 @@ export default function Clients() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('activos');
+  const [statsByTenant, setStatsByTenant] = useState({});
 
   async function refreshClients() {
     setLoading(true);
     try {
       const items = await listAllTenantsForManagement();
       setTenants(items);
+      setStatsByTenant(await listTenantInventoryStats(items.map((item) => item.id)));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -89,7 +92,8 @@ export default function Clients() {
       max_instalaciones: row.max_instalaciones || 5,
       max_activos: row.max_activos || 100,
       max_storage_mb: row.max_storage_mb || 1024,
-      subscription_ends_at: row.subscription_ends_at ? row.subscription_ends_at.slice(0, 10) : ''
+      subscription_ends_at: row.subscription_ends_at ? row.subscription_ends_at.slice(0, 10) : '',
+      logo_data_url: tenantLogo(row)
     });
     setEditing(true);
     setError('');
@@ -104,9 +108,11 @@ export default function Clients() {
     try {
       if (editing) {
         await updateTenant(form);
+        saveTenantLogo(form.id, form.logo_data_url);
         setMessage('Cliente actualizado correctamente.');
       } else {
         const tenantId = await createTenantAsOwner(form);
+        saveTenantLogo(tenantId, form.logo_data_url);
         setActiveTenantId(tenantId);
         setMessage('Cliente creado correctamente.');
       }
@@ -157,9 +163,34 @@ export default function Clients() {
     return String(name || 'C').split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   }
 
+  function tenantLogo(row) {
+    if (!row?.id) return row?.image_data_url || '';
+    return localStorage.getItem(`isivoltpro-client-logo-${row.id}`) || row.image_data_url || '';
+  }
+
+  function saveTenantLogo(tenantId, dataUrl) {
+    if (!tenantId) return;
+    const key = `isivoltpro-client-logo-${tenantId}`;
+    if (dataUrl) localStorage.setItem(key, dataUrl);
+    else localStorage.removeItem(key);
+  }
+
+  function changeLogo(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Selecciona una imagen valida para el logo.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => updateField('logo_data_url', String(reader.result || ''));
+    reader.onerror = () => setError('No se pudo leer el logo seleccionado.');
+    reader.readAsDataURL(file);
+  }
+
   return (
     <>
-      <PageHeader title="Clientes" subtitle="Selecciona primero un cliente para ver y trabajar con sus instalaciones." action={<button className="primary-button" onClick={startCreate}>Nuevo cliente</button>} />
+      <PageHeader title="Clientes" subtitle="Crea, edita y consulta clientes con logo, contacto y resumen de instalaciones." action={<button className="primary-button" onClick={startCreate}><Plus size={18} /> Nuevo cliente</button>} />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
@@ -180,14 +211,24 @@ export default function Clients() {
           {filteredTenants.map((tenant) => (
             <article key={tenant.id} className={`client-main-card ${tenant.id === activeTenantId ? 'active' : ''}`}>
               <button className="client-card-main" type="button" onClick={() => openClient(tenant)}>
-                <span className="client-avatar"><Building2 size={22} /><strong>{clientInitials(tenant.nombre)}</strong></span>
+                <span className="client-avatar">
+                  {tenantLogo(tenant)
+                    ? <img src={tenantLogo(tenant)} alt={`Logo ${tenant.nombre}`} />
+                    : <><Building2 size={22} /><strong>{clientInitials(tenant.nombre)}</strong></>}
+                </span>
                 <span className="client-card-content">
                   <strong>{tenant.nombre}</strong>
                   <small>{tenant.direccion || tenant.email || 'Sin direccion registrada'}</small>
+                  <span className="client-contact-line">{[tenant.cif, tenant.telefono, tenant.email].filter(Boolean).join(' · ') || 'Datos de contacto pendientes'}</span>
                   <span className="client-card-meta">
                     <em>{tenant.estado || 'activo'}</em>
                     <em>{tenant.plan || 'starter'}</em>
                     <em>{tenant.billing_status || 'trial'}</em>
+                  </span>
+                  <span className="client-stats-line">
+                    <b>{statsByTenant[tenant.id]?.instalaciones || 0}</b> instalaciones
+                    <b>{statsByTenant[tenant.id]?.activos || 0}</b> activos
+                    <b>{statsByTenant[tenant.id]?.incidencias_abiertas || 0}</b> incidencias abiertas
                   </span>
                 </span>
               </button>
@@ -206,6 +247,22 @@ export default function Clients() {
 
       <Modal title={editing ? 'Editar cliente' : 'Nuevo cliente'} open={open} onClose={() => setOpen(false)}>
         <form className="form-grid" onSubmit={submit}>
+          <div className="client-logo-editor">
+            <span className="client-avatar large">
+              {form.logo_data_url ? <img src={form.logo_data_url} alt="Logo del cliente" /> : <ImageIcon size={28} />}
+            </span>
+            <div>
+              <strong>Logo del cliente</strong>
+              <p className="muted">Añade un logotipo para presentaciones y fichas internas. Se guarda en este navegador sin cambiar la base de datos.</p>
+              <div className="inline-actions">
+                <label className="secondary-button">
+                  <ImageIcon size={16} /> Seleccionar logo
+                  <input className="hidden-file-input" type="file" accept="image/*" onChange={changeLogo} />
+                </label>
+                {form.logo_data_url && <button className="ghost-button" type="button" onClick={() => updateField('logo_data_url', '')}>Quitar logo</button>}
+              </div>
+            </div>
+          </div>
           <FormField label="Nombre del cliente">
             <input value={form.nombre} onChange={(event) => updateField('nombre', event.target.value)} required />
           </FormField>
