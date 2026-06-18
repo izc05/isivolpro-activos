@@ -73,6 +73,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: true, workorders: true, users: true });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
+  const isGlobalWorkOrderControl = location.pathname.startsWith('/ots-control');
 
   useEffect(() => {
     localStorage.setItem('isivoltpro-sidebar-hidden', sidebarHidden ? 'true' : 'false');
@@ -147,30 +148,33 @@ export default function AppLayout() {
               <PanelLeftOpen size={18} /> Menu
             </button>
           )}
-          <div className="topbar-selectors">
-            {tenants.length > 0 && (
-              <label className="topbar-selector client-selector">
-                <span>Cliente activo</span>
-                <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-                  {tenants.map((tenantItem) => (
-                    <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {installations.length > 0 && (
-              <label className="topbar-selector active-installation-selector">
-                <span>Instalacion activa</span>
-                <select value={activeInstallationId || ''} onChange={(event) => setActiveInstallationId(event.target.value)}>
-                  {installations.map((installation) => (
-                    <option key={installation.id} value={installation.id}>{installation.nombre}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {activeTenant && activeInstallation && <span className="active-installation-pill">{activeTenant.nombre} · {activeInstallation.nombre}</span>}
-            {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
-          </div>
+          {!isGlobalWorkOrderControl && (
+            <div className="topbar-selectors">
+              {tenants.length > 0 && (
+                <label className="topbar-selector client-selector">
+                  <span>Cliente activo</span>
+                  <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
+                    {tenants.map((tenantItem) => (
+                      <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {installations.length > 0 && (
+                <label className="topbar-selector active-installation-selector">
+                  <span>Instalacion activa</span>
+                  <select value={activeInstallationId || ''} onChange={(event) => setActiveInstallationId(event.target.value)}>
+                    {installations.map((installation) => (
+                      <option key={installation.id} value={installation.id}>{installation.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {activeTenant && activeInstallation && <span className="active-installation-pill">{activeTenant.nombre} · {activeInstallation.nombre}</span>}
+              {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
+            </div>
+          )}
+          {isGlobalWorkOrderControl && <div className="topbar-global-context">Control global OT · Sin filtro de cliente o instalacion</div>}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <InstallAppButton />
           <NavLink className="ghost-button topbar-profile-button" to="/ajustes"><UserCircle size={18} /> Perfil</NavLink>

@@ -5,9 +5,9 @@ import { canAccessRole } from '../../utils/permissions';
 
 function PermissionRoute({ children, allowedRoles = [], fallback = '/denegado' }) {
   const { isSuperAdmin, loading: authLoading } = useAuth();
-  const { activeRole, roleLoading, loading: tenantLoading } = useTenant();
+  const { activeRole, activeTenantId, activeMember, roleLoading, loading: tenantLoading } = useTenant();
 
-  if (authLoading || tenantLoading || roleLoading) return <p className="muted">Comprobando permisos...</p>;
+  if (authLoading || tenantLoading || roleLoading || (activeTenantId && activeMember === undefined && !isSuperAdmin)) return <p className="muted">Comprobando permisos...</p>;
   if (!canAccessRole(activeRole, allowedRoles, isSuperAdmin)) return <Navigate to={fallback} replace />;
   return children;
 }

@@ -14,7 +14,7 @@ export function TenantProvider({ children }) {
   const { isAuthenticated, isSuperAdmin } = useAuth();
   const [tenants, setTenants] = useState([]);
   const [activeTenantId, setActiveTenantIdState] = useState(sessionStorage.getItem('activeTenantId'));
-  const [activeMember, setActiveMember] = useState(null);
+  const [activeMember, setActiveMember] = useState(undefined);
   const [installations, setInstallations] = useState([]);
   const [activeInstallationId, setActiveInstallationIdState] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,7 @@ export function TenantProvider({ children }) {
     }
 
     setRoleLoading(true);
+    setActiveMember(undefined);
     getCurrentTenantMember(activeTenantId)
       .then(setActiveMember)
       .catch((error) => {
