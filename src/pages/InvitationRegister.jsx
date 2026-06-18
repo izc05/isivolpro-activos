@@ -2,7 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import FormField from '../components/Forms/FormField';
 import { acceptTenantInvitation } from '../services/permissionService';
-import { claimDemoAccess, resendInvitationConfirmationEmail, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
+import { claimDemoAccess, resendInvitationConfirmationEmail, signOut, signUpDemoUser, signUpWithInvitationEmail } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
 
 export default function InvitationRegister() {
@@ -103,6 +103,11 @@ export default function InvitationRegister() {
     }
   }
 
+  async function logoutForInvitation() {
+    await signOut();
+    window.location.reload();
+  }
+
   async function submitDemo(event) {
     event.preventDefault();
     setMessage('');
@@ -196,7 +201,7 @@ export default function InvitationRegister() {
           <FormField label="Token de invitacion">
             <input value={token} onChange={(event) => setToken(event.target.value.trim())} placeholder="Token temporal" autoComplete="one-time-code" required />
           </FormField>
-          {message && <p className={message.includes('aceptada') || message.includes('reenviado') ? 'muted' : 'error-text'}>{message}</p>}
+          {message && <p className={isPositiveInvitationMessage(message) || message.includes('reenviado') ? 'muted' : 'error-text'}>{message}</p>}
           {needsEmailConfirmation && !isAuthenticated && (
             <div className="access-help">
               <strong>No me llega el correo</strong>

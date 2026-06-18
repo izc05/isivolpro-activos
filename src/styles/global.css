@@ -1014,6 +1014,33 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   color: var(--primary);
   font-size: 28px;
 }
+.role-guide-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.role-guide-card div {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+.role-guide-card strong {
+  color: var(--primary);
+}
+.account-context-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+.account-context-card strong {
+  color: var(--primary);
+}
 .pending-invitations {
   display: grid;
   gap: 12px;
@@ -1094,6 +1121,28 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .access-help strong {
   color: var(--primary);
 }
+
+.invitation-session-box {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+}
+
+.invitation-session-box strong {
+  color: var(--primary);
+}
+
+.invitation-session-box span {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.invitation-session-box small {
+  color: var(--muted);
+}
 .danger-button {
   border: 1px solid #fecaca;
   border-radius: 8px;
@@ -1132,6 +1181,7 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   .ot-installation-panel .quick-actions > * { flex: 1 1 100%; }
   .ot-map-frame { min-height: 230px; }
   .users-summary-card { grid-template-columns: 1fr; }
+  .role-guide-card { grid-template-columns: 1fr; }
   .pending-invitation-card .quick-actions > * { flex: 1 1 100%; }
   .section-title { align-items: stretch; flex-direction: column; }
   .section-title .ghost-button { width: 100%; }

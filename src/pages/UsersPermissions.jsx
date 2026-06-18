@@ -7,6 +7,7 @@ import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import { useTenant } from '../hooks/useTenant';
+import { useAuth } from '../hooks/useAuth';
 import { listTenantMembers } from '../services/tenantService';
 import { listInstallationsForTenant } from '../services/entityService';
 import {
@@ -57,7 +58,8 @@ function memberName(row) {
 }
 
 export default function UsersPermissions() {
-  const { activeTenantId } = useTenant();
+  const { user } = useAuth();
+  const { activeTenant, activeTenantId, activeRole } = useTenant();
   const [rows, setRows] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [installations, setInstallations] = useState([]);
@@ -80,6 +82,7 @@ export default function UsersPermissions() {
   const [message, setMessage] = useState('');
   const [accessMessage, setAccessMessage] = useState('');
   const [copyMessage, setCopyMessage] = useState('');
+  const [loadMessage, setLoadMessage] = useState('');
   const [lastInvitation, setLastInvitation] = useState(null);
   const [memberMessage, setMemberMessage] = useState('');
   const [memberError, setMemberError] = useState('');
@@ -116,16 +119,27 @@ export default function UsersPermissions() {
 
   async function refresh() {
     if (!activeTenantId) return;
-    const [members, tenantInvitations, tenantInstallations, grants] = await Promise.all([
+    setLoadMessage('');
+    const results = await Promise.allSettled([
       listTenantMembers(activeTenantId),
       listTenantInvitations(activeTenantId),
       listInstallationsForTenant(activeTenantId),
       listInstallationAccessGrants(activeTenantId)
     ]);
+    const [membersResult, invitationsResult, installationsResult, grantsResult] = results;
+    const loadErrors = results
+      .filter((result) => result.status === 'rejected')
+      .map((result) => result.reason?.message || 'Error cargando datos');
+    const members = membersResult.status === 'fulfilled' ? membersResult.value : [];
+    const tenantInvitations = invitationsResult.status === 'fulfilled' ? invitationsResult.value : [];
+    const tenantInstallations = installationsResult.status === 'fulfilled' ? installationsResult.value : [];
+    const grants = grantsResult.status === 'fulfilled' ? grantsResult.value : [];
+
     setRows(members);
     setInvitations(tenantInvitations);
     setInstallations(tenantInstallations);
     setAccessGrants(grants);
+    if (loadErrors.length > 0) setLoadMessage(loadErrors.join(' | '));
     setAccessForm((current) => ({
       ...current,
       userId: current.userId || members.find((member) => member.role !== 'admin_cliente' && member.estado === 'activo')?.user_id || members[0]?.user_id || '',
@@ -277,6 +291,7 @@ export default function UsersPermissions() {
       <PageHeader title="Usuarios y permisos" subtitle="Roles por cliente, invitaciones, MFA, accesos por instalacion y ficha individual de usuario." action={<div className="button-row"><Link className="secondary-button" to="/usuarios-panel">Panel usuarios</Link><button className="secondary-button" onClick={() => setAccessOpen(true)}>Acceso instalacion</button><button className="primary-button" onClick={() => setOpen(true)}>Nueva invitacion</button></div>} />
       {memberMessage && <p className="success-text">{memberMessage}</p>}
       {memberError && <p className="error-text">{memberError}</p>}
+      {loadMessage && <p className="warning-text">Algunos datos no se han podido cargar: {loadMessage}</p>}
 
       <CollapsibleSection title="Resumen" subtitle="Usuarios activos, tecnicos, instalaciones e invitaciones" icon={Users} badge={`${activeMembers.length} activos`} defaultOpen>
         <section className="card users-summary-card">
@@ -285,6 +300,21 @@ export default function UsersPermissions() {
           <div><span className="muted">Tecnicos externos</span><strong>{externalTechnicians.length}</strong></div>
           <div><span className="muted">Invitaciones pendientes</span><strong>{pendingInvitations.length}</strong></div>
           <p className="muted">Un tecnico propio con rol tecnico queda disponible para asignarse a cualquier OT de cualquier instalacion del cliente activo.</p>
+        </section>
+        <section className="card account-context-card">
+          <span><strong>Sesion:</strong> {user?.email || 'Sin email de sesion'}</span>
+          <span><strong>Cliente activo:</strong> {activeTenant?.nombre || activeTenantId || 'Sin cliente activo'}</span>
+          <span><strong>Rol:</strong> {activeRole || 'Sin rol cargado'}</span>
+        </section>
+        <section className="card role-guide-card">
+          <div>
+            <strong>Rol tecnico</strong>
+            <span>Para personal de la empresa. Puede trabajar sobre todas las instalaciones del cliente activo y se puede asignar a cualquier OT.</span>
+          </div>
+          <div>
+            <strong>Rol tecnico externo</strong>
+            <span>Para colaboradores puntuales. Despues de aceptar la invitacion, concede acceso solo a la instalacion necesaria.</span>
+          </div>
         </section>
       </CollapsibleSection>
 

@@ -313,6 +313,23 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
   return { blob, filename, workOrder };
 }
 
+export async function listWorkOrderReports(tenantId, workOrderId) {
+  const { data, error } = await supabase
+    .from('ot_informes')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('ot_id', workOrderId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
+  if (!report?.bucket || !report?.path) return '';
+  return createSignedUrl(report.bucket, report.path, expiresIn);
+}
+
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   const { blob, filename, workOrder } = await generateWorkOrderPdfBlob(tenantId, workOrderId);
   if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevos informes. Descarga el acta final desde OT realizadas.');
