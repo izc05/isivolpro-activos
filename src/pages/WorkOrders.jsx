@@ -7,6 +7,7 @@ import Modal from '../components/Layout/Modal';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOverview';
+import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
@@ -276,6 +277,7 @@ export default function WorkOrders() {
 
       <DataTable
         columns={[
+          { key: 'foto', label: 'Foto', render: (row) => <WorkOrderThumbnail row={row} /> },
           { key: 'codigo_ot', label: 'OT', render: (row) => <Link to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
           { key: 'titulo', label: 'Trabajo' },
           { key: 'tipo_ot', label: 'Tipo', render: (row) => workOrderTypeLabel(row.tipo_ot || row.tipo) },

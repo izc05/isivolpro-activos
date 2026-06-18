@@ -4,6 +4,7 @@ import { MapPin, Navigation, Phone } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -48,6 +49,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
       {isCreated ? (
         <DataTable
           columns={[
+            { key: 'foto', label: 'Foto', render: (row) => <WorkOrderThumbnail row={row} /> },
             { key: 'codigo_ot', label: 'OT', render: (row) => <Link to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
             { key: 'titulo', label: 'Trabajo' },
             { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || '-' },
@@ -76,6 +78,7 @@ function AssignedWorkOrderCards({ rows }) {
         const phone = row.instalaciones?.contacto_telefono;
         return (
           <article className="assigned-ot-card" key={row.id}>
+            <WorkOrderThumbnail row={row} compact />
             <div className="assigned-ot-main">
               <div className="assigned-ot-heading">
                 <Link className="assigned-ot-code" to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link>

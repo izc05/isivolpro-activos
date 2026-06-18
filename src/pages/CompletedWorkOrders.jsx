@@ -6,6 +6,7 @@ import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenant } from '../hooks/useTenant';
 import {
   listChecklistPhotos,
@@ -196,6 +197,7 @@ export default function CompletedWorkOrders() {
       <CollapsibleSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con checklist, fotos, informe y detalle" icon={Wrench} defaultOpen>
         <DataTable
           columns={[
+            { key: 'foto', label: 'Foto', render: (row) => <WorkOrderThumbnail row={row} /> },
             { key: 'codigo_ot', label: 'OT', render: (row) => <Link className="table-link" to={`/ots/${row.id}`}>{row.codigo_ot || row.id.slice(0, 8)}</Link> },
             { key: 'titulo', label: 'Trabajo' },
             { key: 'tipo_ot', label: 'Tipo', render: (row) => workOrderTypeLabel(row.tipo_ot || row.tipo) },

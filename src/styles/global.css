@@ -245,6 +245,51 @@ a { color: inherit; text-decoration: none; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { color: var(--muted); font-size: 13px; font-weight: 700; }
+.ot-thumb {
+  width: 76px;
+  height: 56px;
+  border: 1px solid #c9e8f2;
+  border-radius: 8px;
+  background: #f0fbff;
+  color: #075985;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  position: relative;
+  flex: 0 0 auto;
+}
+.ot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ot-thumb small {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  max-width: calc(100% - 10px);
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(7, 89, 133, .88);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+.ot-thumb-empty {
+  border-style: dashed;
+  background: #f8fbff;
+}
+.ot-thumb.compact {
+  width: 96px;
+  height: 74px;
+  align-self: start;
+}
 .entity-identity { display: flex; align-items: center; gap: 14px; min-width: 260px; }
 .entity-thumb {
   width: 92px;
@@ -366,7 +411,7 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 }
 .assigned-ot-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 300px);
   gap: 14px;
   background: white;
   border: 1px solid var(--line);
@@ -1905,7 +1950,9 @@ select {
   .installation-hero { align-items: stretch; flex-direction: column; }
   .map-card { aspect-ratio: 4 / 3; min-height: 260px; }
   .installation-hero .quick-actions > * { flex: 1 1 100%; }
-  .assigned-ot-card { grid-template-columns: 1fr; padding: 14px; }
+  .assigned-ot-card { grid-template-columns: auto 1fr; padding: 14px; }
+  .assigned-ot-card .assigned-ot-contact { grid-column: 1 / -1; }
+  .assigned-ot-card .ot-thumb.compact { width: 82px; height: 64px; }
   .assigned-ot-contact { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 12px; }
   .assigned-ot-card .quick-actions > *,
   .ot-field-card .quick-actions > *,
@@ -1957,6 +2004,10 @@ select {
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
+  }
+  .table-card td[data-label="Foto"] .ot-thumb {
+    width: 96px;
+    height: 68px;
   }
   .entity-identity { min-width: 0; }
   .entity-thumb { width: 82px; height: 62px; flex-basis: 82px; }
