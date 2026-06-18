@@ -1009,6 +1009,10 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   margin-top: 16px;
   align-items: start;
 }
+.ot-control-panels {
+  margin: 16px 0;
+  align-items: start;
+}
 .ot-dashboard-panel {
   min-width: 0;
   display: grid;
@@ -1016,6 +1020,88 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 }
 .ot-dashboard-panel .table-card {
   min-height: 100%;
+}
+.ot-control-card {
+  display: grid;
+  gap: 12px;
+}
+.ot-control-list {
+  display: grid;
+  gap: 8px;
+}
+.ot-control-list button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--primary);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+.ot-control-list button:hover {
+  border-color: #f2aaa3;
+  background: #fffafa;
+}
+.ot-control-list strong {
+  font-size: 20px;
+  color: var(--primary-2);
+}
+.ot-technician-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+.ot-technician-grid button {
+  min-height: 82px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--primary);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  text-align: left;
+}
+.ot-technician-grid button:hover {
+  border-color: #8bd3e6;
+  background: #f0fbff;
+}
+.ot-technician-grid button.danger {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+.ot-technician-grid button > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  grid-row: 1 / span 2;
+  background: #e7f6fb;
+  color: #075985;
+}
+.ot-technician-grid button.danger > span {
+  background: #fff1f2;
+  color: var(--danger);
+}
+.ot-technician-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ot-technician-grid small {
+  color: var(--muted);
+  font-weight: 800;
+}
+.table-link-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .location-map {
