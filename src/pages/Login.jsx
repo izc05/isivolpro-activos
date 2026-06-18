@@ -3,6 +3,8 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import FormField from '../components/Forms/FormField';
 import { resetPassword, signIn } from '../services/authService';
 import { useAuth } from '../hooks/useAuth';
+import homeserveLogo from '../assets/homeserve/homeserve-logo-rojo-horizontal.png';
+import homeserveHero from '../assets/homeserve/homeserve-luz-agua.jpg';
 
 export default function Login() {
   const { isAuthenticated } = useAuth();
@@ -28,12 +30,14 @@ export default function Login() {
 
   return (
     <section className="login-page">
-      <div className="login-visual">
-        <h1>IsiVoltPro Activos QR</h1>
-        <p>Documentacion tecnica y mantenimiento por QR con autenticacion, RLS, Storage privado y auditoria de accesos.</p>
+      <div className="login-visual branded-login-visual" style={{ '--login-hero-image': `url(${homeserveHero})` }}>
+        <img className="presentation-logo light-surface" src={homeserveLogo} alt="HomeServe" />
+        <h1>Plataforma QR de activos e instalaciones</h1>
+        <p>Demo de mantenimiento, reparaciones y seguimiento tecnico para HomeServe. Creado por IsiVoltPro.</p>
       </div>
       <form className="login-panel" onSubmit={handleSubmit}>
         <div>
+          <img className="login-panel-logo" src={homeserveLogo} alt="HomeServe" />
           <h2>Acceso seguro</h2>
           <p className="muted">Entra con el email y la contrasena de tu cuenta. Si eres tecnico nuevo, primero necesitas una invitacion del administrador.</p>
         </div>

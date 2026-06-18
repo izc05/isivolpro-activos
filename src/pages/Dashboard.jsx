@@ -8,6 +8,11 @@ import { DashboardCard, DocumentCard, EmptyState, QRScanButton, QuickActionButto
 import { useTenant } from '../hooks/useTenant';
 import { dashboardMetrics } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
+import homeserveLogo from '../assets/homeserve/homeserve-logo-rojo-horizontal.png';
+import homeserveAire from '../assets/homeserve/homeserve-aire-acondicionado.jpg';
+import homeserveElectro from '../assets/homeserve/homeserve-electrodomesticos.jpg';
+import homeserveLuzAgua from '../assets/homeserve/homeserve-luz-agua.jpg';
+import homeserveZonaCliente from '../assets/homeserve/homeserve-zona-cliente.jpg';
 
 export default function Dashboard() {
   const {
@@ -27,6 +32,11 @@ export default function Dashboard() {
   }, [activeTenantId, activeInstallationId]);
 
   const data = metrics || { totalInstalaciones: 0, totalActivos: 0, pendientesRevision: 0, incidenciasAbiertas: 0, documentosRecientes: [] };
+  const presentationImages = [
+    { src: homeserveAire, title: 'Climatizacion', text: 'Mantenimiento y revision tecnica' },
+    { src: homeserveElectro, title: 'Electrodomesticos', text: 'Averias y seguimiento de trabajos' },
+    { src: homeserveLuzAgua, title: 'Luz y agua', text: 'Servicios conectados a activos QR' }
+  ];
 
   function selectClient(tenantId) {
     setActiveTenantId(tenantId);
@@ -42,21 +52,38 @@ export default function Dashboard() {
     <>
       <section className="service-hero">
         <div>
-          <span className="section-eyebrow">Panel de servicio tecnico</span>
-          <h1>Gestiona tus instalaciones desde un solo lugar</h1>
-          <p>Escanea activos QR, consulta documentacion, registra incidencias y sigue el estado de cada reparacion.</p>
+          <div className="presentation-brand-lockup">
+            <img src={homeserveLogo} alt="HomeServe" />
+            <span>Creado por IsiVoltPro</span>
+          </div>
+          <span className="section-eyebrow">Presentacion plataforma QR</span>
+          <h1>HomeServe · Gestion QR de activos e instalaciones</h1>
+          <p>Una experiencia de cliente y servicio tecnico para registrar activos, consultar documentacion y seguir cada reparacion desde el movil.</p>
           <div className="quick-actions">
             <QRScanButton />
             <QuickActionButton to="/incidencias" icon={AlertTriangle}>Crear incidencia</QuickActionButton>
             <QuickActionButton to="/activos" icon={Wrench}>Mis activos</QuickActionButton>
           </div>
         </div>
-        <div className="service-hero-panel">
+        <div className="service-hero-panel presentation-hero-panel">
+          <img src={homeserveZonaCliente} alt="Zona cliente HomeServe" />
           <strong>Resumen de servicio</strong>
           <div className="service-hero-stat"><span>Activos registrados</span><b>{data.totalActivos}</b></div>
           <div className="service-hero-stat"><span>Incidencias abiertas</span><b>{data.incidenciasAbiertas}</b></div>
           <div className="service-hero-stat"><span>Revisiones proximas</span><b>{data.pendientesRevision}</b></div>
         </div>
+      </section>
+
+      <section className="presentation-image-strip">
+        {presentationImages.map((item) => (
+          <article key={item.title}>
+            <img src={item.src} alt={`${item.title} HomeServe`} />
+            <div>
+              <strong>{item.title}</strong>
+              <span>{item.text}</span>
+            </div>
+          </article>
+        ))}
       </section>
 
       <section className="dashboard-flow-card">

@@ -5,6 +5,7 @@ import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
+import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal.png';
 
 const mainNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: BarChart3, permission: 'admin' },
@@ -110,10 +111,10 @@ export default function AppLayout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">IV</span>
+          <img className="brand-logo-img" src={homeserveLogo} alt="HomeServe" />
           <div>
-            <strong>IsiVoltPro</strong>
-            <small>Activos QR</small>
+            <strong>HomeServe</strong>
+            <small>Activos QR por IsiVoltPro</small>
           </div>
         </div>
         <nav className="nav-list">
@@ -133,10 +134,10 @@ export default function AppLayout() {
       <div className="main-column">
         <header className="topbar app-topbar-context">
           <div className="topbar-brand-block">
-            <span className="brand-mark topbar-brand-mark">IV</span>
+            <img className="topbar-brand-logo" src={homeserveLogo} alt="HomeServe" />
             <div>
-              <strong>IsiVoltPro</strong>
-              <span>Gestion QR de activos e instalaciones</span>
+              <strong>HomeServe</strong>
+              <span>Gestion QR de activos e instalaciones · Creado por IsiVoltPro</span>
             </div>
           </div>
           <div className="topbar-user-block">
