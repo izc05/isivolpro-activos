@@ -50,7 +50,7 @@ function CheckIcon(props) {
 }
 
 export default function AppLayout() {
-  const { isSuperAdmin, profile } = useAuth();
+  const { isSuperAdmin } = useAuth();
   const tenant = useTenant();
   const {
     tenants,
@@ -59,10 +59,7 @@ export default function AppLayout() {
     installations,
     activeInstallationId,
     activeInstallation,
-    activeRole,
-    activeRoleLabel,
     isTenantAdmin,
-    isTechnician,
     canViewInventory,
     canManageWorkOrders,
     canUseWorkOrders,
@@ -150,17 +147,6 @@ export default function AppLayout() {
               <PanelLeftOpen size={18} /> Menu
             </button>
           )}
-          <div className="topbar-brand-block">
-            <img className="topbar-brand-logo" src={homeserveLogo} alt="HomeServe" />
-            <div>
-              <strong>HomeServe</strong>
-              <span>Gestion QR de activos e instalaciones · Creado por IsiVoltPro</span>
-            </div>
-          </div>
-          <div className="topbar-user-block">
-            <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
-            <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
-          </div>
           <div className="topbar-selectors">
             {tenants.length > 0 && (
               <label className="topbar-selector client-selector">
