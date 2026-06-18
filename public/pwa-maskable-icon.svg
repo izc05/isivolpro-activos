@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Activos QR">
+  <rect width="512" height="512" fill="#df4f45"/>
+  <circle cx="256" cy="256" r="226" fill="#ef6a5d"/>
+  <path fill="#fff" d="M256 116 116 221v174c0 11 9 20 20 20h240c11 0 20-9 20-20V221L256 116Z"/>
+  <rect x="158" y="250" width="58" height="58" rx="10" fill="#df4f45"/>
+  <rect x="227" y="250" width="58" height="58" rx="10" fill="#df4f45"/>
+  <rect x="296" y="250" width="58" height="58" rx="10" fill="#df4f45"/>
+  <rect x="158" y="319" width="58" height="58" rx="10" fill="#df4f45"/>
+  <rect x="296" y="319" width="58" height="58" rx="10" fill="#df4f45"/>
+  <rect x="227" y="319" width="58" height="58" rx="10" fill="#2a3140"/>
+</svg>

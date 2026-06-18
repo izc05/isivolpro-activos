@@ -5,6 +5,7 @@ import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
+import InstallAppButton from './InstallAppButton';
 import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal.png';
 
 const mainNavItems = [
@@ -169,6 +170,7 @@ export default function AppLayout() {
             {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
           </div>
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
+          <InstallAppButton />
           <NavLink className="ghost-button topbar-profile-button" to="/ajustes"><UserCircle size={18} /> Perfil</NavLink>
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
         </header>

@@ -353,6 +353,31 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .primary-button:hover { background: #c84038; }
 .secondary-button:hover { border-color: #b9c4d2; background: #f8fafc; }
 .ghost-button:hover { background: #f8fafc; }
+.install-app-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.install-app-button {
+  border-color: #b7d7e8;
+  background: #f0fbff;
+  color: #075985;
+}
+.install-app-help {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(280px, 80vw);
+  border: 1px solid #c9e8f2;
+  border-radius: 8px;
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 14px 34px rgba(16, 42, 67, .16);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+}
 
 .form-grid { display: grid; gap: 14px; }
 .workorder-form { max-width: 980px; }
@@ -1873,7 +1898,8 @@ select {
   }
 
   .topbar-scan-button,
-  .topbar-profile-button {
+  .topbar-profile-button,
+  .install-app-wrap {
     flex: 1 1 130px;
   }
 
@@ -1919,6 +1945,15 @@ select {
   .topbar > div { min-width: 0; flex: 1 1 100%; }
   .topbar select { flex: 1 1 180px; min-width: 0; }
   .topbar .ghost-button { flex: 1 1 140px; }
+  .install-app-wrap,
+  .install-app-wrap .install-app-button {
+    width: 100%;
+  }
+  .install-app-help {
+    left: 0;
+    right: auto;
+    width: 100%;
+  }
   .content { padding: 16px; }
   .grid.metrics, .grid.two { grid-template-columns: 1fr; }
   .settings-grid,
