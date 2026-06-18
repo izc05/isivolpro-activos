@@ -6,6 +6,7 @@ import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOverview';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
@@ -256,6 +257,12 @@ export default function WorkOrders() {
       </div>
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
+
+      <WorkOrderStatusOverview
+        orders={visibleRows}
+        activeStatus={filters.status === 'todos' ? '' : filters.status}
+        onSelectStatus={(status) => setFilters((current) => ({ ...current, status }))}
+      />
 
       <CollapsibleSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalacion o tecnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">

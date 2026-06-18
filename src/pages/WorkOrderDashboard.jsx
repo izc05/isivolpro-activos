@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, ClipboardCheck, Clock, FileCheck2, UserRoundX 
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOverview';
 import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders, listWorkOrderVisitsForTenant } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -73,6 +74,8 @@ export default function WorkOrderDashboard() {
         action={<Link className="primary-button" to="/ots">Gestionar OT</Link>}
       />
       {error && <p className="error-text">{error}</p>}
+
+      <WorkOrderStatusOverview orders={orders} />
 
       <div className="grid metrics ot-metrics">
         <Metric icon={<ClipboardCheck size={22} />} label="OT abiertas" value={metrics.open} />

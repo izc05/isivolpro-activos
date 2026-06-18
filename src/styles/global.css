@@ -303,8 +303,11 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   font-weight: 700;
 }
 .primary-button { background: var(--primary-2); color: white; box-shadow: 0 10px 22px rgba(223, 79, 69, .18); }
-.secondary-button { background: var(--accent-soft); color: #a9362f; }
+.secondary-button { background: #ffffff; color: #2f3a4a; border: 1px solid #d9e0ea; box-shadow: 0 8px 18px rgba(42, 49, 64, .05); }
 .ghost-button { background: transparent; color: var(--primary); border: 1px solid var(--line); }
+.primary-button:hover { background: #c84038; }
+.secondary-button:hover { border-color: #b9c4d2; background: #f8fafc; }
+.ghost-button:hover { background: #f8fafc; }
 
 .form-grid { display: grid; gap: 14px; }
 .workorder-form { max-width: 980px; }
@@ -1308,6 +1311,11 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   font-weight: 700;
 }
 
+.danger-button:hover {
+  background: #fee4e2;
+  border-color: #fda29b;
+}
+
 .topbar-brand-block {
   display: flex;
   align-items: center;
@@ -1957,5 +1965,76 @@ select {
   .mobile-nav .nav-item.active {
     background: #fff1ef;
     color: #a9362f;
+  }
+}
+
+@media (max-width: 1180px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+
+  .topbar > div {
+    min-width: 0;
+  }
+
+  .topbar-selectors {
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
+
+  .topbar-selector {
+    flex: 1 1 220px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .mobile-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(72px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+    overflow-x: hidden;
+    background: white;
+    border-top: 1px solid var(--line);
+    z-index: 20;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-nav .nav-item {
+    border-radius: 8px;
+    min-height: 58px;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    padding: 6px 4px;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .mobile-nav .nav-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
