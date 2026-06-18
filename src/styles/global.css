@@ -2074,7 +2074,7 @@ select {
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
     padding-bottom: calc(82px + env(safe-area-inset-bottom));
