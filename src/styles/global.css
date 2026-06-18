@@ -1316,6 +1316,61 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   border-color: #fda29b;
 }
 
+.table-action {
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.table-card .secondary-button,
+.inline-actions .secondary-button,
+.quick-actions .secondary-button {
+  background: #ffffff;
+  color: #2f3a4a;
+  border: 1px solid #d9e0ea;
+}
+
+.table-card .secondary-button:hover,
+.inline-actions .secondary-button:hover,
+.quick-actions .secondary-button:hover {
+  background: #f8fafc;
+  border-color: #b9c4d2;
+}
+
+.table-card .action-map,
+.inline-actions .action-map {
+  background: #eef6ff;
+  color: #155e9f;
+  border-color: #bfdbfe;
+}
+
+.table-card .action-map:hover,
+.inline-actions .action-map:hover {
+  background: #dff0ff;
+  border-color: #8ec5f5;
+}
+
+.table-card .action-edit,
+.inline-actions .action-edit {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.table-card .danger-button,
+.inline-actions .danger-button {
+  background: #fff1f2;
+  color: #b42318;
+  border: 1px solid #fecaca;
+}
+
+.table-card .danger-button:hover,
+.inline-actions .danger-button:hover {
+  background: #fee4e2;
+  border-color: #fda29b;
+}
+
 .topbar-brand-block {
   display: flex;
   align-items: center;

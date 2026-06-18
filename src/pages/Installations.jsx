@@ -105,15 +105,15 @@ export default function Installations() {
         { key: 'cliente', label: 'Cliente', render: (row) => row.tenants?.nombre || tenants.find((tenant) => tenant.id === row.tenant_id)?.nombre || row.tenant_id },
         { key: 'codigo', label: 'Codigo' },
         { key: 'tipo', label: 'Tipo' },
-        { key: 'mapa', label: 'Mapa', render: (row) => buildMapsUrl(row) ? <a className="secondary-button" href={buildMapsUrl(row)} target="_blank" rel="noreferrer">Abrir mapa</a> : <span className="muted">Sin mapa</span> },
+        { key: 'mapa', label: 'Mapa', render: (row) => buildMapsUrl(row) ? <a className="secondary-button table-action action-map" href={buildMapsUrl(row)} target="_blank" rel="noreferrer">Abrir mapa</a> : <span className="muted">Sin mapa</span> },
         { key: 'estado', label: 'Estado', render: (row) => <span className="badge ok">{row.estado}</span> },
         {
           key: 'actions',
           label: 'Acciones',
           render: (row) => (
             <div className="inline-actions">
-              <button className="secondary-button" onClick={() => startEdit(row)}>Editar</button>
-              <button className="danger-button" onClick={() => remove(row)}>Baja</button>
+              <button className="secondary-button table-action action-edit" onClick={() => startEdit(row)}>Editar</button>
+              <button className="danger-button table-action action-delete" onClick={() => remove(row)}>Baja</button>
             </div>
           )
         }
