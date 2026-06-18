@@ -40,17 +40,17 @@
 }
 
 .active-installation-selector select {
-  border-color: #8bd3e6;
-  background: #f0fbff;
+  border-color: #f1b8b2;
+  background: #fff7f6;
   color: var(--primary);
 }
 
 .active-installation-pill {
   max-width: 300px;
   min-height: 34px;
-  border: 1px solid #c9e8f2;
-  background: #e7f6fb;
-  color: #075985;
+  border: 1px solid #f1c8c3;
+  background: #fff1ef;
+  color: #a9362f;
   border-radius: 999px;
   padding: 7px 12px;
   font-size: 12px;
@@ -62,8 +62,8 @@
 
 .dashboard-flow-card {
   background: #fff;
-  border: 1px solid #d9e5ee;
-  border-radius: 12px;
+  border: 1px solid #e7ebf1;
+  border-radius: 8px;
   padding: 18px;
   margin-bottom: 16px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
@@ -93,9 +93,9 @@
 
 .client-select-card,
 .installation-select-card {
-  border: 1px solid #d8e6ee;
-  background: #f8fbff;
-  border-radius: 12px;
+  border: 1px solid #e2e7ef;
+  background: #fbfcfe;
+  border-radius: 8px;
   padding: 14px;
   text-align: left;
   cursor: pointer;
@@ -110,20 +110,20 @@
 .installation-select-card:hover,
 .client-select-card.active,
 .installation-select-card.active {
-  border-color: #38bdf8;
-  background: #edfaff;
-  box-shadow: 0 10px 24px rgba(14, 116, 144, .12);
+  border-color: #ef9f97;
+  background: #fff7f6;
+  box-shadow: 0 10px 24px rgba(223, 79, 69, .12);
 }
 
 .client-select-icon,
 .installation-select-icon {
   width: 42px;
   height: 42px;
-  border-radius: 11px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #e0f2fe;
-  color: #075985;
+  background: #fff1ef;
+  color: #df4f45;
   grid-row: span 3;
 }
 
@@ -140,7 +140,7 @@
 
 .installation-select-card em {
   font-style: normal;
-  color: #075985;
+  color: #a9362f;
   font-size: 12px;
   font-weight: 800;
 }

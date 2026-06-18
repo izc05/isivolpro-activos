@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Building2, Home, Plus, QrCode, Wrench } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarClock, ClipboardList, FileText, FolderOpen, Home, Plus, QrCode, Settings2, ShieldCheck, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import MetricCard from '../components/Cards/MetricCard';
 import DataTable from '../components/Cards/DataTable';
 import PageHeader from '../components/Layout/PageHeader';
+import { DashboardCard, DocumentCard, EmptyState, QRScanButton, QuickActionButton, SectionHeader } from '../components/ServiceDashboard';
 import { useTenant } from '../hooks/useTenant';
 import { dashboardMetrics } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -39,7 +40,24 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Primero selecciona cliente y despues entra en una de sus instalaciones." />
+      <section className="service-hero">
+        <div>
+          <span className="section-eyebrow">Panel de servicio tecnico</span>
+          <h1>Gestiona tus instalaciones desde un solo lugar</h1>
+          <p>Escanea activos QR, consulta documentacion, registra incidencias y sigue el estado de cada reparacion.</p>
+          <div className="quick-actions">
+            <QRScanButton />
+            <QuickActionButton to="/incidencias" icon={AlertTriangle}>Crear incidencia</QuickActionButton>
+            <QuickActionButton to="/activos" icon={Wrench}>Mis activos</QuickActionButton>
+          </div>
+        </div>
+        <div className="service-hero-panel">
+          <strong>Resumen de servicio</strong>
+          <div className="service-hero-stat"><span>Activos registrados</span><b>{data.totalActivos}</b></div>
+          <div className="service-hero-stat"><span>Incidencias abiertas</span><b>{data.incidenciasAbiertas}</b></div>
+          <div className="service-hero-stat"><span>Revisiones proximas</span><b>{data.pendientesRevision}</b></div>
+        </div>
+      </section>
 
       <section className="dashboard-flow-card">
         <div className="section-title compact-title">
@@ -91,21 +109,78 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <PageHeader title="Estado de la instalación activa" subtitle={activeInstallation ? `Estado operativo de ${activeInstallation.nombre}.` : 'Selecciona una instalación para ver sus datos.'} />
+      <PageHeader title="Estado de la instalacion activa" subtitle={activeInstallation ? `Estado operativo de ${activeInstallation.nombre}.` : 'Selecciona una instalacion para ver sus datos.'} />
       {activeInstallation && <p className="active-filter-note">Filtro activo: {activeTenant?.nombre} · {activeInstallation.nombre}</p>}
-      <div className="grid metrics">
-        <MetricCard label={activeInstallation ? 'Instalación activa' : 'Instalaciones'} value={data.totalInstalaciones} />
+      <div className="grid metrics service-summary-grid">
+        <MetricCard label={activeInstallation ? 'Instalacion activa' : 'Instalaciones'} value={data.totalInstalaciones} />
         <MetricCard label="Activos" value={data.totalActivos} />
-        <MetricCard label="Pendientes revisión" value={data.pendientesRevision} tone="warn" />
+        <MetricCard label="Pendientes revision" value={data.pendientesRevision} tone="warn" />
         <MetricCard label="Incidencias abiertas" value={data.incidenciasAbiertas} tone="danger" />
       </div>
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="quick-actions">
-          <Link className="primary-button" to="/scanner"><QrCode size={18} /> Escanear QR</Link>
-          <Link className="secondary-button" to="/instalaciones"><Home size={18} /> Ver instalaciones</Link>
-          <Link className="secondary-button" to="/activos"><Wrench size={18} /> Ver activos</Link>
-        </div>
-      </div>
+
+      <SectionHeader
+        eyebrow="Accesos principales"
+        title="Zona cliente / empresa"
+        description="Operaciones frecuentes para activos, reparaciones, instalaciones y documentacion tecnica."
+      />
+      <section className="service-card-grid">
+        <DashboardCard
+          icon={QrCode}
+          title="Activos QR"
+          description="Ver equipos registrados, escanear QR/NFC y anadir nuevo activo."
+          meta={`${data.totalActivos} activos`}
+          to="/activos"
+          actionLabel="Abrir activos"
+        />
+        <DashboardCard
+          icon={AlertTriangle}
+          title="Incidencias / Reparaciones"
+          description="Registra avisos en segundos y consulta el seguimiento del estado."
+          meta={`${data.incidenciasAbiertas} abiertas`}
+          to="/incidencias"
+          actionLabel="Ver incidencias"
+          tone="danger"
+        />
+        <DashboardCard
+          icon={Home}
+          title="Instalaciones"
+          description="Consulta instalaciones, ubicaciones, documentacion e historial de revisiones."
+          meta={`${data.totalInstalaciones} instalaciones`}
+          to="/instalaciones"
+          actionLabel="Ver instalaciones"
+        />
+        <DashboardCard
+          icon={CalendarClock}
+          title="Mantenimiento preventivo"
+          description="Proximas revisiones, checklist pendientes y avisos importantes."
+          meta={`${data.pendientesRevision} pendientes`}
+          to="/mantenimiento"
+          actionLabel="Planificar revision"
+          tone="warn"
+        />
+        <DashboardCard
+          icon={FolderOpen}
+          title="Zona cliente / Empresa"
+          description="Datos de instalacion, contactos, documentos y contratos asociados."
+          meta={activeTenant?.nombre || 'Cliente activo'}
+          to="/documentos"
+          actionLabel="Abrir documentos"
+        />
+      </section>
+
+      <SectionHeader
+        eyebrow="Seguimiento"
+        title="Atajos de trabajo"
+        description="Accede rapido a las acciones que un tecnico o cliente necesita durante una visita."
+      />
+      <section className="service-action-grid">
+        <QuickActionButton to="/scanner" icon={QrCode} variant="primary">Escanear QR</QuickActionButton>
+        <QuickActionButton to="/incidencias" icon={ClipboardList}>Mis incidencias</QuickActionButton>
+        <QuickActionButton to="/documentos" icon={FileText}>Mis documentos</QuickActionButton>
+        <QuickActionButton to="/mantenimiento" icon={ShieldCheck}>Historial</QuickActionButton>
+        <QuickActionButton to="/ots-dashboard" icon={Settings2}>Seguimiento OT</QuickActionButton>
+      </section>
+
       <div style={{ marginTop: 16 }}>
         <DataTable
           columns={[
@@ -118,6 +193,16 @@ export default function Dashboard() {
           empty="Sin documentos recientes para la instalación activa"
         />
       </div>
+
+      {data.documentosRecientes.length === 0 && (
+        <div style={{ marginTop: 16 }}>
+          <EmptyState
+            title="Sin actividad documental reciente"
+            description="Cuando subas manuales, contratos o informes apareceran aqui para consulta rapida."
+            action={<DocumentCard title="Documentacion tecnica" description="Subir o consultar archivos asociados" />}
+          />
+        </div>
+      )}
     </>
   );
 }

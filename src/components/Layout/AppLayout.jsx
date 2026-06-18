@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, ListChecks, MapPin, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video } from 'lucide-react';
+import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, ListChecks, MapPin, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -8,7 +8,7 @@ import OfflineBanner from './OfflineBanner';
 
 const mainNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: BarChart3, permission: 'admin' },
-  { to: '/scanner', label: 'Escaner QR', icon: QrCode, permission: 'all' }
+  { to: '/scanner', label: 'Escanear QR', icon: QrCode, permission: 'all' }
 ];
 
 const inventoryNavItems = [
@@ -98,9 +98,13 @@ export default function AppLayout() {
   const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders || canManageUsers;
   const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
-  const mobileNavItems = showFullNavigation
+  const allMobileNavItems = showFullNavigation
     ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
     : [...visibleMainNavItems, ...fallbackNavItems];
+  const preferredMobileRoutes = ['/dashboard', '/activos', '/incidencias', '/documentos', '/ajustes'];
+  const mobileNavItems = preferredMobileRoutes
+    .map((route) => allMobileNavItems.find((item) => item.to === route))
+    .filter(Boolean);
 
   return (
     <div className="app-shell">
@@ -128,6 +132,13 @@ export default function AppLayout() {
 
       <div className="main-column">
         <header className="topbar app-topbar-context">
+          <div className="topbar-brand-block">
+            <span className="brand-mark topbar-brand-mark">IV</span>
+            <div>
+              <strong>IsiVoltPro</strong>
+              <span>Gestion QR de activos e instalaciones</span>
+            </div>
+          </div>
           <div className="topbar-user-block">
             <strong>{profile?.nombre || profile?.email || 'Usuario'}</strong>
             <span>{isTechnician ? 'Trabajo tecnico y OT asignadas' : 'Inventario, OT y usuarios'}{activeRole ? ` · ${activeRoleLabel}` : ''}</span>
@@ -156,6 +167,8 @@ export default function AppLayout() {
             {activeTenant && activeInstallation && <span className="active-installation-pill">{activeTenant.nombre} · {activeInstallation.nombre}</span>}
             {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
           </div>
+          <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
+          <NavLink className="ghost-button topbar-profile-button" to="/ajustes"><UserCircle size={18} /> Perfil</NavLink>
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
         </header>
         <OfflineBanner />
