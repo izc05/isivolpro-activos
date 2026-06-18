@@ -1064,6 +1064,148 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   margin: 16px 0;
   align-items: start;
 }
+.ot-live-board {
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+  box-shadow: 0 10px 28px rgba(16, 42, 67, .06);
+}
+.live-indicator {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.live-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, .55);
+  animation: livePulse 1.8s infinite;
+}
+.ot-live-columns {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(190px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.ot-live-column {
+  min-width: 190px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+}
+.ot-live-column header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ot-live-column header strong {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: white;
+  color: var(--primary);
+  border: 1px solid var(--line);
+}
+.ot-live-card-list {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 118px;
+}
+.ot-live-card {
+  border: 1px solid #d9e0ea;
+  border-left: 4px solid var(--primary-2);
+  border-radius: 8px;
+  background: white;
+  color: var(--primary);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  box-shadow: 0 8px 18px rgba(42, 49, 64, .06);
+  animation: otCardArrive .28s ease-out;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.ot-live-card:hover {
+  transform: translateY(-2px);
+  border-color: #f2aaa3;
+  box-shadow: 0 12px 24px rgba(42, 49, 64, .12);
+}
+.ot-live-code {
+  color: #075985;
+  font-size: 12px;
+  font-weight: 900;
+}
+.ot-live-card strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+.ot-live-card small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+.ot-live-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ot-live-meta em {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ot-live-empty,
+.ot-live-more {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+.status-en_curso .ot-live-card {
+  border-left-color: #b45309;
+}
+.status-pendiente_material .ot-live-card,
+.status-pendiente_cliente .ot-live-card {
+  border-left-color: #d97706;
+}
+.status-finalizada .ot-live-card,
+.status-validada .ot-live-card,
+.status-cerrada .ot-live-card {
+  border-left-color: #087f5b;
+}
+.status-cancelada .ot-live-card {
+  border-left-color: #b42318;
+}
 .ot-dashboard-panel {
   min-width: 0;
   display: grid;
@@ -1079,6 +1221,9 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
 .ot-control-list {
   display: grid;
   gap: 8px;
+}
+.ot-control-list.compact {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 .ot-control-list button {
   min-height: 44px;
@@ -1118,6 +1263,14 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   gap: 4px 10px;
   text-align: left;
 }
+.ot-technician-grid.live button {
+  background: white;
+}
+.ot-technician-grid small {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .ot-technician-grid button:hover {
   border-color: #8bd3e6;
   background: #f0fbff;
@@ -1155,6 +1308,14 @@ th { color: var(--muted); font-size: 13px; font-weight: 700; }
   cursor: pointer;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes livePulse {
+  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes otCardArrive {
+  from { opacity: .3; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .location-map {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

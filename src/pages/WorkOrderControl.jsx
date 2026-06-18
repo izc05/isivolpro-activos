@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, ClipboardCheck, Filter, Search, UserRound, UserRoundX } from 'lucide-react';
+import { Activity, AlertTriangle, ClipboardCheck, Clock3, Filter, RefreshCw, Search, UserRound, UserRoundX } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -17,17 +17,21 @@ import {
 } from '../utils/workOrderLifecycle';
 
 const STATUS_FILTERS = ['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CERRADA', 'CANCELADA'];
+const LIVE_STATUS_COLUMNS = ['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CERRADA', 'CANCELADA'];
 
 export default function WorkOrderControl() {
   const navigate = useNavigate();
   const { tenants, setActiveTenantId } = useTenant();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ search: '', status: 'todas', technician: 'todos' });
 
-  async function refresh() {
-    setLoading(true);
+  async function refresh({ silent = false } = {}) {
+    if (silent) setRefreshing(true);
+    else setLoading(true);
     setError('');
     try {
       const tenantOrders = await Promise.all((tenants || []).map(async (tenant) => {
@@ -35,16 +39,24 @@ export default function WorkOrderControl() {
         return rows.map((row) => ({ ...row, tenant_nombre: tenant.nombre }));
       }));
       setOrders(tenantOrders.flat());
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (silent) setRefreshing(false);
+      else setLoading(false);
     }
   }
 
   useEffect(() => {
     if (tenants.length > 0) refresh();
     else setLoading(false);
+  }, [tenants]);
+
+  useEffect(() => {
+    if (tenants.length === 0) return undefined;
+    const interval = window.setInterval(() => refresh({ silent: true }), 30000);
+    return () => window.clearInterval(interval);
   }, [tenants]);
 
   const technicianOptions = useMemo(() => {
@@ -96,6 +108,11 @@ export default function WorkOrderControl() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [filteredOrders]);
 
+  const liveStatusColumns = useMemo(() => LIVE_STATUS_COLUMNS.map((status) => ({
+    status,
+    orders: filteredOrders.filter((order) => normalizedStatus(order.estado) === status || order.estado === status)
+  })), [filteredOrders]);
+
   const technicianCards = useMemo(() => {
     const map = new Map();
     filteredOrders.forEach((order) => {
@@ -131,7 +148,7 @@ export default function WorkOrderControl() {
       <PageHeader
         title="Control OT"
         subtitle="Vista global de todas las ordenes accesibles, sin filtrar por cliente activo ni instalacion activa."
-        action={<Link className="primary-button" to="/ots">Nueva / gestionar OT</Link>}
+        action={<div className="quick-actions"><button className="secondary-button" type="button" disabled={refreshing} onClick={() => refresh({ silent: true })}>{refreshing ? <RefreshCw className="spin" size={17} /> : <RefreshCw size={17} />} Actualizar</button><Link className="primary-button" to="/ots">Nueva / gestionar OT</Link></div>}
       />
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
@@ -157,7 +174,7 @@ export default function WorkOrderControl() {
             <button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todas', technician: 'todos' })}>Limpiar</button>
           </div>
         </div>
-        <p className="muted">Mostrando {filteredOrders.length} de {orders.length} OT en {tenants.length} cliente(s).</p>
+        <p className="muted">Mostrando {filteredOrders.length} de {orders.length} OT en {tenants.length} cliente(s). Actualizacion automatica cada 30 s{lastUpdated ? ` · Ultima ${lastUpdated}` : ''}.</p>
       </section>
 
       <section className="grid metrics ot-metrics">
@@ -168,10 +185,42 @@ export default function WorkOrderControl() {
         <Metric icon={<UserRoundX size={22} />} label="Sin tecnico" value={metrics.unassigned} tone="danger" />
       </section>
 
+      <section className="ot-live-board">
+        <div className="section-title">
+          <h2>Movimiento vivo por estado</h2>
+          <span className="live-indicator"><span /> En seguimiento</span>
+        </div>
+        <div className="ot-live-columns">
+          {liveStatusColumns.map((column) => (
+            <article className={`ot-live-column status-${column.status.toLowerCase()}`} key={column.status}>
+              <header>
+                <WorkOrderStatusBadge status={column.status} />
+                <strong>{column.orders.length}</strong>
+              </header>
+              <div className="ot-live-card-list">
+                {column.orders.slice(0, 8).map((order) => (
+                  <button className="ot-live-card" key={order.id} type="button" onClick={() => openOrder(order)}>
+                    <span className="ot-live-code">{order.codigo_ot || order.id.slice(0, 8)}</span>
+                    <strong>{order.titulo || 'OT sin titulo'}</strong>
+                    <small>{order.tenant_nombre || '-'} · {order.instalaciones?.nombre || 'Sin instalacion'}</small>
+                    <span className="ot-live-meta">
+                      <em>{order.assigned?.nombre || order.assigned?.email || 'Sin tecnico'}</em>
+                      <b className={`badge ${priorityTone(order.prioridad)}`}>{priorityLabel(order.prioridad || 'normal')}</b>
+                    </span>
+                  </button>
+                ))}
+                {column.orders.length > 8 && <span className="ot-live-more">+{column.orders.length - 8} OT mas</span>}
+                {column.orders.length === 0 && <span className="ot-live-empty">Sin OT</span>}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <div className="grid two ot-control-panels">
         <section className="card ot-control-card">
           <div className="section-title"><h2>Estado de las OT</h2></div>
-          <div className="ot-control-list">
+          <div className="ot-control-list compact">
             {statusCards.map(([status, count]) => (
               <button key={status} type="button" onClick={() => updateFilter('status', status)}>
                 <WorkOrderStatusBadge status={status} />
@@ -181,13 +230,13 @@ export default function WorkOrderControl() {
           </div>
         </section>
         <section className="card ot-control-card">
-          <div className="section-title"><h2>Tecnicos</h2></div>
-          <div className="ot-technician-grid">
+          <div className="section-title"><h2>Tecnicos en vivo</h2></div>
+          <div className="ot-technician-grid live">
             {technicianCards.map((technician) => (
               <button key={technician.id} type="button" onClick={() => updateFilter('technician', technician.id)} className={technician.id === 'sin_asignar' ? 'danger' : ''}>
                 <span>{technician.id === 'sin_asignar' ? <UserRoundX size={19} /> : <UserRound size={19} />}</span>
                 <strong>{technician.label}</strong>
-                <small>{technician.active} activas · {technician.finished} cerradas · {technician.total} total</small>
+                <small><Clock3 size={14} /> {technician.active} activas · {technician.finished} cerradas · {technician.total} total</small>
               </button>
             ))}
           </div>
