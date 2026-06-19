@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Clock, Mail, MapPin, Navigation, Phone, PlayCircle, PlusCircle, Save, StopCircle } from 'lucide-react';
-import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
+import WorkOrderPriorityBadge from '../components/WorkOrders/WorkOrderPriorityBadge';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
 import { useTenant } from '../hooks/useTenant';
 import {
   ASSET_FINAL_STATUSES,
@@ -219,33 +222,27 @@ export default function WorkOrderVisit() {
 
   return (
     <>
-      <PageHeader
-        title={`Intervencion ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
-        subtitle={workOrder.titulo}
-        action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
-      />
+      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Intervención" onBack={() => navigate(`/ots/${workOrder.id}`)} />
       {error && <p className="error-text">{error}</p>}
 
       <div className="grid two">
-        <section className="card">
-          <h2 className="section-heading">Trabajo asignado</h2>
-          <div className="detail-list">
-            <Detail label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
-            <Detail label="Ubicacion" value={workOrder.ubicaciones?.nombre || '-'} />
-            <Detail label="Activo" value={workOrder.activos?.nombre || '-'} />
-            <Detail label="Tipo OT" value={WORK_ORDER_TYPE_LABELS[workOrder.tipo_ot || workOrder.tipo] || workOrder.tipo || '-'} />
-            <Detail label="Prioridad" value={workOrder.prioridad || '-'} />
-            <Detail label="Tecnico asignado" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} />
-          </div>
+        <WorkOrderSection title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+          <WorkOrderInfoGrid columns={2}>
+            <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
+            <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={workOrder.prioridad} />} important />
+            <WorkOrderInfoItem label="Ubicación" value={workOrder.ubicaciones?.nombre || '-'} />
+            <WorkOrderInfoItem label="Activo" value={workOrder.activos?.nombre || '-'} important />
+            <WorkOrderInfoItem label="Tipo OT" value={WORK_ORDER_TYPE_LABELS[workOrder.tipo_ot || workOrder.tipo] || workOrder.tipo || '-'} />
+            <WorkOrderInfoItem label="Técnico asignado" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} important />
+          </WorkOrderInfoGrid>
           <p className="muted">{workOrder.descripcion || 'Sin descripcion adicional.'}</p>
           {workOrder.instrucciones_tecnico && <p><strong>Instrucciones:</strong> {workOrder.instrucciones_tecnico}</p>}
           {workOrder.riesgos_precauciones && <p className="warning-text">{workOrder.riesgos_precauciones}</p>}
-        </section>
+        </WorkOrderSection>
 
         <InstallationFieldCard installation={workOrder.instalaciones} />
 
-        <section className="card">
-          <h2 className="section-heading">Intervencion en campo</h2>
+        <WorkOrderSection title="Intervención en campo" subtitle="Inicio, datos técnicos y cierre de visita" icon={PlayCircle} defaultOpen>
           {!activeVisit && (
             <>
               <p className="muted">
@@ -308,12 +305,11 @@ export default function WorkOrderVisit() {
               </div>
             </div>
           )}
-        </section>
+        </WorkOrderSection>
       </div>
 
       {activeVisit && (
-        <section className="card" style={{ marginTop: 16 }}>
-          <h2 className="section-heading">Materiales de la visita</h2>
+        <WorkOrderSection title="Materiales de la visita" subtitle="Material usado, retirado o pendiente" icon={PlusCircle} defaultOpen>
           <form className="form-grid" onSubmit={addMaterial}>
             <div className="grid two">
               <FormField label="Descripcion libre">
@@ -354,11 +350,10 @@ export default function WorkOrderVisit() {
             rows={materials}
             empty="Sin materiales registrados"
           />
-        </section>
+        </WorkOrderSection>
       )}
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading"><Clock size={18} /> Historial de intervenciones</h2>
+      <WorkOrderSection title="Historial de intervenciones" subtitle="Visitas realizadas y estado de cada intervención" icon={Clock} defaultOpen>
         <DataTable
           columns={[
             { key: 'fecha_inicio', label: 'Inicio', render: (row) => formatDateTime(row.fecha_inicio) },
@@ -370,16 +365,15 @@ export default function WorkOrderVisit() {
           rows={visits}
           empty="Sin intervenciones registradas"
         />
-      </section>
+      </WorkOrderSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Checklist de visita</h2>
+      <WorkOrderSection title="Checklist de visita" subtitle="Continuación natural de la intervención" icon={Save} defaultOpen={false}>
         <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. Puedes adjuntar fotos por punto y continuar con firma/PDF cuando corresponda.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}`}>Ver detalle OT</Link>
           <Link className="primary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
         </div>
-      </section>
+      </WorkOrderSection>
 
       <Modal title="Finalizar intervencion" open={finishOpen} onClose={() => setFinishOpen(false)}>
         <form className="form-grid" onSubmit={finishVisit}>
@@ -426,6 +420,10 @@ function Detail({ label, value }) {
   );
 }
 
+function WrenchIcon(props) {
+  return <PlayCircle {...props} />;
+}
+
 function InstallationFieldCard({ installation }) {
   const mapsUrl = buildMapsUrl(installation);
   const embedUrl = buildMapsEmbedUrl(installation);
@@ -433,15 +431,14 @@ function InstallationFieldCard({ installation }) {
   const email = installation?.contacto_email;
 
   return (
-    <section className="card ot-field-card">
-      <h2 className="section-heading"><MapPin size={18} /> Instalacion y contacto</h2>
-      <div className="detail-list">
-        <Detail label="Instalacion" value={installation?.nombre || '-'} />
-        <Detail label="Direccion" value={installation?.direccion || '-'} />
-        <Detail label="Contacto" value={installation?.contacto_nombre || '-'} />
-        <Detail label="Telefono" value={phone || '-'} />
-        <Detail label="Email" value={email || '-'} />
-      </div>
+    <WorkOrderSection title="Instalación y contacto" subtitle="Datos de acceso y comunicación" icon={MapPin} defaultOpen>
+      <WorkOrderInfoGrid columns={2}>
+        <WorkOrderInfoItem label="Instalación" value={installation?.nombre || '-'} important />
+        <WorkOrderInfoItem label="Dirección" value={installation?.direccion || '-'} wide />
+        <WorkOrderInfoItem label="Contacto" value={installation?.contacto_nombre || '-'} />
+        <WorkOrderInfoItem label="Teléfono" value={phone || '-'} />
+        <WorkOrderInfoItem label="Email" value={email || '-'} />
+      </WorkOrderInfoGrid>
       <div className="quick-actions">
         {mapsUrl && (
           <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
@@ -466,6 +463,6 @@ function InstallationFieldCard({ installation }) {
       ) : (
         <p className="warning-text">Esta instalacion no tiene direccion ni coordenadas registradas.</p>
       )}
-    </section>
+    </WorkOrderSection>
   );
 }

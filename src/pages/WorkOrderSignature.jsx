@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import PageHeader from '../components/Layout/PageHeader';
 import FormField from '../components/Forms/FormField';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import SignaturePad from '../components/WorkOrders/SignaturePad';
+import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
+import { ClipboardCheck, PenLine } from 'lucide-react';
 import { useTenant } from '../hooks/useTenant';
 import { getWorkOrder, listWorkOrderVisits } from '../services/workOrderService';
 import { signedVisitSignatureUrl, uploadVisitSignature } from '../services/workOrderSignatureService';
@@ -94,29 +97,23 @@ export default function WorkOrderSignature() {
 
   return (
     <>
-      <PageHeader
-        title={`Firma cliente ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
-        subtitle={workOrder.titulo}
-        action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
-      />
+      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Firma cliente" onBack={() => navigate(`/ots/${workOrder.id}`)} />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
       <div className="grid two">
-        <section className="card">
-          <h2 className="section-heading">Datos de la OT</h2>
-          <div className="detail-list">
-            <Detail label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
-            <Detail label="Instalacion" value={workOrder.instalaciones?.nombre || '-'} />
-            <Detail label="Direccion" value={workOrder.instalaciones?.direccion || '-'} />
-            <Detail label="Activo" value={workOrder.activos?.nombre || '-'} />
-            <Detail label="Tecnico" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} />
-          </div>
+        <WorkOrderSection title="Datos de la OT" subtitle="Contexto de la firma" icon={ClipboardCheck} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+          <WorkOrderInfoGrid columns={2}>
+            <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
+            <WorkOrderInfoItem label="Instalación" value={workOrder.instalaciones?.nombre || '-'} important />
+            <WorkOrderInfoItem label="Dirección" value={workOrder.instalaciones?.direccion || '-'} wide />
+            <WorkOrderInfoItem label="Activo" value={workOrder.activos?.nombre || '-'} />
+            <WorkOrderInfoItem label="Técnico" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} important />
+          </WorkOrderInfoGrid>
           <p className="muted">La firma se guarda como imagen privada y queda asociada a la visita seleccionada.</p>
-        </section>
+        </WorkOrderSection>
 
-        <section className="card">
-          <h2 className="section-heading">Firmar visita</h2>
+        <WorkOrderSection title="Firmar visita" subtitle="Captura de firma del cliente o responsable" icon={PenLine} defaultOpen>
           <form className="form-grid" onSubmit={submit}>
             <FormField label="Visita a firmar">
               <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)} required>
@@ -140,11 +137,10 @@ export default function WorkOrderSignature() {
               <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar firma'}</button>
             </div>
           </form>
-        </section>
+        </WorkOrderSection>
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Firmas guardadas</h2>
+      <WorkOrderSection title="Firmas guardadas" subtitle="Firmas asociadas a visitas de esta OT" icon={PenLine} defaultOpen={visits.filter((visit) => visit.firma_path).length > 0}>
         {visits.filter((visit) => visit.firma_path).length === 0 && <p className="muted">Todavia no hay firmas guardadas.</p>}
         <div className="grid">
           {visits.filter((visit) => visit.firma_path).map((visit) => (
@@ -160,25 +156,16 @@ export default function WorkOrderSignature() {
             </div>
           ))}
         </div>
-      </section>
+      </WorkOrderSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Siguiente bloque</h2>
+      <WorkOrderSection title="Siguiente bloque" subtitle="Generación de informe final" icon={ClipboardCheck} defaultOpen={false}>
         <p className="muted">El siguiente paso sera generar el PDF con datos de OT, visita, checklist, fotos y firma.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}/checklist`}>Checklist</Link>
           <button className="secondary-button" disabled>PDF proximamente</button>
         </div>
-      </section>
+      </WorkOrderSection>
     </>
   );
 }
 
-function Detail({ label, value }) {
-  return (
-    <div className="detail-row">
-      <span className="muted">{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}

@@ -12,6 +12,7 @@ import { exportAssetPdf } from '../utils/pdfExport';
 import { qrDataUrl } from '../services/qrService';
 import { loadAssetTimeline } from '../services/assetTimelineService';
 import EntityImageViewer from '../components/Media/EntityImageViewer';
+import { maintenanceStatusClass, maintenanceStatusLabel, maintenanceTypeLabel } from '../constants/maintenance';
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -50,6 +51,13 @@ export default function AssetDetail() {
   const criticalClass = ['alta', 'critica'].includes(asset.criticidad) ? 'danger' : asset.criticidad === 'media' ? 'warn' : 'ok';
   const timeline = timelineData?.timeline || [];
   const metrics = timelineData?.metrics || { workOrders: 0, openWorkOrders: 0, incidents: 0, openIncidents: 0, materials: 0, reports: 0, photos: 0 };
+  const activePlans = timelineData?.scheduled?.filter((item) => item.plan_id && !['cancelado', 'no_aplica'].includes(item.estado)) || [];
+  const openCorrectives = timelineData?.scheduled?.filter((item) => item.tipo === 'correctivo' && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)) || [];
+  const overdueMaintenances = timelineData?.scheduled?.filter((item) => item.fecha_programada && new Date(item.fecha_programada) < new Date() && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)) || [];
+  const lastMaintenance = timelineData?.history?.[0];
+  const nextMaintenance = [...(timelineData?.scheduled || [])].filter((item) => item.fecha_programada && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)).sort((a, b) => new Date(a.fecha_programada) - new Date(b.fecha_programada))[0];
+  const accumulatedCost = (timelineData?.history || []).reduce((sum, item) => sum + Number(item.coste_total || 0), 0);
+  const downtime = (timelineData?.history || []).reduce((sum, item) => sum + Number(item.tiempo_parada_minutos || 0), 0);
 
   async function handlePdf() {
     exportAssetPdf({
@@ -104,10 +112,34 @@ export default function AssetDetail() {
         <article className="asset-summary-card"><FileText size={20} /><span>Informes OT</span><strong>{metrics.reports}</strong></article>
       </section>
 
-      <CollapsibleSection title="Historial automatico del activo" subtitle="Linea temporal unificada de incidencias, OT, materiales, fotos e informes" icon={History} badge={`${timeline.length} eventos`} defaultOpen>
+      <section className="card maintenance-asset-panel">
+        <div className="section-title">
+          <div>
+            <h2>Mantenimiento del activo</h2>
+            <p className="muted">Planes, próximos trabajos, correctivos abiertos y resultado técnico consolidado.</p>
+          </div>
+          <div className="button-row">
+            <Link className="secondary-button" to="/mantenimiento/planes">Crear plan</Link>
+            <Link className="secondary-button" to="/mantenimiento/correctivos">Crear correctivo</Link>
+            <Link className="secondary-button" to="/mantenimiento/historial">Registrar trabajo</Link>
+            <Link className="primary-button" to="/mantenimiento/calendario">Abrir calendario</Link>
+          </div>
+        </div>
+        <div className="asset-summary-grid maintenance-asset-metrics">
+          <article className="asset-summary-card"><ClipboardList size={20} /><span>Planes activos</span><strong>{activePlans.length}</strong></article>
+          <article className="asset-summary-card"><History size={20} /><span>Último mantenimiento</span><strong>{formatDate(lastMaintenance?.fecha)}</strong></article>
+          <article className={`asset-summary-card ${nextMaintenance ? '' : 'warn'}`}><CalendarClock size={20} /><span>Próximo mantenimiento</span><strong>{formatDate(nextMaintenance?.fecha_programada)}</strong></article>
+          <article className={`asset-summary-card ${overdueMaintenances.length ? 'danger' : ''}`}><AlertTriangle size={20} /><span>Vencidos</span><strong>{overdueMaintenances.length}</strong></article>
+          <article className={`asset-summary-card ${openCorrectives.length ? 'danger' : ''}`}><Wrench size={20} /><span>Correctivos abiertos</span><strong>{openCorrectives.length}</strong></article>
+          <article className="asset-summary-card"><Package size={20} /><span>Coste acumulado</span><strong>{accumulatedCost.toFixed(2)} €</strong></article>
+          <article className="asset-summary-card"><CalendarClock size={20} /><span>Parada acumulada</span><strong>{downtime} min</strong></article>
+        </div>
+      </section>
+
+      <CollapsibleSection title="Línea temporal técnica" subtitle="Historial único de mantenimientos, correctivos, incidencias, OT, materiales, fotos, informes y cambios de estado" icon={History} badge={`${timeline.length} eventos`} defaultOpen>
         {timelineError && <p className="error-text">{timelineError}</p>}
-        {!timelineData && !timelineError && <p className="muted">Cargando historial automatico...</p>}
-        {timelineData && timeline.length === 0 && <p className="muted">Todavia no hay eventos automaticos para este activo.</p>}
+        {!timelineData && !timelineError && <p className="muted">Cargando historial técnico...</p>}
+        {timelineData && timeline.length === 0 && <p className="muted">Todavía no hay eventos técnicos para este activo.</p>}
         {timeline.length > 0 && (
           <div className="asset-timeline">
             {timeline.map((event) => <TimelineEvent event={event} key={event.id} />)}
@@ -179,15 +211,6 @@ export default function AssetDetail() {
         </section>
 
         <section>
-          <h2 className="section-heading"><ClipboardList size={20} /> Historial de mantenimiento manual</h2>
-          <DataTable columns={[
-            { key: 'fecha', label: 'Fecha', render: (row) => formatDate(row.fecha) },
-            { key: 'tipo', label: 'Tipo' },
-            { key: 'titulo', label: 'Trabajo realizado' }
-          ]} rows={assetHistory} empty="Todavia no hay historial manual para este activo." />
-        </section>
-
-        <section>
           <h2 className="section-heading"><AlertTriangle size={20} /> Incidencias</h2>
           <DataTable columns={[
             { key: 'titulo', label: 'Incidencia' },
@@ -208,9 +231,11 @@ export default function AssetDetail() {
 
 function TimelineEvent({ event }) {
   const isOt = event.source === 'ot';
+  const isMaintenance = event.source === 'mantenimiento';
+  const isHistory = event.source === 'historial';
   return (
-    <article className={`asset-timeline-item ${isOt ? 'ot' : 'incident'}`}>
-      <span className="asset-timeline-dot">{isOt ? <Wrench size={16} /> : <AlertTriangle size={16} />}</span>
+    <article className={`asset-timeline-item ${isOt ? 'ot' : isMaintenance || isHistory ? 'maintenance' : 'incident'}`}>
+      <span className="asset-timeline-dot">{isOt || isHistory || isMaintenance ? <Wrench size={16} /> : <AlertTriangle size={16} />}</span>
       <div>
         <div className="asset-timeline-head">
           <strong>{event.title}</strong>
@@ -218,13 +243,18 @@ function TimelineEvent({ event }) {
         </div>
         <p>{event.subtitle}</p>
         <div className="quick-actions">
-          <span className={`badge ${event.status === 'VALIDADA' || event.status === 'convertida_en_ot' || event.status === 'cerrada' ? 'ok' : event.status === 'CANCELADA' || event.status === 'descartada' ? 'danger' : 'warn'}`}>{event.status}</span>
+          {event.source === 'mantenimiento'
+            ? <span className={`badge ${maintenanceStatusClass(event.status)}`}>{maintenanceStatusLabel(event.status)}</span>
+            : <span className={`badge ${event.status === 'VALIDADA' || event.status === 'convertida_en_ot' || event.status === 'cerrada' ? 'ok' : event.status === 'CANCELADA' || event.status === 'descartada' ? 'danger' : 'warn'}`}>{event.status || maintenanceTypeLabel(event.source)}</span>}
           {event.priority && <span className="badge">{event.priority}</span>}
-          {isOt ? <span className="badge">{event.meta.visits} visita(s)</span> : <span className="badge">{event.meta.photos} foto(s)</span>}
+          {isOt && <span className="badge">{event.meta.visits} visita(s)</span>}
+          {event.source === 'incidencia' && <span className="badge">{event.meta.photos} foto(s)</span>}
+          {isHistory && <span className="badge">{Number(event.meta.cost || 0).toFixed(2)} €</span>}
           {isOt && <span className="badge">{event.meta.materials} material(es)</span>}
           {isOt && <span className="badge">{event.meta.reports} informe(s)</span>}
-          <Link className="secondary-button" to={event.link}>{isOt ? 'Abrir OT' : event.meta.hasOt ? 'Abrir OT' : 'Ver incidencias'}</Link>
+          <Link className="secondary-button" to={event.link}>{isOt || event.meta.hasOt ? 'Abrir OT' : isHistory ? 'Ver historial' : isMaintenance ? 'Ver pendientes' : 'Ver incidencias'}</Link>
         </div>
+        {isHistory && event.meta.done && <p className="muted">{event.meta.done}</p>}
       </div>
     </article>
   );

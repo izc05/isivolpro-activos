@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, ClipboardCheck, Download, Filter, FileText, Image, Package, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
-import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
 import { useTenant } from '../hooks/useTenant';
 import {
   listChecklistPhotos,
@@ -173,7 +173,7 @@ export default function CompletedWorkOrders() {
       </div>
       {error && <p className="error-text">{error}</p>}
 
-      <CollapsibleSection title="Resumen OT realizadas" subtitle="Trabajos cerrados o pendientes solo de validacion" icon={CheckCircle2} badge={`${metrics.realizadas}`} defaultOpen>
+      <WorkOrderSection title="Resumen OT realizadas" subtitle="Trabajos cerrados o pendientes solo de validación" icon={CheckCircle2} badge={`${metrics.realizadas}`} defaultOpen>
         <section className="grid metrics user-module-metrics">
           <article className="metric-card"><span>Realizadas</span><strong>{metrics.realizadas}</strong></article>
           <article className="metric-card warn"><span>Finalizadas sin validar</span><strong>{metrics.finalizadas}</strong></article>
@@ -182,9 +182,9 @@ export default function CompletedWorkOrders() {
           <article className="metric-card"><span>Materiales</span><strong>{metrics.materiales}</strong></article>
           <article className="metric-card"><span>Informes</span><strong>{metrics.informes}</strong></article>
         </section>
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Filtros" subtitle="Busca por OT, instalacion, activo o tecnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
+      <WorkOrderSection title="Filtros" subtitle="Busca por OT, instalación, activo o técnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, trabajo, instalacion, activo o tecnico" /></label>
           <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Finalizada</option><option value="VALIDADA">Validada</option><option value="CERRADA">Cerrada</option><option value="FIRMADA">Firmada</option><option value="INFORME_GENERADO">Informe generado</option></select></label>
@@ -192,9 +192,9 @@ export default function CompletedWorkOrders() {
           <label><span>Vista rapida</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Pendientes validar</option><option value="VALIDADA">Validadas</option></select></label>
         </div>
         <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'FINALIZADA' }))}>Pendientes validar</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, date: '30' }))}>Ultimos 30 dias</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todas', date: 'todas' })}>Limpiar</button></div>
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con checklist, fotos, informe y detalle" icon={Wrench} defaultOpen>
+      <WorkOrderSection title="Listado de OT realizadas" subtitle="Trabajos finalizados con checklist, fotos, informe y detalle" icon={Wrench} defaultOpen>
         <DataTable
           columns={[
             { key: 'foto', label: 'Foto', render: (row) => <WorkOrderThumbnail row={row} /> },
@@ -215,7 +215,7 @@ export default function CompletedWorkOrders() {
           rows={filteredRows}
           empty="Todavia no hay OT realizadas para la instalación activa."
         />
-      </CollapsibleSection>
+      </WorkOrderSection>
 
       <Modal title={selectedOrder ? `Checklist + fotos · ${selectedOrder.codigo_ot || selectedOrder.titulo}` : 'Checklist + fotos'} open={checklistOpen} onClose={() => setChecklistOpen(false)}>
         {loadingChecklist ? <p className="muted">Cargando checklist y fotos...</p> : (

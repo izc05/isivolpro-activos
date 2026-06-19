@@ -19,6 +19,12 @@ import Documents from './pages/Documents';
 import Videos from './pages/Videos';
 import Photos from './pages/Photos';
 import MaintenanceHistory from './pages/MaintenanceHistory';
+import MaintenanceDashboard from './pages/MaintenanceDashboard';
+import MaintenancePlans from './pages/MaintenancePlans';
+import MaintenancePlanDetail from './pages/MaintenancePlanDetail';
+import MaintenanceCalendar from './pages/MaintenanceCalendar';
+import PendingMaintenance from './pages/PendingMaintenance';
+import CorrectiveMaintenance from './pages/CorrectiveMaintenance';
 import WorkOrderDashboard from './pages/WorkOrderDashboard';
 import WorkOrderControl from './pages/WorkOrderControl';
 import WorkOrders from './pages/WorkOrders';
@@ -65,7 +71,13 @@ export default function App() {
         <Route path="documentos" element={<InventoryRoute><Documents /></InventoryRoute>} />
         <Route path="videos" element={<InventoryRoute><Videos /></InventoryRoute>} />
         <Route path="fotos" element={<InventoryRoute><Photos /></InventoryRoute>} />
-        <Route path="mantenimiento" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
+        <Route path="mantenimiento" element={<InventoryRoute><MaintenanceDashboard /></InventoryRoute>} />
+        <Route path="mantenimiento/planes" element={<InventoryRoute><MaintenancePlans /></InventoryRoute>} />
+        <Route path="mantenimiento/planes/:id" element={<InventoryRoute><MaintenancePlanDetail /></InventoryRoute>} />
+        <Route path="mantenimiento/calendario" element={<InventoryRoute><MaintenanceCalendar /></InventoryRoute>} />
+        <Route path="mantenimiento/pendientes" element={<InventoryRoute><PendingMaintenance /></InventoryRoute>} />
+        <Route path="mantenimiento/correctivos" element={<InventoryRoute><CorrectiveMaintenance /></InventoryRoute>} />
+        <Route path="mantenimiento/historial" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
         <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
         <Route path="ots-control" element={<WorkOrderManagerRoute><WorkOrderControl /></WorkOrderManagerRoute>} />
         <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />

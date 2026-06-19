@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CircleAlert, Download, FileText, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
-import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
 import { useTenant } from '../hooks/useTenant';
 import { getWorkOrder } from '../services/workOrderService';
 import { generateAndUploadWorkOrderPdf, generateWorkOrderPdfBlob, listWorkOrderReports, signedWorkOrderReportUrl } from '../services/workOrderPdfService';
@@ -99,31 +101,25 @@ export default function WorkOrderReport() {
 
   return (
     <>
-      <PageHeader
-        title={`Informe ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
-        subtitle="Genera el PDF final de la OT con visitas, checklist, materiales, fotos y firma."
-        action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
-      />
+      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Informe" onBack={() => navigate(`/ots/${workOrder.id}`)} />
       {error && <p className="error-text"><CircleAlert size={16} /> {error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <section className="card">
-        <h2 className="section-heading">Estado del informe</h2>
-        <div className="detail-list">
-          <div className="detail-row"><span className="muted">OT</span><strong>{workOrder.codigo_ot || workOrder.id}</strong></div>
-          <div className="detail-row"><span className="muted">Estado</span><strong><WorkOrderStatusBadge status={workOrder.estado} /></strong></div>
-          <div className="detail-row"><span className="muted">Tecnico</span><strong>{workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'}</strong></div>
-        </div>
+      <WorkOrderSection title="Estado del informe" subtitle="Generación y descarga del PDF final" icon={FileText} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+        <WorkOrderInfoGrid columns={3}>
+          <WorkOrderInfoItem label="OT" value={workOrder.codigo_ot || workOrder.id} important />
+          <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
+          <WorkOrderInfoItem label="Técnico" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} important />
+        </WorkOrderInfoGrid>
         <div className="quick-actions">
           <button className="primary-button" type="button" disabled={generating} onClick={generateReport}>{generating ? <Loader2 size={18} /> : <FileText size={18} />} Generar y guardar PDF</button>
           <button className="secondary-button" type="button" disabled={generating} onClick={downloadLocal}><Download size={18} /> Descargar copia local</button>
           <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}><ShieldCheck size={18} /> Firma cliente</Link>
           <Link className="ghost-button" to={`/ots/${workOrder.id}/checklist`}><RefreshCw size={18} /> Revisar checklist</Link>
         </div>
-      </section>
+      </WorkOrderSection>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Informes guardados</h2>
+      <WorkOrderSection title="Informes guardados" subtitle="Histórico de PDFs generados para esta OT" icon={Download} defaultOpen>
         <DataTable
           columns={[
             { key: 'created_at', label: 'Fecha', render: (row) => formatDateTime(row.created_at) },
@@ -134,7 +130,7 @@ export default function WorkOrderReport() {
           rows={reports}
           empty="Todavia no hay informes guardados"
         />
-      </section>
+      </WorkOrderSection>
     </>
   );
 }

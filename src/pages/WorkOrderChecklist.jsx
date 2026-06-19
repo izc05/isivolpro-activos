@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Camera, CircleAlert, ImagePlus, Plus, RefreshCw, Save, X } from 'lucide-react';
-import PageHeader from '../components/Layout/PageHeader';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
+import WorkOrderSection, { WorkOrderSectionHeader } from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
 import { useTenant } from '../hooks/useTenant';
 import {
   CHECKLIST_RESULTS,
@@ -156,11 +158,7 @@ export default function WorkOrderChecklist() {
 
   return (
     <>
-      <PageHeader
-        title={`Checklist ${workOrder.codigo_ot || workOrder.id.slice(0, 8)}`}
-        subtitle={workOrder.titulo}
-        action={<button className="ghost-button" onClick={() => navigate(`/ots/${workOrder.id}`)}>Volver a OT</button>}
-      />
+      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Checklist" onBack={() => navigate(`/ots/${workOrder.id}`)} />
       {error && (
         <div className="workorder-alert">
           <CircleAlert size={20} />
@@ -169,24 +167,24 @@ export default function WorkOrderChecklist() {
         </div>
       )}
 
-      <section className="card workorder-command">
+      <section className="card workorder-command ot-command-panel">
         <div className="grid two">
           <div>
-            <h2 className="section-heading">Resumen</h2>
+            <WorkOrderSectionHeader title="Resumen" subtitle="Avance del checklist de la OT" icon={Save} />
             <div className="workorder-progress" aria-label={`Progreso ${progress.percent}%`}>
               <span style={{ width: `${progress.percent}%` }} />
             </div>
-            <div className="detail-list">
-              <Detail label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
-              <Detail label="Instalacion" value={workOrder.instalaciones?.nombre || '-'} />
-              <Detail label="Activo" value={workOrder.activos?.nombre || '-'} />
-              <Detail label="Progreso" value={`${progress.done}/${progress.total} (${progress.percent}%)`} />
-              <Detail label="OK" value={progress.ok} />
-              <Detail label="No OK" value={progress.failed} />
-            </div>
+            <WorkOrderInfoGrid columns={2}>
+              <WorkOrderInfoItem label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
+              <WorkOrderInfoItem label="Progreso" value={`${progress.done}/${progress.total} (${progress.percent}%)`} important />
+              <WorkOrderInfoItem label="Instalación" value={workOrder.instalaciones?.nombre || '-'} />
+              <WorkOrderInfoItem label="Activo" value={workOrder.activos?.nombre || '-'} />
+              <WorkOrderInfoItem label="OK" value={progress.ok} />
+              <WorkOrderInfoItem label="No OK" value={progress.failed} important={progress.failed > 0} />
+            </WorkOrderInfoGrid>
           </div>
           <div>
-            <h2 className="section-heading">Visita asociada</h2>
+            <WorkOrderSectionHeader title="Visita asociada" subtitle="Respuestas y fotos vinculadas a una intervención" icon={RefreshCw} />
             <FormField label="Asignar respuestas y fotos a visita">
               <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
                 <option value="">Sin visita concreta</option>
@@ -224,15 +222,14 @@ export default function WorkOrderChecklist() {
         ))}
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
-        <h2 className="section-heading">Siguiente bloque</h2>
+      <WorkOrderSection title="Siguiente bloque" subtitle="Firma e informe de la intervención" icon={Save} defaultOpen={false}>
         <p className="muted">Cuando todos los puntos esten revisados, pasa a firma del cliente y genera el PDF final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
           <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
           <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
         </div>
-      </section>
+      </WorkOrderSection>
 
       <Modal title="Añadir punto al checklist" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid" onSubmit={submitNewItem}>
@@ -351,14 +348,13 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
   }
 
   return (
-    <section className="card">
-      <div className="page-header" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <h2 className="section-heading">{item.punto}. {item.descripcion}</h2>
-          <p className="muted">{item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · {photos.length} foto(s)</p>
-        </div>
-        <span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>
-      </div>
+    <section className="card ot-checklist-card">
+      <WorkOrderSectionHeader
+        title={`${item.punto}. ${item.descripcion}`}
+        subtitle={`${item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · ${photos.length} foto(s)`}
+        icon={Camera}
+        badge={<span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>}
+      />
       <div className="form-grid">
         <FormField label="Resultado">
           <select value={item.resultado} disabled={saving} onChange={(event) => onUpdate(item, { resultado: event.target.value, observacion: observation })}>

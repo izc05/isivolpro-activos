@@ -4,10 +4,10 @@ import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
-import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOverview';
 import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
@@ -251,7 +251,7 @@ export default function WorkOrders() {
         onSelectStatus={(status) => setFilters((current) => ({ ...current, status }))}
       />
 
-      <CollapsibleSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalacion o tecnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
+      <WorkOrderSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalación o técnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, titulo, instalacion o tecnico" /></label>
           <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todos">Todos</option>{['BORRADOR', 'NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
@@ -259,7 +259,7 @@ export default function WorkOrders() {
           <label><span>Tipo</span><select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="todos">Todos</option>{OFFICIAL_WORK_ORDER_TYPES.map((type) => <option key={type} value={type}>{workOrderTypeLabel(type)}</option>)}</select></label>
         </div>
         <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'EN_CURSO' }))}>En curso</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, priority: 'urgente' }))}>Urgentes</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todos', priority: 'todas', type: 'todos' })}>Limpiar</button></div>
-      </CollapsibleSection>
+      </WorkOrderSection>
 
       <DataTable
         columns={[
@@ -280,16 +280,16 @@ export default function WorkOrders() {
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid workorder-form" onSubmit={(event) => submit(event)}>
-          <CollapsibleSection title="1. Destino" subtitle="Instalacion, ubicacion y activo" icon={ClipboardCheck} defaultOpen>
+          <WorkOrderSection title="1. Destino" subtitle="Instalación, ubicación y activo" icon={ClipboardCheck} defaultOpen>
             <div className="grid two">
               <FormField label="Instalacion obligatoria"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId)}><option value="">Seleccionar</option>{visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Ubicacion opcional"><select value={form.ubicacion_id} onChange={(event) => updateField('ubicacion_id', event.target.value)}><option value="">Sin ubicacion concreta</option>{filteredLocations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Activo principal opcional"><select value={form.activo_id} onChange={(event) => updateField('activo_id', event.target.value)}><option value="">Sin activo concreto</option>{filteredAssets.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
               <FormField label="Activos relacionados"><select multiple value={form.activos_relacionados} onChange={(event) => updateField('activos_relacionados', Array.from(event.target.selectedOptions).map((option) => option.value))}>{filteredAssets.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
             </div>
-          </CollapsibleSection>
+          </WorkOrderSection>
 
-          <CollapsibleSection title="2. Trabajo" subtitle="Tipo, prioridad, fechas y descripcion" icon={Wrench} defaultOpen>
+          <WorkOrderSection title="2. Trabajo" subtitle="Tipo, prioridad, fechas y descripción" icon={Wrench} defaultOpen>
             <div className="grid two">
               <FormField label="Titulo"><input value={form.titulo} onChange={(event) => updateField('titulo', event.target.value)} placeholder="Ej. Revision preventiva de bomba" required /></FormField>
               <FormField label="Tipo de OT"><select value={form.tipo_ot} onChange={(event) => updateType(event.target.value)}>{OFFICIAL_WORK_ORDER_TYPES.map((type) => <option key={type} value={type}>{workOrderTypeLabel(type)}</option>)}</select></FormField>
@@ -305,16 +305,16 @@ export default function WorkOrders() {
             <FormField label="Instrucciones para el tecnico"><textarea rows="2" value={form.instrucciones_tecnico} onChange={(event) => updateField('instrucciones_tecnico', event.target.value)} /></FormField>
             <FormField label="Riesgos o precauciones"><textarea rows="2" value={form.riesgos_precauciones} onChange={(event) => updateField('riesgos_precauciones', event.target.value)} /></FormField>
             <FormField label="Resultado esperado"><textarea rows="2" value={form.resultado_esperado} onChange={(event) => updateField('resultado_esperado', event.target.value)} /></FormField>
-          </CollapsibleSection>
+          </WorkOrderSection>
 
-          <CollapsibleSection title="3. Asignacion" subtitle="Tecnico propio o externo" icon={Wrench} defaultOpen>
+          <WorkOrderSection title="3. Asignación" subtitle="Técnico propio o externo" icon={Wrench} defaultOpen>
             <FormField label="Tecnico principal"><select value={form.assigned_to} onChange={(event) => updateField('assigned_to', event.target.value)}><option value="">Sin asignar</option>{technicianOptions.length > 0 && <optgroup label="Tecnicos activos">{technicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technician.label}</option>)}</optgroup>}</select></FormField>
             {technicianOptions.length === 0 && <p className="warning-text">No hay tecnicos activos. Crea o activa un usuario con rol tecnico desde Usuarios y permisos.</p>}
-          </CollapsibleSection>
+          </WorkOrderSection>
 
-          <CollapsibleSection title="4. Requisitos de cierre" subtitle="Obligaciones para finalizar e informar" icon={ClipboardCheck} defaultOpen={false}>
+          <WorkOrderSection title="4. Requisitos de cierre" subtitle="Obligaciones para finalizar e informar" icon={ClipboardCheck} defaultOpen={false}>
             <div className="requirement-grid">{REQUIREMENT_FIELDS.map(([field, label]) => <label className="checkbox-row" key={field}><input type="checkbox" checked={Boolean(form.configuracion[field])} onChange={(event) => updateRequirement(field, event.target.checked)} /><span>{label}</span></label>)}</div>
-          </CollapsibleSection>
+          </WorkOrderSection>
 
           <div className="form-actions">
             <button className="ghost-button" type="button" onClick={() => setOpen(false)}>Cancelar</button>

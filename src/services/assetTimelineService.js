@@ -19,6 +19,26 @@ export async function loadAssetTimeline(tenantId, assetId) {
     .order('fecha_apertura', { ascending: false });
   if (incidentsError) throw incidentsError;
 
+  const { data: history, error: historyError } = await supabase
+    .from('historial_mantenimiento')
+    .select('*, ordenes_trabajo(id,codigo_ot), tecnico:profiles!historial_mantenimiento_tecnico_id_fkey(nombre,email)')
+    .eq('tenant_id', tenantId)
+    .eq('activo_id', assetId)
+    .is('deleted_at', null)
+    .order('fecha', { ascending: false });
+  if (historyError) throw historyError;
+
+  const { data: scheduled, error: scheduledError } = await supabase
+    .from('mantenimientos_programados')
+    .select('*, ordenes_trabajo(id,codigo_ot,estado), plan:planes_mantenimiento(nombre)')
+    .eq('tenant_id', tenantId)
+    .eq('activo_id', assetId)
+    .is('deleted_at', null)
+    .order('fecha_programada', { ascending: false });
+  if (scheduledError) {
+    if (!String(scheduledError.message || '').includes('mantenimientos_programados')) throw scheduledError;
+  }
+
   const otIds = (workOrders || []).map((item) => item.id);
   const incidentIds = (incidents || []).map((item) => item.id);
 
@@ -32,6 +52,8 @@ export async function loadAssetTimeline(tenantId, assetId) {
   return buildAssetTimeline({
     workOrders: workOrders || [],
     incidents: incidents || [],
+    history: history || [],
+    scheduled: scheduled || [],
     visits,
     materials,
     reports,
@@ -50,7 +72,7 @@ async function queryByIds(table, tenantId, field, ids, orderField) {
   return data || [];
 }
 
-function buildAssetTimeline({ workOrders, incidents, visits, materials, reports, incidentPhotos }) {
+function buildAssetTimeline({ workOrders, incidents, history, scheduled, visits, materials, reports, incidentPhotos }) {
   const visitsByOt = groupBy(visits, 'ot_id');
   const materialsByOt = groupBy(materials, 'ot_id');
   const reportsByOt = groupBy(reports, 'ot_id');
@@ -69,6 +91,37 @@ function buildAssetTimeline({ workOrders, incidents, visits, materials, reports,
   }));
 
   const timeline = [
+    ...history.map((entry) => ({
+      id: `hist-${entry.id}`,
+      source: 'historial',
+      date: entry.fecha_fin || entry.fecha || entry.created_at,
+      title: entry.titulo,
+      subtitle: entry.origen === 'manual' ? 'Registro histórico' : entry.ordenes_trabajo?.codigo_ot || entry.tipo,
+      status: entry.resultado || entry.estado_activo_final || entry.estado_final,
+      priority: null,
+      link: entry.ot_id ? `/ots/${entry.ot_id}` : '/mantenimiento/historial',
+      meta: {
+        technician: entry.tecnico?.nombre || entry.tecnico?.email || 'Sin técnico',
+        planned: entry.trabajo_previsto || '',
+        done: entry.trabajo_realizado || entry.descripcion || '',
+        cost: entry.coste_total || 0,
+        next: entry.proxima_fecha || entry.proxima_accion || ''
+      }
+    })),
+    ...scheduled.filter((item) => !['completado', 'cancelado', 'no_aplica'].includes(item.estado)).map((item) => ({
+      id: `mnt-${item.id}`,
+      source: 'mantenimiento',
+      date: item.fecha_programada || item.created_at,
+      title: item.titulo,
+      subtitle: item.plan?.nombre || item.origen || 'Mantenimiento programado',
+      status: item.estado,
+      priority: item.prioridad,
+      link: item.ot_id ? `/ots/${item.ot_id}` : '/mantenimiento/pendientes',
+      meta: {
+        planned: item.descripcion || '',
+        hasOt: Boolean(item.ot_id)
+      }
+    })),
     ...workOrdersFull.map((ot) => ({
       id: `ot-${ot.id}`,
       source: 'ot',
@@ -105,6 +158,8 @@ function buildAssetTimeline({ workOrders, incidents, visits, materials, reports,
   return {
     workOrders: workOrdersFull,
     incidents: incidentsFull,
+    history,
+    scheduled,
     visits,
     materials,
     reports,
@@ -115,6 +170,8 @@ function buildAssetTimeline({ workOrders, incidents, visits, materials, reports,
       openWorkOrders: workOrdersFull.filter((ot) => !['VALIDADA', 'CERRADA', 'CANCELADA'].includes(ot.estado)).length,
       incidents: incidentsFull.length,
       openIncidents: incidentsFull.filter((incident) => !['cerrada', 'descartada', 'convertida_en_ot'].includes(incident.estado)).length,
+      history: history.length,
+      scheduled: scheduled.filter((item) => !['completado', 'cancelado', 'no_aplica'].includes(item.estado)).length,
       materials: materials.length,
       reports: reports.length,
       photos: incidentPhotos.length
@@ -145,11 +202,13 @@ function emptyAssetTimeline() {
   return {
     workOrders: [],
     incidents: [],
+    history: [],
+    scheduled: [],
     visits: [],
     materials: [],
     reports: [],
     incidentPhotos: [],
     timeline: [],
-    metrics: { workOrders: 0, openWorkOrders: 0, incidents: 0, openIncidents: 0, materials: 0, reports: 0, photos: 0 }
+    metrics: { workOrders: 0, openWorkOrders: 0, incidents: 0, openIncidents: 0, history: 0, scheduled: 0, materials: 0, reports: 0, photos: 0 }
   };
 }
