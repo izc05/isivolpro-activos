@@ -2507,6 +2507,202 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   min-width: 260px;
 }
 
+.maintenance-schema-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 16px;
+  border: 1px solid #f2d0cc;
+  border-left: 4px solid var(--primary-2);
+  border-radius: 8px;
+  background: #fffafa;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(42, 49, 64, .06);
+}
+
+.maintenance-schema-notice-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff1ef;
+  color: var(--primary-2);
+}
+
+.maintenance-schema-notice strong {
+  display: block;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.maintenance-schema-notice p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.maintenance-month-card {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.maintenance-month-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  padding: 14px;
+}
+
+.maintenance-month-header strong {
+  display: block;
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.maintenance-month-header span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.calendar-nav-button {
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+}
+
+.maintenance-weekdays,
+.maintenance-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.maintenance-weekdays {
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.maintenance-weekdays span {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  color: #647086;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.maintenance-day {
+  min-height: 126px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  border-right: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
+  background: #ffffff;
+  padding: 9px;
+}
+
+.maintenance-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.maintenance-day.outside {
+  background: #fafbfc;
+  color: #9aa4b2;
+}
+
+.maintenance-day.today {
+  background: #fffafa;
+  box-shadow: inset 0 0 0 2px #f2aaa3;
+}
+
+.maintenance-day.has-items {
+  background: linear-gradient(180deg, #ffffff, #fffafa);
+}
+
+.maintenance-day-number {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.maintenance-day.today .maintenance-day-number {
+  background: var(--primary-2);
+  color: white;
+}
+
+.maintenance-day-items {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.maintenance-day-pill,
+.maintenance-day-more {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  border: 1px solid #e5ebf3;
+  border-left: 3px solid #7aa9c7;
+  border-radius: 7px;
+  background: #f8fbff;
+  padding: 5px 7px;
+  color: #273244;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.maintenance-day-pill span,
+.maintenance-day-pill small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.maintenance-day-pill small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.maintenance-day-pill.ok {
+  border-left-color: var(--ok);
+  background: #f0fdf4;
+}
+
+.maintenance-day-pill.warn {
+  border-left-color: var(--warning);
+  background: #fffbeb;
+}
+
+.maintenance-day-pill.danger {
+  border-left-color: var(--danger);
+  background: #fff1f2;
+}
+
+.maintenance-day-more {
+  border-left-color: #cbd5e1;
+  background: #f8fafc;
+  color: var(--muted);
+}
+
 .maintenance-form-section {
   box-shadow: none;
 }
@@ -2611,6 +2807,46 @@ select {
 
   .asset-service-meta {
     grid-template-columns: 1fr;
+  }
+
+  .maintenance-month-card {
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+
+  .maintenance-month-header {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    padding: 10px;
+  }
+
+  .maintenance-month-header strong {
+    font-size: 17px;
+  }
+
+  .maintenance-weekdays span {
+    min-height: 30px;
+    font-size: 11px;
+  }
+
+  .maintenance-day {
+    min-height: 86px;
+    padding: 5px;
+    gap: 4px;
+  }
+
+  .maintenance-day-number {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .maintenance-day-pill {
+    padding: 4px 5px;
+    font-size: 10px;
+  }
+
+  .maintenance-day-pill small {
+    display: none;
   }
 }
 

@@ -5,9 +5,11 @@ import PageHeader from '../components/Layout/PageHeader';
 import Modal from '../components/Layout/Modal';
 import DataTable from '../components/Cards/DataTable';
 import MaintenancePlanForm from '../components/Maintenance/MaintenancePlanForm';
+import MaintenanceSchemaNotice from '../components/Maintenance/MaintenanceSchemaNotice';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createMaintenancePlan, generateScheduledFromPlan, listMaintenancePlans, softDeleteMaintenancePlan } from '../services/maintenancePlanService';
+import { isMaintenanceSchemaMissing } from '../services/maintenanceSchemaGuard';
 import { formatDate } from '../utils/dateUtils';
 import { maintenanceTypeLabel } from '../constants/maintenance';
 
@@ -20,11 +22,23 @@ export default function MaintenancePlans() {
   const [plans, setPlans] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
+  const [schemaPending, setSchemaPending] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function refresh() {
     if (!activeTenantId) return;
-    setPlans(await listMaintenancePlans(activeTenantId));
+    setError('');
+    setSchemaPending(false);
+    try {
+      setPlans(await listMaintenancePlans(activeTenantId));
+    } catch (err) {
+      if (isMaintenanceSchemaMissing(err)) {
+        setPlans([]);
+        setSchemaPending(true);
+        return;
+      }
+      throw err;
+    }
   }
 
   useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId]);
@@ -61,7 +75,8 @@ export default function MaintenancePlans() {
 
   return (
     <>
-      <PageHeader title="Planes preventivos" subtitle="Planes por activo con periodicidad, checklist, responsable y próxima actuación." action={<button className="primary-button" onClick={() => setOpen(true)}><Plus size={18} /> Nuevo plan</button>} />
+      <PageHeader title="Planes preventivos" subtitle="Planes por activo con periodicidad, checklist, responsable y próxima actuación." action={<button className="primary-button" onClick={() => setOpen(true)} disabled={schemaPending}><Plus size={18} /> Nuevo plan</button>} />
+      {schemaPending && <MaintenanceSchemaNotice />}
       {error && <p className="error-text">{error}</p>}
       <DataTable columns={[
         { key: 'nombre', label: 'Plan', render: (row) => <Link className="table-link" to={`/mantenimiento/planes/${row.id}`}>{row.nombre}</Link> },
