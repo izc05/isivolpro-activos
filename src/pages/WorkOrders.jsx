@@ -10,11 +10,9 @@ import WorkOrderStatusOverview from '../components/WorkOrders/WorkOrderStatusOve
 import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
-import { useAuth } from '../hooks/useAuth';
 import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
 import { softDeleteWorkOrder } from '../services/workOrderDeleteService';
 import { listTenantMembers } from '../services/tenantService';
-import { listTenantInvitations } from '../services/permissionService';
 import { formatDateTime } from '../utils/dateUtils';
 import {
   OFFICIAL_WORK_ORDER_PRIORITIES,
@@ -67,14 +65,12 @@ function buildInitialForm(activeInstallationId = '') {
 }
 
 export default function WorkOrders() {
-  const { user, profile } = useAuth();
-  const { activeTenantId, activeInstallationId, activeInstallation, activeRole } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
   const [rows, setRows] = useState([]);
   const [members, setMembers] = useState([]);
-  const [invitations, setInvitations] = useState([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -85,14 +81,12 @@ export default function WorkOrders() {
 
   async function refresh() {
     if (!activeTenantId) return;
-    const [workOrders, tenantMembers, tenantInvitations] = await Promise.all([
+    const [workOrders, tenantMembers] = await Promise.all([
       listWorkOrders(activeTenantId),
-      listTenantMembers(activeTenantId),
-      listTenantInvitations(activeTenantId)
+      listTenantMembers(activeTenantId)
     ]);
     setRows(workOrders);
     setMembers(tenantMembers);
-    setInvitations(tenantInvitations);
   }
 
   useEffect(() => {
@@ -116,20 +110,8 @@ export default function WorkOrders() {
         label: member.profiles?.nombre || member.profiles?.email || member.user_id
       });
     });
-    const currentUserCanWork = user?.id && ['tecnico', 'tecnico_externo'].includes(activeRole);
-    if (currentUserCanWork && !byUserId.has(user.id)) {
-      byUserId.set(user.id, {
-        id: user.id,
-        label: `${profile?.nombre || profile?.email || user.email || 'Usuario actual'} (usuario actual)`
-      });
-    }
     return Array.from(byUserId.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [technicians, user, profile, activeRole]);
-
-  const pendingTechnicianInvitations = useMemo(
-    () => invitations.filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'pendiente'),
-    [invitations]
-  );
+  }, [technicians]);
 
   const visibleInstallations = useMemo(
     () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
@@ -326,8 +308,8 @@ export default function WorkOrders() {
           </CollapsibleSection>
 
           <CollapsibleSection title="3. Asignacion" subtitle="Tecnico propio o externo" icon={Wrench} defaultOpen>
-            <FormField label="Tecnico principal"><select value={form.assigned_to} onChange={(event) => updateField('assigned_to', event.target.value)}><option value="">Sin asignar</option>{technicianOptions.length > 0 && <optgroup label="Tecnicos activos">{technicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technician.label}</option>)}</optgroup>}{pendingTechnicianInvitations.length > 0 && <optgroup label="Invitaciones pendientes">{pendingTechnicianInvitations.map((invitation) => <option key={invitation.id} value="" disabled>{(invitation.nombre || invitation.email)} - pendiente de aceptar</option>)}</optgroup>}</select></FormField>
-            {technicianOptions.length === 0 && pendingTechnicianInvitations.length === 0 && <p className="warning-text">No hay tecnicos activos ni invitaciones pendientes. Crea una invitacion desde Usuarios y permisos.</p>}
+            <FormField label="Tecnico principal"><select value={form.assigned_to} onChange={(event) => updateField('assigned_to', event.target.value)}><option value="">Sin asignar</option>{technicianOptions.length > 0 && <optgroup label="Tecnicos activos">{technicianOptions.map((technician) => <option key={technician.id} value={technician.id}>{technician.label}</option>)}</optgroup>}</select></FormField>
+            {technicianOptions.length === 0 && <p className="warning-text">No hay tecnicos activos. Crea o activa un usuario con rol tecnico desde Usuarios y permisos.</p>}
           </CollapsibleSection>
 
           <CollapsibleSection title="4. Requisitos de cierre" subtitle="Obligaciones para finalizar e informar" icon={ClipboardCheck} defaultOpen={false}>
