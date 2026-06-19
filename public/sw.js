@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'isivolpro-pwa-v1';
+const CACHE_VERSION = 'isivolpro-pwa-v2';
 const APP_SHELL = [
   './',
   './manifest.webmanifest',
@@ -30,7 +30,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('./')));
+    event.respondWith(
+      fetch(request, { cache: 'no-store' }).catch(() => caches.match('./'))
+    );
     return;
   }
 
@@ -38,13 +40,12 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
       return fetch(request).then((response) => {
         if (!response || response.status !== 200) return response;
         const copy = response.clone();
         caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
         return response;
-      });
+      }).catch(() => cached);
     })
   );
 });
