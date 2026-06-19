@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
+import MaintenanceSchemaNotice from '../components/Maintenance/MaintenanceSchemaNotice';
 import { useTenant } from '../hooks/useTenant';
 import { generateWorkOrderForScheduledMaintenance, listScheduledMaintenances } from '../services/scheduledMaintenanceService';
+import { isMaintenanceSchemaMissing } from '../services/maintenanceSchemaGuard';
 import { formatDate } from '../utils/dateUtils';
 import { maintenanceStatusClass, maintenanceStatusLabel, maintenanceTypeLabel } from '../constants/maintenance';
 
@@ -11,10 +13,22 @@ export default function PendingMaintenance() {
   const { activeTenantId } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
+  const [schemaPending, setSchemaPending] = useState(false);
 
   async function refresh() {
     if (!activeTenantId) return;
-    setRows(await listScheduledMaintenances(activeTenantId));
+    setError('');
+    setSchemaPending(false);
+    try {
+      setRows(await listScheduledMaintenances(activeTenantId));
+    } catch (err) {
+      if (isMaintenanceSchemaMissing(err)) {
+        setRows([]);
+        setSchemaPending(true);
+        return;
+      }
+      throw err;
+    }
   }
 
   useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId]);
@@ -34,6 +48,7 @@ export default function PendingMaintenance() {
   return (
     <>
       <PageHeader title="Trabajos pendientes" subtitle="Actuaciones por plan, correctivo o registro manual pendientes de resolver." />
+      {schemaPending && <MaintenanceSchemaNotice />}
       {error && <p className="error-text">{error}</p>}
       <DataTable columns={[
         { key: 'fecha_programada', label: 'Fecha', render: (row) => formatDate(row.fecha_programada) },

@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, CalendarClock, ClipboardCheck, Euro, Package, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
+import MaintenanceSchemaNotice from '../components/Maintenance/MaintenanceSchemaNotice';
 import { useTenant } from '../hooks/useTenant';
 import { loadMaintenanceDashboard } from '../services/maintenanceMetricsService';
+import { isMaintenanceSchemaMissing } from '../services/maintenanceSchemaGuard';
 import { formatDate } from '../utils/dateUtils';
 import { maintenanceStatusClass, maintenanceStatusLabel, maintenanceTypeLabel } from '../constants/maintenance';
 
@@ -12,14 +14,24 @@ export default function MaintenanceDashboard() {
   const { activeTenantId } = useTenant();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [schemaPending, setSchemaPending] = useState(false);
 
   useEffect(() => {
     if (!activeTenantId) return;
     let mounted = true;
     setError('');
+    setSchemaPending(false);
     loadMaintenanceDashboard(activeTenantId)
       .then((result) => { if (mounted) setData(result); })
-      .catch((err) => { if (mounted) setError(err.message); });
+      .catch((err) => {
+        if (!mounted) return;
+        if (isMaintenanceSchemaMissing(err)) {
+          setSchemaPending(true);
+          setData({ metrics: {}, overdue: [], upcoming: [], corrective: [], latest: [] });
+          return;
+        }
+        setError(err.message);
+      });
     return () => { mounted = false; };
   }, [activeTenantId]);
 
@@ -47,6 +59,7 @@ export default function MaintenanceDashboard() {
         subtitle="Planificación, seguimiento y resultado técnico de activos."
         action={<div className="button-row"><Link className="secondary-button" to="/mantenimiento/planes">Planes</Link><Link className="primary-button" to="/mantenimiento/correctivos">Crear correctivo</Link></div>}
       />
+      {schemaPending && <MaintenanceSchemaNotice />}
       {error && <p className="error-text">{error}</p>}
       {!data && !error && <p className="muted">Cargando panel...</p>}
       <section className="grid metrics maintenance-metrics">

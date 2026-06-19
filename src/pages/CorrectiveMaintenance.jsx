@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import PageHeader from '../components/Layout/PageHeader';
 import FormField from '../components/Forms/FormField';
 import DataTable from '../components/Cards/DataTable';
+import MaintenanceSchemaNotice from '../components/Maintenance/MaintenanceSchemaNotice';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { createCorrectiveMaintenance } from '../services/correctiveMaintenanceService';
+import { isMaintenanceSchemaMissing } from '../services/maintenanceSchemaGuard';
 import { formatDate } from '../utils/dateUtils';
 import { maintenanceStatusClass, maintenanceStatusLabel } from '../constants/maintenance';
 
@@ -15,6 +17,7 @@ export default function CorrectiveMaintenance() {
   const { rows: incidents } = useTenantRows('incidencias', 'id,titulo,instalacion_id,ubicacion_id,activo_id,prioridad,estado', { order: 'fecha_apertura' });
   const { rows: correctives, refresh } = useTenantRows('mantenimientos_programados', '*, activos(nombre), instalaciones(nombre), ordenes_trabajo(id,codigo_ot,estado)', { order: 'fecha_programada' });
   const [error, setError] = useState('');
+  const [schemaPending, setSchemaPending] = useState(false);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({
     instalacion_id: '',
@@ -45,6 +48,7 @@ export default function CorrectiveMaintenance() {
     event.preventDefault();
     setError('');
     setMessage('');
+    setSchemaPending(false);
     try {
       const result = await createCorrectiveMaintenance(activeTenantId, {
         ...form,
@@ -55,6 +59,10 @@ export default function CorrectiveMaintenance() {
       setForm({ instalacion_id: '', ubicacion_id: '', activo_id: '', incidencia_id: '', titulo: '', descripcion: '', prioridad: 'alta', fecha_programada: new Date().toISOString().slice(0, 10), assigned_to: '' });
       refresh();
     } catch (err) {
+      if (isMaintenanceSchemaMissing(err)) {
+        setSchemaPending(true);
+        return;
+      }
       setError(err.message);
     }
   }
@@ -64,6 +72,7 @@ export default function CorrectiveMaintenance() {
   return (
     <>
       <PageHeader title="Correctivos" subtitle="Registro y control de averías sin ejecutar el trabajo fuera del módulo OT." />
+      {schemaPending && <MaintenanceSchemaNotice />}
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
       <div className="grid two">
@@ -102,7 +111,7 @@ export default function CorrectiveMaintenance() {
               <FormField label="Prioridad"><select value={form.prioridad} onChange={(event) => updateField('prioridad', event.target.value)}>{['baja', 'media', 'alta', 'urgente', 'critica'].map((item) => <option key={item} value={item}>{item}</option>)}</select></FormField>
               <FormField label="Fecha prevista"><input type="date" value={form.fecha_programada} onChange={(event) => updateField('fecha_programada', event.target.value)} /></FormField>
             </div>
-            <button className="primary-button" type="submit">Crear correctivo y generar OT</button>
+            <button className="primary-button" type="submit" disabled={schemaPending}>Crear correctivo y generar OT</button>
           </form>
         </section>
         <section>
