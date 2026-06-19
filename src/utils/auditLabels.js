@@ -1,0 +1,93 @@
+const ACTION_LABELS = {
+  login: 'Inicio de sesión',
+  logout: 'Cierre de sesión',
+  permission_denied: 'Acceso denegado',
+  create_installation: 'Instalación creada',
+  update_installation: 'Instalación actualizada',
+  update_installation_image: 'Imagen de instalación actualizada',
+  delete_installation: 'Instalación dada de baja',
+  create_location: 'Ubicación creada',
+  update_location: 'Ubicación actualizada',
+  update_location_image: 'Imagen de ubicación actualizada',
+  delete_location: 'Ubicación dada de baja',
+  create_asset: 'Activo creado',
+  update_asset: 'Activo actualizado',
+  update_asset_image: 'Imagen de activo actualizada',
+  delete_asset: 'Activo dado de baja',
+  upload_document: 'Documento subido',
+  download_document: 'Documento descargado',
+  delete_document: 'Documento eliminado',
+  upload_photo: 'Foto subida',
+  create_photo: 'Foto registrada',
+  update_photo: 'Foto actualizada',
+  delete_photo: 'Foto eliminada',
+  upload_video: 'Vídeo subido',
+  create_video: 'Vídeo registrado',
+  delete_video: 'Vídeo eliminado',
+  create_incident: 'Incidencia creada',
+  review_incident: 'Incidencia revisada',
+  close_incident: 'Incidencia cerrada',
+  discard_incident: 'Incidencia descartada',
+  convert_incident_to_work_order: 'Incidencia convertida en OT',
+  create_work_order: 'OT creada',
+  update_work_order: 'OT actualizada',
+  update_work_order_status: 'Estado de OT actualizado',
+  delete_work_order: 'OT dada de baja',
+  start_work_order_visit: 'Visita de OT iniciada',
+  finish_work_order_visit: 'Visita de OT finalizada',
+  update_work_order_checklist_item: 'Checklist de OT actualizado',
+  register_work_order_checklist_photo: 'Foto de checklist registrada',
+  create_work_order_visit_material: 'Material de OT registrado',
+  upload_work_order_customer_signature: 'Firma de cliente subida',
+  create_maintenance_plan: 'Plan de mantenimiento creado',
+  update_maintenance_plan: 'Plan de mantenimiento actualizado',
+  duplicate_maintenance_plan: 'Plan de mantenimiento duplicado',
+  activate_maintenance_plan: 'Plan de mantenimiento activado',
+  deactivate_maintenance_plan: 'Plan de mantenimiento desactivado',
+  delete_maintenance_plan: 'Plan de mantenimiento dado de baja',
+  recalculate_maintenance_plan_next_date: 'Próxima fecha recalculada',
+  generate_scheduled_maintenance: 'Actuación programada generada',
+  create_scheduled_maintenance: 'Mantenimiento programado creado',
+  update_scheduled_maintenance: 'Mantenimiento programado actualizado',
+  cancel_scheduled_maintenance: 'Mantenimiento programado cancelado',
+  mark_scheduled_maintenance_not_applicable: 'Mantenimiento marcado no aplicable',
+  generate_maintenance_work_order: 'OT generada desde mantenimiento',
+  create_corrective_from_incident: 'Correctivo creado desde incidencia',
+  close_maintenance_from_work_order: 'Mantenimiento cerrado desde OT',
+  create_manual_maintenance_history: 'Histórico manual registrado',
+  delete_maintenance_history: 'Histórico eliminado',
+  update_member_role: 'Rol de usuario actualizado',
+  update_member_status: 'Estado de usuario actualizado',
+  invite_user: 'Usuario invitado',
+  revoke_invitation: 'Invitación revocada'
+};
+
+const ENTITY_LABELS = {
+  activo: 'Activo',
+  documento: 'Documento',
+  foto: 'Foto',
+  video: 'Vídeo',
+  incidencia: 'Incidencia',
+  instalacion: 'Instalación',
+  ubicacion: 'Ubicación',
+  orden_trabajo: 'OT',
+  ot_visita: 'Visita',
+  ot_checklist_respuesta: 'Checklist',
+  ot_foto: 'Foto OT',
+  ot_visita_material: 'Material',
+  historial_mantenimiento: 'Historial',
+  plan_mantenimiento: 'Plan',
+  mantenimiento_programado: 'Mantenimiento',
+  tenant_member: 'Usuario',
+  tenant_invitation: 'Invitación'
+};
+
+export function auditActionLabel(action) {
+  if (!action) return 'Movimiento registrado';
+  return ACTION_LABELS[action] || action.replaceAll('_', ' ');
+}
+
+export function auditEntityLabel(entityType) {
+  if (!entityType) return 'Sistema';
+  return ENTITY_LABELS[entityType] || entityType.replaceAll('_', ' ');
+}
