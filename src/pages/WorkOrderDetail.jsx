@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Mail, Navigation, PackagePlus, Phone, ShieldCheck } from 'lucide-react';
-import PageHeader from '../components/Layout/PageHeader';
-import CollapsibleSection from '../components/Layout/CollapsibleSection';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
+import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
+import WorkOrderPriorityBadge from '../components/WorkOrders/WorkOrderPriorityBadge';
+import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
 import { useTenant } from '../hooks/useTenant';
 import {
   createVisitMaterial,
@@ -19,8 +21,6 @@ import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleSe
 import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
 import {
   isWorkOrderClosed,
-  priorityLabel,
-  priorityTone,
   statusLabel,
   statusTransitionHelp,
   validNextActions,
@@ -159,42 +159,61 @@ export default function WorkOrderDetail() {
 
   return (
     <>
-      <PageHeader
-        title={row.codigo_ot || `OT ${row.id.slice(0, 8)}`}
-        subtitle={row.titulo}
-        action={<button className="ghost-button" onClick={() => navigate('/ots')}>Volver</button>}
+      <WorkOrderPageHeader
+        workOrder={row}
+        onBack={() => navigate('/ots')}
+        actions={nextActions.length > 0 && (
+          <div className="quick-actions">
+            {nextActions.slice(0, 3).map((status) => (
+              <button key={status} className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'} type="button" onClick={() => changeStatus(status)}>
+                {status === 'REABRIR' ? 'Reabrir OT' : statusLabel(status)}
+              </button>
+            ))}
+          </div>
+        )}
       />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <CollapsibleSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validacion final" icon={ClipboardCheck} badge={row.estado} defaultOpen>
-        <div className="detail-list">
-          <Detail label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} />
-          <Detail label="Prioridad" value={<span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad)}</span>} />
-          <Detail label="Tipo" value={workOrderTypeLabel(row.tipo_ot || row.tipo)} />
-          {row.tipo_ot_detalle && <Detail label="Detalle tipo" value={row.tipo_ot_detalle} />}
-          <Detail label="Tecnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} />
-          <Detail label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
-          <Detail label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} />
-          <Detail label="Fecha limite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} />
-          <Detail label="Duracion estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
-          <Detail label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
-          <Detail label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
-          <Detail label="Revision admin" value={row.revision_admin_estado || 'no_requerida'} />
-          <Detail label="Validada el" value={row.closed_at ? formatDateTime(row.closed_at) : '-'} />
+      <WorkOrderSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validación final" icon={ClipboardCheck} badge={<WorkOrderStatusBadge status={row.estado} />} defaultOpen>
+        <WorkOrderInfoGrid columns={4}>
+          <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} important />
+          <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={row.prioridad} />} important />
+          <WorkOrderInfoItem label="Tipo" value={workOrderTypeLabel(row.tipo_ot || row.tipo)} important />
+          <WorkOrderInfoItem label="Técnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} important />
+          {row.tipo_ot_detalle && <WorkOrderInfoItem label="Detalle tipo" value={row.tipo_ot_detalle} />}
+          <WorkOrderInfoItem label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
+          <WorkOrderInfoItem label="Duración estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
+        </WorkOrderInfoGrid>
+        <div className="ot-info-group">
+          <h3>Planificación temporal</h3>
+          <WorkOrderInfoGrid columns={4}>
+            <WorkOrderInfoItem label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} important />
+            <WorkOrderInfoItem label="Fecha límite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} important />
+            <WorkOrderInfoItem label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
+            <WorkOrderInfoItem label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
+          </WorkOrderInfoGrid>
+        </div>
+        <div className="ot-info-group">
+          <h3>Revisión administrativa</h3>
+          <WorkOrderInfoGrid columns={3}>
+            <WorkOrderInfoItem label="Revisión admin" value={row.revision_admin_estado || 'no_requerida'} important />
+            <WorkOrderInfoItem label="Validada el" value={row.closed_at ? formatDateTime(row.closed_at) : '-'} />
+            <WorkOrderInfoItem label="Notas" value={row.revision_admin_notas || '-'} wide />
+          </WorkOrderInfoGrid>
         </div>
         {statusTransitionHelp(row.estado) && <p className="muted">{statusTransitionHelp(row.estado)}</p>}
         {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
-        <div className="form-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+        <div className="form-actions ot-action-row">
           {nextActions.map((status) => (
             <button key={status} className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'} type="button" onClick={() => changeStatus(status)}>
               {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
             </button>
           ))}
         </div>
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection
+      <WorkOrderSection
         title="Revision final"
         subtitle="Comprobacion previa antes de cerrar definitivamente la OT"
         icon={ShieldCheck}
@@ -229,34 +248,34 @@ export default function WorkOrderDetail() {
           </div>
         )}
         {!canManageWorkOrders && <p className="muted">Solo el administrador puede validar definitivamente la OT.</p>}
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Instalacion y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen>
-        <div className="detail-list">
-          <Detail label="Instalacion" value={row.instalaciones?.nombre || '-'} />
-          <Detail label="Direccion" value={row.instalaciones?.direccion || '-'} />
-          <Detail label="Contacto" value={row.instalaciones?.contacto_nombre || '-'} />
-          <Detail label="Telefono" value={row.instalaciones?.contacto_telefono || '-'} />
-          <Detail label="Ubicacion" value={row.ubicaciones?.nombre || '-'} />
-          <Detail label="Activo" value={row.activos?.nombre || '-'} />
-          <Detail label="Marca / modelo" value={[row.activos?.marca, row.activos?.modelo].filter(Boolean).join(' / ') || '-'} />
-          <Detail label="Nº serie" value={row.activos?.numero_serie || '-'} />
-        </div>
+      <WorkOrderSection title="Instalación y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen>
+        <WorkOrderInfoGrid columns={4}>
+          <WorkOrderInfoItem label="Instalación" value={row.instalaciones?.nombre || '-'} important />
+          <WorkOrderInfoItem label="Dirección" value={row.instalaciones?.direccion || '-'} wide />
+          <WorkOrderInfoItem label="Contacto" value={row.instalaciones?.contacto_nombre || '-'} />
+          <WorkOrderInfoItem label="Teléfono" value={row.instalaciones?.contacto_telefono || '-'} />
+          <WorkOrderInfoItem label="Ubicación" value={row.ubicaciones?.nombre || '-'} />
+          <WorkOrderInfoItem label="Activo" value={row.activos?.nombre || '-'} important />
+          <WorkOrderInfoItem label="Marca / modelo" value={[row.activos?.marca, row.activos?.modelo].filter(Boolean).join(' / ') || '-'} />
+          <WorkOrderInfoItem label="Nº serie" value={row.activos?.numero_serie || '-'} />
+        </WorkOrderInfoGrid>
         <InstallationContactPanel installation={row.instalaciones} />
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Descripcion del trabajo" subtitle="Sintomas, trabajo solicitado, instrucciones y resultado esperado" icon={ClipboardCheck} defaultOpen={false}>
+      <WorkOrderSection title="Descripción del trabajo" subtitle="Síntomas, trabajo solicitado, instrucciones y resultado esperado" icon={ClipboardCheck} defaultOpen={false}>
         <p>{row.descripcion || 'Sin descripcion adicional.'}</p>
-        <div className="detail-list">
-          <Detail label="Sintomas / situacion" value={row.sintomas || '-'} />
-          <Detail label="Trabajo solicitado" value={row.trabajo_solicitado || '-'} />
-          <Detail label="Instrucciones tecnico" value={row.instrucciones_tecnico || '-'} />
-          <Detail label="Riesgos / precauciones" value={row.riesgos_precauciones || '-'} />
-          <Detail label="Resultado esperado" value={row.resultado_esperado || '-'} />
-        </div>
-      </CollapsibleSection>
+        <WorkOrderInfoGrid columns={2}>
+          <WorkOrderInfoItem label="Síntomas / situación" value={row.sintomas || '-'} wide />
+          <WorkOrderInfoItem label="Trabajo solicitado" value={row.trabajo_solicitado || '-'} wide />
+          <WorkOrderInfoItem label="Instrucciones técnico" value={row.instrucciones_tecnico || '-'} wide />
+          <WorkOrderInfoItem label="Riesgos / precauciones" value={row.riesgos_precauciones || '-'} wide />
+          <WorkOrderInfoItem label="Resultado esperado" value={row.resultado_esperado || '-'} wide />
+        </WorkOrderInfoGrid>
+      </WorkOrderSection>
 
-      <CollapsibleSection
+      <WorkOrderSection
         title="Materiales"
         subtitle="Material usado, retirado, devuelto o pendiente de pedir"
         icon={PackagePlus}
@@ -277,13 +296,13 @@ export default function WorkOrderDetail() {
           rows={materials}
           empty="Sin materiales registrados en esta OT."
         />
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Requisitos de cierre" subtitle="Checklist, fotos, firma, mediciones e informe" icon={CheckCircle2} badge={`${requirements.length}`} defaultOpen={false}>
+      <WorkOrderSection title="Requisitos de cierre" subtitle="Checklist, fotos, firma, mediciones e informe" icon={CheckCircle2} badge={`${requirements.length}`} defaultOpen={false}>
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
-      </CollapsibleSection>
+      </WorkOrderSection>
 
-      <CollapsibleSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
         <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist, firmar con el cliente y generar el informe final.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
@@ -292,7 +311,7 @@ export default function WorkOrderDetail() {
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>}
         </div>
-      </CollapsibleSection>
+      </WorkOrderSection>
 
       <Modal title="Añadir material a la OT" open={materialOpen} onClose={() => setMaterialOpen(false)}>
         <form className="form-grid" onSubmit={addMaterial}>
@@ -316,10 +335,6 @@ export default function WorkOrderDetail() {
       </Modal>
     </>
   );
-}
-
-function Detail({ label, value }) {
-  return <div className="detail-row"><span className="muted">{label}</span><strong>{value}</strong></div>;
 }
 
 function InstallationContactPanel({ installation }) {

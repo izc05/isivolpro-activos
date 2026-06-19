@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { BarChart3, Building2, ChevronDown, ClipboardCheck, FileText, Home, ListChecks, MapPin, PanelLeftClose, PanelLeftOpen, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle } from 'lucide-react';
+import { BarChart3, Building2, CalendarClock, ChevronDown, ClipboardCheck, FileText, History, Home, ListChecks, MapPin, PanelLeftClose, PanelLeftOpen, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -32,6 +32,15 @@ const workOrderNavItems = [
   { to: '/mis-ots', label: 'Mis OT asignadas', icon: ListChecks, permission: 'workorders' },
   { to: '/ots-creadas', label: 'OT creadas por mi', icon: PenLine, permission: 'workorders_manage' },
   { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' }
+];
+
+const maintenanceNavItems = [
+  { to: '/mantenimiento', label: 'Panel mantenimiento', icon: BarChart3, permission: 'inventory' },
+  { to: '/mantenimiento/planes', label: 'Planes preventivos', icon: ClipboardCheck, permission: 'inventory' },
+  { to: '/mantenimiento/calendario', label: 'Calendario', icon: CalendarClock, permission: 'inventory' },
+  { to: '/mantenimiento/pendientes', label: 'Trabajos pendientes', icon: ListChecks, permission: 'inventory' },
+  { to: '/mantenimiento/correctivos', label: 'Correctivos', icon: AlertTriangle, permission: 'inventory' },
+  { to: '/mantenimiento/historial', label: 'Historial', icon: History, permission: 'inventory' }
 ];
 
 const userNavItems = [
@@ -71,7 +80,7 @@ export default function AppLayout() {
     setActiveInstallationId
   } = tenant;
   const location = useLocation();
-  const [openGroups, setOpenGroups] = useState({ inventory: true, workorders: true, users: true });
+  const [openGroups, setOpenGroups] = useState({ inventory: true, maintenance: true, workorders: true, users: true });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
   const isGlobalWorkOrderControl = location.pathname.startsWith('/ots-control');
 
@@ -98,6 +107,7 @@ export default function AppLayout() {
 
   const visibleMainNavItems = mainNavItems.filter(canSeeItem);
   const visibleInventoryNavItems = inventoryNavItems.filter(canSeeItem);
+  const visibleMaintenanceNavItems = maintenanceNavItems.filter(canSeeItem);
   const visibleWorkOrderNavItems = workOrderNavItems.filter(canSeeItem);
   const visibleUserNavItems = userNavItems.filter(canSeeItem);
 
@@ -105,9 +115,9 @@ export default function AppLayout() {
   const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
   const allMobileNavItems = showFullNavigation
-    ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
+    ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleMaintenanceNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
     : [...visibleMainNavItems, ...fallbackNavItems];
-  const preferredMobileRoutes = ['/dashboard', '/activos', '/incidencias', '/documentos', '/ajustes'];
+  const preferredMobileRoutes = ['/dashboard', '/activos', '/mantenimiento', '/incidencias', '/ajustes'];
   const mobileNavItems = preferredMobileRoutes
     .map((route) => allMobileNavItems.find((item) => item.to === route))
     .filter(Boolean);
@@ -134,6 +144,7 @@ export default function AppLayout() {
             <>
               {visibleMainNavItems.map((item) => <NavItem key={item.to} item={item} />)}
               <NavGroup title="Bloque Inventario" items={visibleInventoryNavItems} open={openGroups.inventory} active={groupActive(visibleInventoryNavItems)} onToggle={() => toggleGroup('inventory')} />
+              <NavGroup title="Bloque Mantenimiento" items={visibleMaintenanceNavItems} open={openGroups.maintenance} active={groupActive(visibleMaintenanceNavItems)} onToggle={() => toggleGroup('maintenance')} />
               <NavGroup title="Bloque OT" items={visibleWorkOrderNavItems} open={openGroups.workorders} active={groupActive(visibleWorkOrderNavItems)} onToggle={() => toggleGroup('workorders')} />
               <NavGroup title="Bloque Usuarios" items={visibleUserNavItems} open={openGroups.users} active={groupActive(visibleUserNavItems)} onToggle={() => toggleGroup('users')} />
             </>

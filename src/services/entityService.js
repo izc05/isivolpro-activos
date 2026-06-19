@@ -7,7 +7,9 @@ const SOFT_DELETE_TABLES = new Set([
   'instalaciones',
   'ubicaciones',
   'activos',
-  'historial_mantenimiento'
+  'historial_mantenimiento',
+  'planes_mantenimiento',
+  'mantenimientos_programados'
 ]);
 
 async function ensureDemoAccessIfEnabled() {

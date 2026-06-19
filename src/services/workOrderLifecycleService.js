@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 import { isWorkOrderClosed, normalizedStatus } from '../utils/workOrderLifecycle';
+import { closeMaintenanceFromWorkOrder } from './maintenanceOtBridgeService';
 
 function assertCanMove(row, status) {
   const current = normalizedStatus(row?.estado);
@@ -65,5 +66,8 @@ export async function updateWorkOrderLifecycleStatus(row, status, options = {}) 
 
   if (error) throw error;
   await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_status', entityType: 'orden_trabajo', entityId: row.id, metadata: { from: row.estado, to: status, adminNotes: options.adminNotes || null } });
+  if (['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(status)) {
+    await closeMaintenanceFromWorkOrder(data);
+  }
   return data;
 }
