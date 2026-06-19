@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -11,7 +11,7 @@ import EntityImageViewer from '../components/Media/EntityImageViewer';
 import { buildMapsUrl } from '../utils/mapUtils';
 
 export default function Installations() {
-  const { tenants, activeTenantId, setActiveTenantId } = useTenant();
+  const { tenants, activeTenantId, activeInstallationId, activeInstallation, setActiveTenantId } = useTenant();
   const { rows, refresh } = useTenantRows('instalaciones', '*, tenants(nombre)', { order: 'created_at' });
   const [open, setOpen] = useState(false);
   const emptyForm = { tenant_id: activeTenantId || '', nombre: '', codigo: '', tipo: '', direccion: '', latitud: '', longitud: '', maps_url: '', contacto_nombre: '', contacto_telefono: '', contacto_email: '', descripcion: '', image_file: null };
@@ -96,9 +96,18 @@ export default function Installations() {
     );
   }
 
+  const visibleRows = useMemo(() => {
+    if (!activeInstallationId) return rows;
+    return rows.filter((row) => row.id === activeInstallationId);
+  }, [rows, activeInstallationId]);
+
+  const subtitle = activeInstallation
+    ? `Mostrando la instalación activa: ${activeInstallation.nombre}.`
+    : 'Cada instalacion queda vinculada obligatoriamente a un cliente.';
+
   return (
     <>
-      <PageHeader title="Instalaciones" subtitle="Cada instalacion queda vinculada obligatoriamente a un cliente." action={<button className="primary-button" onClick={startCreate}>Nueva instalacion</button>} />
+      <PageHeader title="Instalaciones" subtitle={subtitle} action={<button className="primary-button" onClick={startCreate}>Nueva instalacion</button>} />
       <DataTable columns={[
         { key: 'foto', label: 'Foto', render: (row) => <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="installation-main-photo" /> },
         { key: 'nombre', label: 'Nombre', render: installationName },
@@ -117,7 +126,7 @@ export default function Installations() {
             </div>
           )
         }
-      ]} rows={rows} />
+      ]} rows={visibleRows} empty={activeInstallationId ? 'No hay datos para la instalación activa.' : 'No hay instalaciones.'} />
       <Modal title={editingRow ? 'Editar instalacion' : 'Nueva instalacion'} open={open} onClose={closeModal}>
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Cliente">
