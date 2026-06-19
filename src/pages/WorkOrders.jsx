@@ -68,7 +68,7 @@ function buildInitialForm(activeInstallationId = '') {
 
 export default function WorkOrders() {
   const { user, profile } = useAuth();
-  const { activeTenantId, activeInstallationId, activeInstallation, activeRole, canManageWorkOrders, canUseWorkOrders } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation, activeRole } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -104,7 +104,7 @@ export default function WorkOrders() {
   }, [activeInstallationId, open]);
 
   const technicians = useMemo(
-    () => members.filter((member) => ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(member.role) && member.estado !== 'inactivo'),
+    () => members.filter((member) => ['tecnico', 'tecnico_externo'].includes(member.role) && member.estado === 'activo' && member.user_id),
     [members]
   );
 
@@ -116,12 +116,7 @@ export default function WorkOrders() {
         label: member.profiles?.nombre || member.profiles?.email || member.user_id
       });
     });
-    invitations
-      .filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'aceptada' && invitation.accepted_by)
-      .forEach((invitation) => {
-        if (!byUserId.has(invitation.accepted_by)) byUserId.set(invitation.accepted_by, { id: invitation.accepted_by, label: invitation.nombre || invitation.email || invitation.accepted_by });
-      });
-    const currentUserCanWork = user?.id && (canManageWorkOrders || canUseWorkOrders || ['admin_cliente', 'tecnico', 'tecnico_externo'].includes(activeRole));
+    const currentUserCanWork = user?.id && ['tecnico', 'tecnico_externo'].includes(activeRole);
     if (currentUserCanWork && !byUserId.has(user.id)) {
       byUserId.set(user.id, {
         id: user.id,
@@ -129,7 +124,7 @@ export default function WorkOrders() {
       });
     }
     return Array.from(byUserId.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [technicians, invitations, user, profile, activeRole, canManageWorkOrders, canUseWorkOrders]);
+  }, [technicians, user, profile, activeRole]);
 
   const pendingTechnicianInvitations = useMemo(
     () => invitations.filter((invitation) => ['tecnico', 'tecnico_externo'].includes(invitation.role) && invitation.estado === 'pendiente'),
