@@ -1,6 +1,7 @@
 import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Camera, FileImage, Keyboard, LockKeyhole, QrCode, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import { tokenFromQrValue } from '../services/qrService';
 
@@ -53,27 +54,72 @@ export default function QRScanner() {
 
   return (
     <>
-      <PageHeader title="Escaner QR" subtitle="El QR solo contiene un token opaco. La app valida permisos antes de mostrar datos." />
-      <div className="grid two">
-        <div className="scanner-card">
+      <PageHeader title="Escáner QR" subtitle="Escanea un activo, ubicación o instalación. El acceso se valida antes de mostrar información." />
+      <section className="scanner-hero">
+        <div>
+          <span className="section-eyebrow">Lectura segura</span>
+          <h2>Apunta al código QR</h2>
+          <p>El QR no contiene datos privados, solo un token. La app comprueba permisos y abre la ficha correcta.</p>
+        </div>
+        <div className="scanner-hero-badges">
+          <span><ShieldCheck size={16} /> Permisos</span>
+          <span><LockKeyhole size={16} /> Token seguro</span>
+        </div>
+      </section>
+
+      <div className="scanner-layout">
+        <section className="scanner-card scanner-camera-card">
           {!canUseCamera && (
             <p className="warning-text">
               En movil, la camara desde navegador normalmente exige HTTPS. Si entras por la IP local con http, usa "Leer QR desde foto" o instala la APK.
             </p>
           )}
-          <div className="scanner-box" id="qr-reader" />
+          <div className="scanner-card-header">
+            <div className="scanner-card-icon"><Camera size={22} /></div>
+            <div>
+              <strong>Cámara</strong>
+              <span>Concede permiso y centra el QR dentro del marco.</span>
+            </div>
+          </div>
+          <div className="scanner-box">
+            <div className="scanner-frame-hint" aria-hidden="true">
+              <QrCode size={44} />
+            </div>
+            <div id="qr-reader" />
+          </div>
           {scanError && <p className="error-text">{scanError}</p>}
-        </div>
-        <form className="card form-grid" onSubmit={submitManual}>
-          <strong>Entrada manual</strong>
-          <label className="upload-box">
-            Leer QR desde foto
+        </section>
+
+        <aside className="scanner-side-panel">
+          <form className="scanner-manual-card" onSubmit={submitManual}>
+            <div className="scanner-card-header">
+              <div className="scanner-card-icon"><Keyboard size={21} /></div>
+              <div>
+                <strong>Entrada manual</strong>
+                <span>Pega el enlace o escribe el token del QR.</span>
+              </div>
+            </div>
+            <input value={manualToken} onChange={(event) => setManualToken(event.target.value)} placeholder="/qr/a8f7k2p9x4" />
+            <button className="primary-button" type="submit">Resolver QR</button>
+          </form>
+
+          <label className="scanner-upload-card">
+            <span className="scanner-card-icon"><FileImage size={22} /></span>
+            <strong>Leer QR desde foto</strong>
+            <small>Útil si la cámara no abre o tienes una foto guardada.</small>
             <input type="file" accept="image/*" capture="environment" onChange={scanImage} />
           </label>
           <div id="qr-file-reader" className="qr-file-reader" />
-          <input value={manualToken} onChange={(event) => setManualToken(event.target.value)} placeholder="/qr/a8f7k2p9x4" />
-          <button className="primary-button" type="submit">Resolver QR</button>
-        </form>
+
+          <section className="scanner-help-card">
+            <strong>Cómo funciona</strong>
+            <ol>
+              <li>Escanea el QR del activo, ubicación o instalación.</li>
+              <li>La app valida tu usuario y permisos.</li>
+              <li>Se abre la ficha o el aviso correspondiente.</li>
+            </ol>
+          </section>
+        </aside>
       </div>
     </>
   );
