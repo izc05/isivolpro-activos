@@ -2997,7 +2997,8 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   min-width: 260px;
 }
 
-.maintenance-schema-notice {
+.maintenance-schema-notice,
+.schema-notice {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -3008,6 +3009,10 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   background: #fffafa;
   padding: 14px;
   box-shadow: 0 10px 24px rgba(42, 49, 64, .06);
+}
+
+.schema-notice {
+  display: grid;
 }
 
 .maintenance-schema-notice-icon {
@@ -3021,16 +3026,43 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   color: var(--primary-2);
 }
 
-.maintenance-schema-notice strong {
+.maintenance-schema-notice strong,
+.schema-notice strong {
   display: block;
   color: var(--primary);
   font-size: 16px;
+}
+
+.schema-notice span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 650;
 }
 
 .maintenance-schema-notice p {
   margin: 3px 0 0;
   color: var(--muted);
   font-weight: 650;
+}
+
+.oca-metrics {
+  margin-bottom: 18px;
+}
+
+.oca-next-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dbe7f3;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: var(--primary);
+  padding: 12px;
+}
+
+.oca-next-summary span {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .maintenance-month-card {
