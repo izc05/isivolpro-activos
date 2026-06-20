@@ -2370,6 +2370,185 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   white-space: nowrap;
 }
 
+.notification-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.notification-button {
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+  position: relative;
+}
+
+.notification-button.has-unread {
+  border-color: #f2aaa3;
+  background: #fffafa;
+  color: var(--primary-2);
+}
+
+.notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: var(--primary-2);
+  color: white;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: min(390px, 90vw);
+  overflow: hidden;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 24px 54px rgba(15, 23, 42, .18);
+}
+
+.notification-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  padding: 14px;
+}
+
+.notification-panel header strong,
+.notification-panel header span {
+  display: block;
+}
+
+.notification-panel header strong {
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.notification-panel header span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notification-close {
+  width: 32px;
+  height: 32px;
+  border-color: #e5ebf3;
+  background: white;
+  color: var(--primary);
+}
+
+.notification-list {
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.notification-item.unread {
+  background: #fffafa;
+}
+
+.notification-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.notification-item.unread .notification-dot {
+  background: var(--primary-2);
+  box-shadow: 0 0 0 4px #fff1ef;
+}
+
+.notification-item strong,
+.notification-item span,
+.notification-item small {
+  display: block;
+  min-width: 0;
+}
+
+.notification-item strong {
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.notification-item span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-item small {
+  margin-top: 4px;
+  color: #7b8494;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.notification-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.notification-badges .badge {
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.notification-empty,
+.notification-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.notification-error {
+  color: var(--danger);
+}
+
+.notification-footer {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  background: #f8fafc;
+  color: #a9362f;
+  font-weight: 900;
+}
+
 .service-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
@@ -3060,6 +3239,15 @@ select {
     flex: 1 1 130px;
   }
 
+  .topbar .notification-wrap {
+    flex: 0 0 auto;
+  }
+
+  .topbar .notification-button {
+    width: 42px;
+    flex: 0 0 42px;
+  }
+
   .mobile-nav {
     justify-content: space-between;
     overflow-x: hidden;
@@ -3169,6 +3357,15 @@ select {
   .topbar > div { min-width: 0; flex: 1 1 100%; }
   .topbar select { flex: 1 1 180px; min-width: 0; }
   .topbar .ghost-button { flex: 1 1 140px; }
+
+  .topbar .notification-wrap {
+    flex: 0 0 auto;
+  }
+
+  .topbar .notification-button {
+    width: 42px;
+    flex: 0 0 42px;
+  }
   .install-app-wrap,
   .install-app-wrap .install-app-button {
     width: 100%;
@@ -3380,6 +3577,15 @@ select {
 
   .topbar > div {
     min-width: 0;
+  }
+
+  .topbar .notification-wrap {
+    flex: 0 0 auto;
+  }
+
+  .notification-panel {
+    right: -74px;
+    width: min(360px, calc(100vw - 24px));
   }
 
   .topbar-selectors {

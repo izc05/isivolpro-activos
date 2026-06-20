@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
 import InstallAppButton from './InstallAppButton';
+import NotificationBell from './NotificationBell';
 import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal.png';
 
 const mainNavItems = [
@@ -197,6 +198,7 @@ export default function AppLayout() {
           )}
           {isGlobalWorkOrderControl && <div className="topbar-global-context">Control global OT · Sin filtro de cliente o instalacion</div>}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
+          <NotificationBell />
           <InstallAppButton />
           <NavLink className="ghost-button topbar-profile-button" to="/ajustes"><UserCircle size={18} /> Perfil</NavLink>
           <button className="ghost-button" onClick={signOut}>Cerrar sesion</button>
