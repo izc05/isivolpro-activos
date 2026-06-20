@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Filter, MapPin, Navigation, Phone, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Filter, ListChecks, MapPin, Navigation, Phone, QrCode, Search } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -12,7 +12,7 @@ import { buildMapsUrl } from '../utils/mapUtils';
 import { priorityLabel, priorityTone } from '../utils/workOrderLifecycle';
 
 export default function MyWorkOrders({ mode = 'mine' }) {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeTenant, activeInstallation, canManageWorkOrders } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ search: '', status: 'todas', priority: 'todas' });
@@ -32,6 +32,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   }, [activeTenantId, mode]);
 
   const isCreated = mode === 'created';
+  const isTechnicianView = !canManageWorkOrders && !isCreated;
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
     return rows.filter((row) => {
@@ -53,6 +54,17 @@ export default function MyWorkOrders({ mode = 'mine' }) {
     });
   }, [rows, filters]);
 
+  const summary = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const openStatuses = ['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
+    return {
+      open: rows.filter((row) => openStatuses.includes(row.estado)).length,
+      urgent: rows.filter((row) => ['urgente', 'critica'].includes(row.prioridad)).length,
+      today: rows.filter((row) => row.fecha_prevista?.slice(0, 10) === today).length,
+      done: rows.filter((row) => ['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(row.estado)).length
+    };
+  }, [rows]);
+
   function updateFilter(field, value) {
     setFilters((current) => ({ ...current, [field]: value }));
   }
@@ -66,14 +78,38 @@ export default function MyWorkOrders({ mode = 'mine' }) {
       <PageHeader
         title={isCreated ? 'OT creadas por mi' : 'OT asignadas'}
         subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : 'Ordenes enviadas al tecnico para iniciar visitas, registrar observaciones y completar checklist.'}
-        action={<Link className="secondary-button" to="/ots">Ver todas</Link>}
+        action={canManageWorkOrders ? <Link className="secondary-button" to="/ots">Ver todas</Link> : <Link className="primary-button" to="/scanner"><QrCode size={18} /> Escanear QR</Link>}
       />
-      <div className="tabs workorder-tabs">
-        <Link to="/ots-dashboard">Dashboard</Link>
-        <Link to="/ots">Todas</Link>
-        <Link className={!isCreated ? 'active' : ''} to="/mis-ots">OT asignadas</Link>
-        <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
-      </div>
+      {canManageWorkOrders && (
+        <div className="tabs workorder-tabs">
+          <Link to="/ots-dashboard">Dashboard</Link>
+          <Link to="/ots">Todas</Link>
+          <Link className={!isCreated ? 'active' : ''} to="/mis-ots">OT asignadas</Link>
+          <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
+        </div>
+      )}
+      {isTechnicianView && (
+        <section className="technician-workbench">
+          <div className="technician-workbench-head">
+            <div>
+              <span>Zona técnico</span>
+              <strong>{activeInstallation?.nombre || activeTenant?.nombre || 'Mis trabajos'}</strong>
+            </div>
+            <Link className="secondary-button" to="/incidencias"><AlertTriangle size={18} /> Aviso</Link>
+          </div>
+          <div className="technician-kpi-grid">
+            <article><ListChecks size={18} /><span>Abiertas</span><strong>{summary.open}</strong></article>
+            <article><Clock3 size={18} /><span>Hoy</span><strong>{summary.today}</strong></article>
+            <article className={summary.urgent ? 'warn' : ''}><AlertTriangle size={18} /><span>Urgentes</span><strong>{summary.urgent}</strong></article>
+            <article><CheckCircle2 size={18} /><span>Cerradas</span><strong>{summary.done}</strong></article>
+          </div>
+          <div className="technician-quick-actions">
+            <Link className="primary-button" to="/scanner"><QrCode size={18} /> Escanear QR</Link>
+            <button className="secondary-button" type="button" onClick={() => updateFilter('status', 'EN_CURSO')}>En curso</button>
+            <button className="secondary-button" type="button" onClick={() => updateFilter('priority', 'urgente')}>Urgentes</button>
+          </div>
+        </section>
+      )}
       {error && <p className="error-text">{error}</p>}
       <section className="assigned-ot-filter-panel">
         <div className="assigned-ot-search">
