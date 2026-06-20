@@ -10,7 +10,7 @@ import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal
 
 const mainNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: BarChart3, permission: 'admin' },
-  { to: '/scanner', label: 'Escanear QR', icon: QrCode, permission: 'all' }
+  { to: '/scanner', label: 'Escanear QR', mobileLabel: 'Escanear', icon: QrCode, permission: 'all' }
 ];
 
 const inventoryNavItems = [
@@ -29,9 +29,9 @@ const workOrderNavItems = [
   { to: '/ots-control', label: 'Control OT', icon: ClipboardCheck, permission: 'workorders_manage' },
   { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
   { to: '/ots-realizadas', label: 'OT realizadas', icon: CheckIcon, permission: 'workorders_manage' },
-  { to: '/mis-ots', label: 'Mis OT asignadas', icon: ListChecks, permission: 'workorders' },
+  { to: '/mis-ots', label: 'Mis OT asignadas', mobileLabel: 'Mis OT', icon: ListChecks, permission: 'workorders' },
   { to: '/ots-creadas', label: 'OT creadas por mi', icon: PenLine, permission: 'workorders_manage' },
-  { to: '/incidencias', label: 'Incidencias', icon: AlertTriangle, permission: 'incidents' }
+  { to: '/incidencias', label: 'Incidencias', mobileLabel: 'Avisos', icon: AlertTriangle, permission: 'incidents' }
 ];
 
 const maintenanceNavItems = [
@@ -47,7 +47,7 @@ const userNavItems = [
   { to: '/usuarios-panel', label: 'Panel usuarios', icon: Users, permission: 'users' },
   { to: '/usuarios', label: 'Gestion usuarios', icon: UserIcon, permission: 'users' },
   { to: '/auditoria', label: 'Auditoria', icon: ShieldCheck, permission: 'audit' },
-  { to: '/ajustes', label: 'Ajustes', icon: Settings, permission: 'all' }
+  { to: '/ajustes', label: 'Ajustes', mobileLabel: 'Cuenta', icon: Settings, permission: 'all' }
 ];
 
 function UserIcon(props) {
@@ -76,6 +76,7 @@ export default function AppLayout() {
     canViewAudit,
     canUseQrGenerator,
     canCreateIncidents,
+    isTechnician,
     setActiveTenantId,
     setActiveInstallationId
   } = tenant;
@@ -112,18 +113,21 @@ export default function AppLayout() {
   const visibleUserNavItems = userNavItems.filter(canSeeItem);
 
   const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders || canManageUsers;
+  const useTechnicianMobileShell = isTechnician && !isTenantAdmin && !canManageWorkOrders && !canManageUsers;
   const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
   const allMobileNavItems = showFullNavigation
     ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleMaintenanceNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
     : [...visibleMainNavItems, ...fallbackNavItems];
-  const preferredMobileRoutes = ['/dashboard', '/activos', '/mantenimiento', '/incidencias', '/ajustes'];
+  const preferredMobileRoutes = useTechnicianMobileShell
+    ? ['/mis-ots', '/scanner', '/incidencias', '/ajustes']
+    : ['/dashboard', '/activos', '/mantenimiento', '/incidencias', '/ajustes'];
   const mobileNavItems = preferredMobileRoutes
     .map((route) => allMobileNavItems.find((item) => item.to === route))
     .filter(Boolean);
 
   return (
-    <div className={`app-shell ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
+    <div className={`app-shell ${sidebarHidden ? 'sidebar-hidden' : ''} ${useTechnicianMobileShell ? 'technician-mobile-shell' : ''}`}>
       <aside className="sidebar">
         <div className="brand sidebar-brand">
           <div className="brand-lockup">
@@ -185,6 +189,12 @@ export default function AppLayout() {
               {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
             </div>
           )}
+          {useTechnicianMobileShell && !isGlobalWorkOrderControl && (
+            <div className="technician-topbar-summary">
+              <strong>{activeInstallation?.nombre || activeTenant?.nombre || 'Trabajo técnico'}</strong>
+              <span>{activeTenant?.nombre || 'Cliente activo'}</span>
+            </div>
+          )}
           {isGlobalWorkOrderControl && <div className="topbar-global-context">Control global OT · Sin filtro de cliente o instalacion</div>}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <InstallAppButton />
@@ -224,7 +234,7 @@ function NavItem({ item, compact = false }) {
   return (
     <NavLink to={item.to} className={({ isActive }) => `nav-item ${compact ? 'compact' : ''} ${isActive ? 'active' : ''}`}>
       <Icon size={20} />
-      <span>{item.label}</span>
+      <span>{compact ? item.mobileLabel || item.label : item.label}</span>
     </NavLink>
   );
 }
