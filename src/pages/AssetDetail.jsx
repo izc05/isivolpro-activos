@@ -51,13 +51,17 @@ export default function AssetDetail() {
   const criticalClass = ['alta', 'critica'].includes(asset.criticidad) ? 'danger' : asset.criticidad === 'media' ? 'warn' : 'ok';
   const timeline = timelineData?.timeline || [];
   const metrics = timelineData?.metrics || { workOrders: 0, openWorkOrders: 0, incidents: 0, openIncidents: 0, materials: 0, reports: 0, photos: 0 };
-  const activePlans = timelineData?.scheduled?.filter((item) => item.plan_id && !['cancelado', 'no_aplica'].includes(item.estado)) || [];
-  const openCorrectives = timelineData?.scheduled?.filter((item) => item.tipo === 'correctivo' && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)) || [];
-  const overdueMaintenances = timelineData?.scheduled?.filter((item) => item.fecha_programada && new Date(item.fecha_programada) < new Date() && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)) || [];
+  const assetPlans = timelineData?.plans || [];
+  const activePlans = assetPlans.filter((item) => item.activo);
+  const scheduledMaintenances = timelineData?.scheduled || [];
+  const openCorrectives = scheduledMaintenances.filter((item) => item.tipo === 'correctivo' && !['completado', 'cancelado', 'no_aplica'].includes(item.estado));
+  const overdueMaintenances = scheduledMaintenances.filter((item) => item.fecha_programada && new Date(item.fecha_programada) < new Date() && !['completado', 'cancelado', 'no_aplica'].includes(item.estado));
   const lastMaintenance = timelineData?.history?.[0];
-  const nextMaintenance = [...(timelineData?.scheduled || [])].filter((item) => item.fecha_programada && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)).sort((a, b) => new Date(a.fecha_programada) - new Date(b.fecha_programada))[0];
+  const pendingMaintenances = scheduledMaintenances.filter((item) => item.fecha_programada && !['completado', 'cancelado', 'no_aplica'].includes(item.estado)).sort((a, b) => new Date(a.fecha_programada) - new Date(b.fecha_programada));
+  const nextMaintenance = pendingMaintenances[0];
   const accumulatedCost = (timelineData?.history || []).reduce((sum, item) => sum + Number(item.coste_total || 0), 0);
   const downtime = (timelineData?.history || []).reduce((sum, item) => sum + Number(item.tiempo_parada_minutos || 0), 0);
+  const maintenanceHealthClass = overdueMaintenances.length || openCorrectives.length ? 'danger' : !activePlans.length ? 'warn' : 'ok';
 
   async function handlePdf() {
     exportAssetPdf({
@@ -113,11 +117,16 @@ export default function AssetDetail() {
       </section>
 
       <section className="card maintenance-asset-panel">
-        <div className="section-title">
+        <div className={`asset-maintenance-header ${maintenanceHealthClass}`}>
           <div>
+            <span className="section-eyebrow">Bloque Mantenimiento</span>
             <h2>Mantenimiento del activo</h2>
-            <p className="muted">Planes, próximos trabajos, correctivos abiertos y resultado técnico consolidado.</p>
+            <p>Planes, próximos trabajos, correctivos abiertos y resultado técnico consolidado.</p>
           </div>
+          <span className={`badge ${maintenanceHealthClass}`}>{overdueMaintenances.length ? 'Tiene vencidos' : openCorrectives.length ? 'Correctivo abierto' : activePlans.length ? 'Planificado' : 'Sin plan'}</span>
+        </div>
+        <div className="section-title asset-maintenance-actions">
+          <p className="muted">El plan define qué hacer, el calendario cuándo, la OT ejecuta y el historial conserva el resultado.</p>
           <div className="button-row">
             <Link className="secondary-button" to="/mantenimiento/planes">Crear plan</Link>
             <Link className="secondary-button" to="/mantenimiento/correctivos">Crear correctivo</Link>
@@ -133,6 +142,52 @@ export default function AssetDetail() {
           <article className={`asset-summary-card ${openCorrectives.length ? 'danger' : ''}`}><Wrench size={20} /><span>Correctivos abiertos</span><strong>{openCorrectives.length}</strong></article>
           <article className="asset-summary-card"><Package size={20} /><span>Coste acumulado</span><strong>{accumulatedCost.toFixed(2)} €</strong></article>
           <article className="asset-summary-card"><CalendarClock size={20} /><span>Parada acumulada</span><strong>{downtime} min</strong></article>
+        </div>
+        <div className="asset-maintenance-board">
+          <section>
+            <h3>Planes del activo</h3>
+            {activePlans.length === 0 ? (
+              <p className="muted">Este activo todavía no tiene un plan preventivo activo.</p>
+            ) : (
+              <div className="asset-maintenance-list">
+                {activePlans.slice(0, 3).map((plan) => (
+                  <Link className="asset-maintenance-row" to={`/mantenimiento/planes/${plan.id}`} key={plan.id}>
+                    <strong>{plan.nombre}</strong>
+                    <span>{maintenanceTypeLabel(plan.tipo)} · {plan.periodicidad_unidad === 'manual' ? 'Periodicidad manual' : `Cada ${plan.periodicidad_valor || '-'} ${plan.periodicidad_unidad || ''}`}</span>
+                    <em>Próxima: {formatDate(plan.fecha_proxima_realizacion)}</em>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+          <section>
+            <h3>Próximas actuaciones</h3>
+            {pendingMaintenances.length === 0 ? (
+              <p className="muted">No hay actuaciones programadas pendientes para este activo.</p>
+            ) : (
+              <div className="asset-maintenance-list">
+                {pendingMaintenances.slice(0, 3).map((item) => (
+                  <Link className={`asset-maintenance-row ${maintenanceStatusClass(item.estado_visual || item.estado)}`} to={item.ot_id ? `/ots/${item.ot_id}` : '/mantenimiento/pendientes'} key={item.id}>
+                    <strong>{item.titulo}</strong>
+                    <span>{maintenanceTypeLabel(item.tipo)} · {item.prioridad || 'media'}</span>
+                    <em>{formatDate(item.fecha_programada)} · {maintenanceStatusLabel(item.estado_visual || item.estado)}</em>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+          <section>
+            <h3>Último resultado</h3>
+            {lastMaintenance ? (
+              <div className="asset-maintenance-result">
+                <strong>{lastMaintenance.titulo || maintenanceTypeLabel(lastMaintenance.tipo)}</strong>
+                <span>{formatDate(lastMaintenance.fecha_fin || lastMaintenance.fecha)} · {lastMaintenance.tecnico?.nombre || lastMaintenance.tecnico?.email || 'Sin técnico'}</span>
+                <p>{lastMaintenance.trabajo_realizado || lastMaintenance.descripcion || lastMaintenance.resultado || 'Sin detalle registrado.'}</p>
+              </div>
+            ) : (
+              <p className="muted">Todavía no hay intervenciones cerradas en el historial técnico.</p>
+            )}
+          </section>
         </div>
       </section>
 
