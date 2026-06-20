@@ -1866,27 +1866,47 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   color: rgba(255,255,255,.3);
   pointer-events: none;
 }
+.scanner-camera-empty {
+  position: absolute;
+  inset: 28px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  border: 2px dashed rgba(255,255,255,.72);
+  border-radius: 8px;
+  background: rgba(7, 20, 34, .58);
+  color: white;
+  text-align: center;
+  padding: 22px;
+}
+.scanner-camera-empty strong {
+  font-size: 18px;
+  font-weight: 900;
+}
+.scanner-camera-empty span {
+  color: rgba(255,255,255,.78);
+  font-weight: 700;
+}
+.scanner-camera-empty .primary-button {
+  margin-top: 4px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 .scanner-box #qr-reader {
   position: relative;
   z-index: 1;
   min-height: 360px;
   border: 0 !important;
 }
-.scanner-box #qr-reader__dashboard_section_csr button,
-.scanner-box #qr-reader__filescan_input + span,
-.scanner-box button {
-  border: 1px solid rgba(255,255,255,.18) !important;
-  border-radius: 8px !important;
-  background: white !important;
-  color: var(--primary) !important;
-  padding: 8px 10px !important;
-  font-weight: 850 !important;
-}
-.scanner-box a {
-  color: white !important;
-  font-weight: 850;
-}
 .scanner-box video {
+  width: 100% !important;
+  min-height: 360px;
+  object-fit: cover;
   border-radius: 8px;
 }
 .scanner-upload-card {
@@ -1896,14 +1916,21 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   justify-items: start;
   padding: 14px;
   cursor: pointer;
+  width: 100%;
+  border: 1px solid var(--line);
+  text-align: left;
   transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+.scanner-capture-card {
+  border-color: #f2c3bd;
+  background: linear-gradient(180deg, #fff, #fff7f6);
 }
 .scanner-upload-card:hover {
   border-color: #f2aaa3;
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(42, 49, 64, .1);
 }
-.scanner-upload-card input {
+.scanner-hidden-input {
   position: absolute;
   inline-size: 1px;
   block-size: 1px;

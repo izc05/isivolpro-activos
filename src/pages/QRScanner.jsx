@@ -1,38 +1,68 @@
-import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, FileImage, Keyboard, LockKeyhole, QrCode, ShieldCheck } from 'lucide-react';
+import { Camera, FileImage, ImagePlus, Keyboard, LockKeyhole, QrCode, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import { tokenFromQrValue } from '../services/qrService';
 
 export default function QRScanner() {
   const navigate = useNavigate();
-  const scannerRef = useRef(null);
+  const liveScannerRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const [manualToken, setManualToken] = useState('');
   const [scanError, setScanError] = useState('');
+  const [cameraStatus, setCameraStatus] = useState('idle');
   const canUseCamera = window.isSecureContext || ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 240, height: 240 } }, false);
-    scanner.render((decodedText) => {
-      const token = tokenFromQrValue(decodedText);
-      scanner.clear();
-      navigate(`/qr/${token}`);
-    }, (errorMessage) => {
-      if (String(errorMessage || '').toLowerCase().includes('permission')) {
-        setScanError('Permiso de camara denegado. Activalo en el navegador o usa una foto del QR.');
-      }
-    });
-    scannerRef.current = scanner;
     return () => {
-      scannerRef.current?.clear().catch(() => {});
+      const scanner = liveScannerRef.current;
+      if (!scanner) return;
+      scanner.stop().catch(() => {}).finally(() => {
+        scanner.clear().catch(() => {});
+        liveScannerRef.current = null;
+      });
     };
-  }, [navigate]);
+  }, []);
 
   function submitManual(event) {
     event.preventDefault();
     const token = tokenFromQrValue(manualToken);
     if (token) navigate(`/qr/${token}`);
+  }
+
+  async function openLiveCamera() {
+    if (!canUseCamera) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    setScanError('');
+    setCameraStatus('loading');
+    let scanner;
+    try {
+      scanner = liveScannerRef.current || new Html5Qrcode('qr-reader');
+      liveScannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        async (decodedText) => {
+          const token = tokenFromQrValue(decodedText);
+          await scanner.stop().catch(() => {});
+          await scanner.clear().catch(() => {});
+          liveScannerRef.current = null;
+          setCameraStatus('idle');
+          if (token) navigate(`/qr/${token}`);
+        },
+        () => {}
+      );
+      setCameraStatus('active');
+    } catch (err) {
+      await scanner?.clear?.().catch(() => {});
+      liveScannerRef.current = null;
+      setCameraStatus('idle');
+      setScanError('No se ha podido abrir la camara desde el navegador. Pulsa "Abrir camara del movil" para usar la camara nativa.');
+    }
   }
 
   async function scanImage(event) {
@@ -86,6 +116,17 @@ export default function QRScanner() {
               <QrCode size={44} />
             </div>
             <div id="qr-reader" />
+            {cameraStatus !== 'active' && (
+              <div className="scanner-camera-empty">
+                <QrCode size={42} />
+                <strong>Cámara lista</strong>
+                <span>Abre la cámara y apunta al QR.</span>
+                <button className="primary-button" type="button" onClick={openLiveCamera} disabled={cameraStatus === 'loading'}>
+                  <Camera size={18} />
+                  {cameraStatus === 'loading' ? 'Abriendo cámara...' : 'Abrir cámara'}
+                </button>
+              </div>
+            )}
           </div>
           {scanError && <p className="error-text">{scanError}</p>}
         </section>
@@ -103,12 +144,18 @@ export default function QRScanner() {
             <button className="primary-button" type="submit">Resolver QR</button>
           </form>
 
-          <label className="scanner-upload-card">
+          <button className="scanner-upload-card scanner-capture-card" type="button" onClick={() => cameraInputRef.current?.click()}>
             <span className="scanner-card-icon"><FileImage size={22} /></span>
-            <strong>Leer QR desde foto</strong>
-            <small>Útil si la cámara no abre o tienes una foto guardada.</small>
-            <input type="file" accept="image/*" capture="environment" onChange={scanImage} />
-          </label>
+            <strong>Abrir cámara del móvil</strong>
+            <small>Saca una foto del QR y la app lo resolverá automáticamente.</small>
+          </button>
+          <button className="scanner-upload-card scanner-gallery-card" type="button" onClick={() => galleryInputRef.current?.click()}>
+            <span className="scanner-card-icon"><ImagePlus size={22} /></span>
+            <strong>Elegir foto guardada</strong>
+            <small>Útil si ya tienes una imagen del QR en la galería.</small>
+          </button>
+          <input ref={cameraInputRef} className="scanner-hidden-input" type="file" accept="image/*" capture="environment" onChange={scanImage} />
+          <input ref={galleryInputRef} className="scanner-hidden-input" type="file" accept="image/*" onChange={scanImage} />
           <div id="qr-file-reader" className="qr-file-reader" />
 
           <section className="scanner-help-card">
