@@ -33,6 +33,14 @@ export function buildTenantPermissions({ activeRole, isSuperAdmin = false, hasTe
   const canViewAudit = Boolean(isTenantAdmin);
   const canUseQrGenerator = Boolean(isTenantAdmin || isInternalTechnician);
   const canCreateIncidents = Boolean(isTenantAdmin || isInternalTechnician || isExternalTechnician || hasTenantContext);
+  const canViewOca = Boolean(isTenantAdmin || isInternalTechnician || isReadOnlyClient);
+  const canCreateOca = Boolean(isTenantAdmin || isInternalTechnician);
+  const canEditOca = Boolean(isTenantAdmin || isInternalTechnician);
+  const canManageOcaDocuments = Boolean(isTenantAdmin || isInternalTechnician);
+  const canManageOcaIncidents = Boolean(isTenantAdmin || isInternalTechnician);
+  const canCreateOcaWorkOrder = Boolean(isTenantAdmin || isInternalTechnician);
+  const canVerifyOcaIncident = Boolean(isTenantAdmin);
+  const canCloseOca = Boolean(isTenantAdmin);
   const isReadOnly = Boolean(isReadOnlyClient);
 
   return {
@@ -49,6 +57,14 @@ export function buildTenantPermissions({ activeRole, isSuperAdmin = false, hasTe
     canViewAudit,
     canUseQrGenerator,
     canCreateIncidents,
+    canViewOca,
+    canCreateOca,
+    canEditOca,
+    canManageOcaDocuments,
+    canManageOcaIncidents,
+    canCreateOcaWorkOrder,
+    canVerifyOcaIncident,
+    canCloseOca,
     isReadOnly
   };
 }

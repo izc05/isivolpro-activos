@@ -25,6 +25,12 @@ import MaintenancePlanDetail from './pages/MaintenancePlanDetail';
 import MaintenanceCalendar from './pages/MaintenanceCalendar';
 import PendingMaintenance from './pages/PendingMaintenance';
 import CorrectiveMaintenance from './pages/CorrectiveMaintenance';
+import OcaDashboard from './pages/OcaDashboard';
+import OcaInspections from './pages/OcaInspections';
+import OcaInspectionDetail from './pages/OcaInspectionDetail';
+import OcaDueDates from './pages/OcaDueDates';
+import OcaIncidents from './pages/OcaIncidents';
+import OcaDocuments from './pages/OcaDocuments';
 import WorkOrderDashboard from './pages/WorkOrderDashboard';
 import WorkOrderControl from './pages/WorkOrderControl';
 import WorkOrders from './pages/WorkOrders';
@@ -78,6 +84,13 @@ export default function App() {
         <Route path="mantenimiento/pendientes" element={<InventoryRoute><PendingMaintenance /></InventoryRoute>} />
         <Route path="mantenimiento/correctivos" element={<InventoryRoute><CorrectiveMaintenance /></InventoryRoute>} />
         <Route path="mantenimiento/historial" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
+        <Route path="oca" element={<InventoryRoute><OcaDashboard /></InventoryRoute>} />
+        <Route path="oca/inspecciones" element={<InventoryRoute><OcaInspections /></InventoryRoute>} />
+        <Route path="oca/inspecciones/nueva" element={<InventoryRoute><OcaInspectionDetail mode="new" /></InventoryRoute>} />
+        <Route path="oca/inspecciones/:id" element={<InventoryRoute><OcaInspectionDetail /></InventoryRoute>} />
+        <Route path="oca/vencimientos" element={<InventoryRoute><OcaDueDates /></InventoryRoute>} />
+        <Route path="oca/incidencias" element={<InventoryRoute><OcaIncidents /></InventoryRoute>} />
+        <Route path="oca/documentacion" element={<InventoryRoute><OcaDocuments /></InventoryRoute>} />
         <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
         <Route path="ots-control" element={<WorkOrderManagerRoute><WorkOrderControl /></WorkOrderManagerRoute>} />
         <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />

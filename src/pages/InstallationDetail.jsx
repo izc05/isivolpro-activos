@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
-import { useMemo, useState } from 'react';
-import { AlertTriangle, FileText, Image, MapPin, Plus, Video, Wrench } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CalendarClock, FileText, Image, MapPin, Plus, ShieldCheck, Video, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import QRCodeCard from '../components/QR/QRCodeCard';
 import DataTable from '../components/Cards/DataTable';
@@ -14,6 +14,8 @@ import { formatDate, formatDateTime } from '../utils/dateUtils';
 import { createAsset, createLocation } from '../services/entityService';
 import { shortId } from '../utils/qrUtils';
 import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
+import { listOcaControlsByInstallation } from '../services/ocaControlService';
+import { OCA_CONTROL_STATES, OCA_SPECIALTIES, daysUntil, ocaLabel, ocaStatusClass } from '../constants/oca';
 
 export default function InstallationDetail() {
   const { id } = useParams();
@@ -24,6 +26,7 @@ export default function InstallationDetail() {
   const [success, setSuccess] = useState('');
   const [savingLocation, setSavingLocation] = useState(false);
   const [savingAsset, setSavingAsset] = useState(false);
+  const [ocaControls, setOcaControls] = useState([]);
   const emptyLocationForm = { instalacion_id: id, nombre: '', tipo: '', planta: '', zona: '', descripcion: '', image_file: null };
   const emptyAssetForm = {
     instalacion_id: id,
@@ -67,10 +70,21 @@ export default function InstallationDetail() {
   }, [filteredLocations, filteredAssets]);
   const unassignedAssets = filteredAssets.filter((asset) => !asset.ubicacion_id);
 
+  useEffect(() => {
+    if (!activeTenantId || !id) return;
+    listOcaControlsByInstallation(activeTenantId, id)
+      .then(setOcaControls)
+      .catch(() => setOcaControls([]));
+  }, [activeTenantId, id]);
+
   if (!row) return <PageHeader title="Instalacion" subtitle="Cargando..." />;
 
   const pendingAssets = filteredAssets.filter((asset) => ['pendiente', 'averiado', 'fuera_servicio'].includes(asset.estado)).length;
   const openIncidents = filteredIncidents.filter((incident) => incident.estado !== 'cerrada').length;
+  const ocaDue = ocaControls.filter((control) => {
+    const days = daysUntil(control.fecha_proxima_inspeccion);
+    return days !== null && days < 0;
+  }).length;
   const mapsUrl = buildMapsUrl(row);
   const mapsEmbedUrl = buildMapsEmbedUrl(row);
 
@@ -151,6 +165,8 @@ export default function InstallationDetail() {
         <MetricCard label="Activos" value={filteredAssets.length} />
         <MetricCard label="Activos con aviso" value={pendingAssets} tone={pendingAssets ? 'warn' : 'default'} />
         <MetricCard label="Incidencias abiertas" value={openIncidents} tone={openIncidents ? 'danger' : 'default'} />
+        <MetricCard label="Controles OCA" value={ocaControls.length} />
+        <MetricCard label="OCA vencidas" value={ocaDue} tone={ocaDue ? 'danger' : 'default'} />
       </div>
       <div className="grid two">
         <div className="card">
@@ -179,7 +195,8 @@ export default function InstallationDetail() {
           ['qr', 'QR cascada'],
           ['documentos', 'Documentos'],
           ['media', 'Fotos y videos'],
-          ['mantenimiento', 'Incidencias e historial']
+          ['mantenimiento', 'Incidencias e historial'],
+          ['oca', 'Control OCA']
         ].map(([tab, label]) => (
           <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{label}</button>
         ))}
@@ -301,6 +318,34 @@ export default function InstallationDetail() {
                 { key: 'tipo', label: 'Tipo' },
                 { key: 'titulo', label: 'Trabajo' }
               ]} rows={filteredHistory} />
+            </div>
+          </>
+        )}
+
+        {activeTab === 'oca' && (
+          <>
+            <SectionTitle
+              icon={ShieldCheck}
+              title="Control OCA"
+              action={<div className="button-row"><Link className="ghost-button" to="/oca/inspecciones/nueva"><Plus size={16} /> Registrar inspección</Link><Link className="ghost-button" to="/oca">Ver panel OCA</Link></div>}
+            />
+            <div className="grid two">
+              <div className="card">
+                <h3>Resumen reglamentario</h3>
+                <p><strong>Especialidades configuradas:</strong> {ocaControls.length}</p>
+                <p><strong>Próximas o vencidas:</strong> {ocaControls.filter((control) => {
+                  const days = daysUntil(control.fecha_proxima_inspeccion);
+                  return days !== null && days <= 90;
+                }).length}</p>
+                <Link className="secondary-button" to="/oca/vencimientos"><CalendarClock size={16} /> Próximas y vencidas</Link>
+              </div>
+              <DataTable columns={[
+                { key: 'especialidad', label: 'Especialidad', render: (control) => ocaLabel(OCA_SPECIALTIES, control.especialidad) },
+                { key: 'ultima', label: 'Última inspección', render: (control) => formatDate(control.fecha_ultima_inspeccion) },
+                { key: 'proxima', label: 'Próxima', render: (control) => formatDate(control.fecha_proxima_inspeccion) },
+                { key: 'dias', label: 'Días', render: (control) => daysUntil(control.fecha_proxima_inspeccion) ?? '-' },
+                { key: 'estado', label: 'Estado', render: (control) => <span className={`badge ${ocaStatusClass(control.estado)}`}>{ocaLabel(OCA_CONTROL_STATES, control.estado)}</span> }
+              ]} rows={ocaControls} empty="Sin controles OCA configurados para esta instalación." />
             </div>
           </>
         )}
