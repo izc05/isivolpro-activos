@@ -28,6 +28,7 @@ const inventoryNavItems = [
 const workOrderNavItems = [
   { to: '/ots-dashboard', label: 'Panel OT', icon: BarChart3, permission: 'workorders_manage' },
   { to: '/ots-control', label: 'Control OT', icon: ClipboardCheck, permission: 'workorders_manage' },
+  { to: '/ots-agenda', label: 'Agenda OT', icon: CalendarClock, permission: 'workorders_manage' },
   { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
   { to: '/ots-realizadas', label: 'OT realizadas', icon: CheckIcon, permission: 'workorders_manage' },
   { to: '/mis-ots', label: 'Mis OT asignadas', mobileLabel: 'Mis OT', icon: ListChecks, permission: 'workorders' },
@@ -92,7 +93,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: true, maintenance: true, oca: true, workorders: true, users: true });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
-  const isGlobalWorkOrderControl = location.pathname.startsWith('/ots-control');
+  const isGlobalWorkOrderView = location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
 
   useEffect(() => {
     localStorage.setItem('isivoltpro-sidebar-hidden', sidebarHidden ? 'true' : 'false');
@@ -174,7 +175,7 @@ export default function AppLayout() {
               <PanelLeftOpen size={18} /> Menu
             </button>
           )}
-          {!isGlobalWorkOrderControl && (
+          {!isGlobalWorkOrderView && (
             <div className="topbar-selectors">
               {tenants.length > 0 && (
                 <label className="topbar-selector client-selector">
@@ -200,13 +201,13 @@ export default function AppLayout() {
               {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
             </div>
           )}
-          {useTechnicianMobileShell && !isGlobalWorkOrderControl && (
+          {useTechnicianMobileShell && !isGlobalWorkOrderView && (
             <div className="technician-topbar-summary">
               <strong>{activeInstallation?.nombre || activeTenant?.nombre || 'Trabajo técnico'}</strong>
               <span>{activeTenant?.nombre || 'Cliente activo'}</span>
             </div>
           )}
-          {isGlobalWorkOrderControl && <div className="topbar-global-context">Control global OT · Sin filtro de cliente o instalacion</div>}
+          {isGlobalWorkOrderView && <div className="topbar-global-context">Vista global OT · Sin filtro de cliente o instalacion</div>}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <NotificationBell />
           <InstallAppButton />

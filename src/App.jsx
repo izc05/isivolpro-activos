@@ -33,6 +33,7 @@ import OcaIncidents from './pages/OcaIncidents';
 import OcaDocuments from './pages/OcaDocuments';
 import WorkOrderDashboard from './pages/WorkOrderDashboard';
 import WorkOrderControl from './pages/WorkOrderControl';
+import WorkOrderAgenda from './pages/WorkOrderAgenda';
 import WorkOrders from './pages/WorkOrders';
 import CompletedWorkOrders from './pages/CompletedWorkOrders';
 import MyWorkOrders from './pages/MyWorkOrders';
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="oca/documentacion" element={<InventoryRoute><OcaDocuments /></InventoryRoute>} />
         <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
         <Route path="ots-control" element={<WorkOrderManagerRoute><WorkOrderControl /></WorkOrderManagerRoute>} />
+        <Route path="ots-agenda" element={<WorkOrderManagerRoute><WorkOrderAgenda /></WorkOrderManagerRoute>} />
         <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />
         <Route path="ots-realizadas" element={<WorkOrderManagerRoute><CompletedWorkOrders /></WorkOrderManagerRoute>} />
         <Route path="mis-ots" element={<MyWorkOrders />} />

@@ -247,6 +247,199 @@
   overflow-wrap: anywhere;
 }
 
+.ot-agenda-filter {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 220px) auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(42, 49, 64, .05);
+}
+
+.ot-agenda-filter label {
+  display: grid;
+  gap: 5px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ot-agenda-search {
+  position: relative;
+}
+
+.ot-agenda-search svg {
+  position: absolute;
+  left: 11px;
+  bottom: 11px;
+  color: #8a94a6;
+}
+
+.ot-agenda-search input {
+  padding-left: 38px;
+}
+
+.ot-agenda-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.ot-agenda-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 330px);
+  gap: 14px;
+  align-items: start;
+}
+
+.ot-agenda-calendar {
+  margin-top: 0;
+}
+
+.ot-agenda-day {
+  min-height: 150px;
+}
+
+.ot-agenda-pill {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dbe5f0;
+  border-left: 4px solid #94a3b8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #172033;
+  padding: 7px 8px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ot-agenda-pill.warn {
+  border-left-color: #f59e0b;
+  background: #fff7ed;
+}
+
+.ot-agenda-pill.danger {
+  border-left-color: #df4f45;
+  background: #fff1f2;
+}
+
+.ot-agenda-pill span,
+.ot-agenda-pill strong,
+.ot-agenda-pill small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ot-agenda-pill span {
+  color: #647086;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ot-agenda-pill strong {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ot-agenda-pill small {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ot-agenda-side {
+  display: grid;
+  gap: 12px;
+}
+
+.ot-agenda-side-card {
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(42, 49, 64, .05);
+  overflow: hidden;
+}
+
+.ot-agenda-side-card header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #edf1f6;
+  background: #f8fafc;
+  color: #172033;
+  padding: 12px;
+}
+
+.ot-agenda-side-card header svg {
+  color: #a9362f;
+}
+
+.ot-agenda-status-list,
+.ot-agenda-unscheduled {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.ot-agenda-status-list button,
+.ot-agenda-unscheduled button {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e4eaf1;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  padding: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ot-agenda-status-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ot-agenda-unscheduled button {
+  display: grid;
+  gap: 5px;
+}
+
+.ot-agenda-unscheduled span,
+.ot-agenda-unscheduled strong,
+.ot-agenda-unscheduled small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ot-agenda-unscheduled span {
+  color: #647086;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.ot-agenda-unscheduled strong {
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.ot-agenda-unscheduled small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 @media (max-width: 760px) {
   .ot-page-header {
     padding: 14px;
@@ -293,6 +486,33 @@
 
   .ot-photo-tile img {
     height: 126px;
+  }
+
+  .ot-agenda-filter,
+  .ot-agenda-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ot-agenda-actions {
+    justify-content: stretch;
+  }
+
+  .ot-agenda-actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .ot-agenda-calendar .maintenance-weekdays,
+  .ot-agenda-calendar .maintenance-month-grid {
+    min-width: 760px;
+  }
+
+  .ot-agenda-calendar {
+    overflow-x: auto;
+  }
+
+  .ot-agenda-day {
+    min-height: 142px;
   }
 
   .ot-section {
