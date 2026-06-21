@@ -70,7 +70,7 @@ export default function WorkOrderDashboard() {
     <>
       <PageHeader
         title="Dashboard OT"
-        subtitle="Seguimiento operativo de ordenes nuevas, asignadas, en curso, pendientes, finalizadas y validadas."
+        subtitle="Seguimiento global de OT por instalaciones: nuevas, asignadas, en curso, pendientes, finalizadas y validadas."
         action={<Link className="primary-button" to="/ots">Gestionar OT</Link>}
       />
       <div className="tabs workorder-tabs">

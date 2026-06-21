@@ -93,7 +93,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: true, maintenance: true, oca: true, workorders: true, users: true });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
-  const isGlobalWorkOrderView = location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
+  const isGlobalWorkOrderView = location.pathname.startsWith('/ots-dashboard') || location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
 
   useEffect(() => {
     localStorage.setItem('isivoltpro-sidebar-hidden', sidebarHidden ? 'true' : 'false');
