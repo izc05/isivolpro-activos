@@ -111,10 +111,12 @@ export default function WorkOrderControl() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [filteredOrders]);
 
-  const liveStatusColumns = useMemo(() => LIVE_STATUS_COLUMNS.map((status) => ({
-    status,
-    orders: filteredOrders.filter((order) => normalizedStatus(order.estado) === status)
-  })), [filteredOrders]);
+  const liveStatusColumns = useMemo(() => LIVE_STATUS_COLUMNS
+    .map((status) => ({
+      status,
+      orders: filteredOrders.filter((order) => normalizedStatus(order.estado) === status)
+    }))
+    .filter((column) => column.orders.length > 0), [filteredOrders]);
 
   const technicianCards = useMemo(() => {
     const map = new Map();
@@ -194,6 +196,7 @@ export default function WorkOrderControl() {
           <span className="live-indicator"><span /> En seguimiento</span>
         </div>
         <div className="ot-live-columns">
+          {liveStatusColumns.length === 0 && <p className="ot-board-empty">No hay OT visibles con los filtros actuales.</p>}
           {liveStatusColumns.map((column) => (
             <article className={`ot-live-column status-${column.status.toLowerCase()}`} key={column.status}>
               <header>
@@ -213,7 +216,6 @@ export default function WorkOrderControl() {
                   </button>
                 ))}
                 {column.orders.length > 8 && <span className="ot-live-more">+{column.orders.length - 8} OT mas</span>}
-                {column.orders.length === 0 && <span className="ot-live-empty">Sin OT</span>}
               </div>
             </article>
           ))}

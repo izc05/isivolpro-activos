@@ -134,13 +134,14 @@ export default function WorkOrderReport() {
       {error && <p className="error-text"><CircleAlert size={16} /> {error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <WorkOrderSection title="Estado del informe" subtitle="Generación y descarga del PDF final" icon={FileText} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+      <WorkOrderSection title="Informe final" subtitle="Genera, guarda y descarga el PDF asociado a esta OT" icon={FileText} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
         <WorkOrderInfoGrid columns={3}>
           <WorkOrderInfoItem label="OT" value={workOrder.codigo_ot || workOrder.id} important />
           <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
           <WorkOrderInfoItem label="Técnico" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} important />
         </WorkOrderInfoGrid>
-        <div className="quick-actions">
+        <p className="ot-context-note">Usa primero “Generar y guardar PDF”. La descarga local tomará la última copia guardada para que el histórico de la OT no quede vacío.</p>
+        <div className="ot-next-actions">
           <button className="primary-button" type="button" disabled={generating} onClick={generateReport}>{generating ? <Loader2 size={18} /> : <FileText size={18} />} Generar y guardar PDF</button>
           <button className="secondary-button" type="button" disabled={generating} onClick={downloadLocal}><Download size={18} /> Descargar copia local</button>
           <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}><ShieldCheck size={18} /> Firma cliente</Link>
@@ -148,7 +149,7 @@ export default function WorkOrderReport() {
         </div>
       </WorkOrderSection>
 
-      <WorkOrderSection title="Informes guardados" subtitle="Histórico de PDFs generados para esta OT" icon={Download} defaultOpen>
+      <WorkOrderSection title="Informes guardados" subtitle="Histórico de PDFs generados para esta OT" icon={Download} badge={`${reports.length}`} defaultOpen={reports.length > 0}>
         <DataTable
           columns={[
             { key: 'created_at', label: 'Fecha', render: (row) => formatDateTime(row.created_at) },
