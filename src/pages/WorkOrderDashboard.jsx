@@ -73,6 +73,15 @@ export default function WorkOrderDashboard() {
         subtitle="Seguimiento operativo de ordenes nuevas, asignadas, en curso, pendientes, finalizadas y validadas."
         action={<Link className="primary-button" to="/ots">Gestionar OT</Link>}
       />
+      <div className="tabs workorder-tabs">
+        <Link className="active" to="/ots-dashboard">Dashboard</Link>
+        <Link to="/ots-control">Control OT</Link>
+        <Link to="/ots-agenda">Agenda OT</Link>
+        <Link to="/ots">Todas</Link>
+        <Link to="/ots-realizadas">OT realizadas</Link>
+        <Link to="/mis-ots">OT asignadas</Link>
+        <Link to="/ots-creadas">Creadas por mi</Link>
+      </div>
       {error && <p className="error-text">{error}</p>}
 
       <WorkOrderStatusOverview orders={orders} />

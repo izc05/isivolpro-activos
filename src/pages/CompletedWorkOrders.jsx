@@ -166,6 +166,8 @@ export default function CompletedWorkOrders() {
       {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
+        <Link to="/ots-control">Control OT</Link>
+        <Link to="/ots-agenda">Agenda OT</Link>
         <Link to="/ots">Todas</Link>
         <Link className="active" to="/ots-realizadas">OT realizadas</Link>
         <Link to="/mis-ots">OT asignadas</Link>

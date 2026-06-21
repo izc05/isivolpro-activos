@@ -91,6 +91,8 @@ export default function MyWorkOrders({ mode = 'mine' }) {
       {canManageWorkOrders && (
         <div className="tabs workorder-tabs">
           <Link to="/ots-dashboard">Dashboard</Link>
+          <Link to="/ots-control">Control OT</Link>
+          <Link to="/ots-agenda">Agenda OT</Link>
           <Link to="/ots">Todas</Link>
           <Link className={!isCreated ? 'active' : ''} to="/mis-ots">OT asignadas</Link>
           <Link className={isCreated ? 'active' : ''} to="/ots-creadas">Creadas por mi</Link>
