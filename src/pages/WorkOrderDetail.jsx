@@ -202,15 +202,8 @@ export default function WorkOrderDetail() {
             <WorkOrderInfoItem label="Notas" value={row.revision_admin_notas || '-'} wide />
           </WorkOrderInfoGrid>
         </div>
-        {statusTransitionHelp(row.estado) && <p className="muted">{statusTransitionHelp(row.estado)}</p>}
+        {statusTransitionHelp(row.estado) && <p className="ot-context-note">{statusTransitionHelp(row.estado)}</p>}
         {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
-        <div className="form-actions ot-action-row">
-          {nextActions.map((status) => (
-            <button key={status} className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'} type="button" onClick={() => changeStatus(status)}>
-              {status === 'REABRIR' ? 'reabrir OT' : statusLabel(status)}
-            </button>
-          ))}
-        </div>
       </WorkOrderSection>
 
       <WorkOrderSection
@@ -250,7 +243,7 @@ export default function WorkOrderDetail() {
         {!canManageWorkOrders && <p className="muted">Solo el administrador puede validar definitivamente la OT.</p>}
       </WorkOrderSection>
 
-      <WorkOrderSection title="Instalación y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen>
+      <WorkOrderSection title="Instalación y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen={false}>
         <WorkOrderInfoGrid columns={4}>
           <WorkOrderInfoItem label="Instalación" value={row.instalaciones?.nombre || '-'} important />
           <WorkOrderInfoItem label="Dirección" value={row.instalaciones?.direccion || '-'} wide />
@@ -303,13 +296,12 @@ export default function WorkOrderDetail() {
       </WorkOrderSection>
 
       <WorkOrderSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
-        <p className="muted">Desde aqui puedes abrir la visita, rellenar el checklist, firmar con el cliente y generar el informe final.</p>
-        <div className="quick-actions">
+        <div className="ot-next-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          {!isClosed && <Link className="secondary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>}
+          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
-          {row.configuracion?.requiere_informe && <Link className="primary-button" to={`/ots/${row.id}/informe`}>PDF informe</Link>}
+          {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
         </div>
       </WorkOrderSection>
 
