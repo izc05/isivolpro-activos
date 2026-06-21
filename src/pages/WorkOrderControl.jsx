@@ -9,6 +9,9 @@ import { listWorkOrders } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 import {
   ACTIVE_WORK_ORDER_STATUSES,
+  CLOSED_WORK_ORDER_STATUSES,
+  FINISHED_WORK_ORDER_STATUSES,
+  OFFICIAL_WORK_ORDER_STATUSES,
   normalizedStatus,
   priorityLabel,
   priorityTone,
@@ -16,8 +19,8 @@ import {
   workOrderTypeLabel
 } from '../utils/workOrderLifecycle';
 
-const STATUS_FILTERS = ['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CERRADA', 'CANCELADA'];
-const LIVE_STATUS_COLUMNS = ['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CERRADA', 'CANCELADA'];
+const STATUS_FILTERS = OFFICIAL_WORK_ORDER_STATUSES;
+const LIVE_STATUS_COLUMNS = OFFICIAL_WORK_ORDER_STATUSES;
 
 export default function WorkOrderControl() {
   const navigate = useNavigate();
@@ -84,7 +87,7 @@ export default function WorkOrderControl() {
         order.assigned?.email
       ].filter(Boolean).join(' ').toLowerCase();
       const matchesSearch = !text || searchable.includes(text);
-      const matchesStatus = filters.status === 'todas' || normalizedStatus(order.estado) === filters.status || order.estado === filters.status;
+      const matchesStatus = filters.status === 'todas' || normalizedStatus(order.estado) === filters.status;
       const technicianId = order.assigned_to || 'sin_asignar';
       const matchesTechnician = filters.technician === 'todos' || technicianId === filters.technician;
       return matchesSearch && matchesStatus && matchesTechnician;
@@ -95,7 +98,7 @@ export default function WorkOrderControl() {
     const open = filteredOrders.filter((order) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))).length;
     const inProgress = filteredOrders.filter((order) => normalizedStatus(order.estado) === 'EN_CURSO').length;
     const pending = filteredOrders.filter((order) => ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(normalizedStatus(order.estado))).length;
-    const unassigned = filteredOrders.filter((order) => !order.assigned_to && !['VALIDADA', 'CERRADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
+    const unassigned = filteredOrders.filter((order) => !order.assigned_to && !CLOSED_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))).length;
     return { total: filteredOrders.length, open, inProgress, pending, unassigned };
   }, [filteredOrders]);
 
@@ -110,7 +113,7 @@ export default function WorkOrderControl() {
 
   const liveStatusColumns = useMemo(() => LIVE_STATUS_COLUMNS.map((status) => ({
     status,
-    orders: filteredOrders.filter((order) => normalizedStatus(order.estado) === status || order.estado === status)
+    orders: filteredOrders.filter((order) => normalizedStatus(order.estado) === status)
   })), [filteredOrders]);
 
   const technicianCards = useMemo(() => {
@@ -126,7 +129,7 @@ export default function WorkOrderControl() {
       };
       entry.total += 1;
       if (ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))) entry.active += 1;
-      if (['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(normalizedStatus(order.estado))) entry.finished += 1;
+      if ([...FINISHED_WORK_ORDER_STATUSES, ...CLOSED_WORK_ORDER_STATUSES].includes(normalizedStatus(order.estado))) entry.finished += 1;
       map.set(id, entry);
     });
     return Array.from(map.values()).sort((a, b) => b.active - a.active || b.total - a.total);

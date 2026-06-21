@@ -231,6 +231,28 @@ function addSummaryCards(doc, y, cards) {
   return y + 30;
 }
 
+function addReportIntro(doc, y, workOrder, generatedAt) {
+  y = addPageIfNeeded(doc, y, 32);
+  setFill(doc, COLORS.primary);
+  setDraw(doc, COLORS.primary);
+  doc.roundedRect(PAGE.margin, y - 6, PAGE.width - PAGE.margin * 2, 27, 2, 2, 'FD');
+  setText(doc, [255, 255, 255]);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Resumen profesional de la intervencion', PAGE.margin + 5, y + 2);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  const summary = [
+    `Cliente / instalacion: ${safeText(workOrder.instalaciones?.nombre)}`,
+    `Activo intervenido: ${safeText(workOrder.activos?.nombre)}`,
+    `Tecnico responsable: ${safeText(workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar')}`,
+    `Generado: ${formatDate(generatedAt)}`
+  ];
+  doc.text(summary, PAGE.margin + 5, y + 8);
+  setText(doc, COLORS.primary);
+  return y + 32;
+}
+
 function addPill(doc, x, y, label, tone) {
   setFill(doc, tone.bg);
   doc.roundedRect(x, y - 5, 30, 7, 3, 3, 'F');
@@ -352,12 +374,13 @@ async function collectReportData(tenantId, workOrderId) {
 
 export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
   const { workOrder, visits, checklist, photosByChecklistId, materials, allPhotos } = await collectReportData(tenantId, workOrderId);
+  const generatedAt = new Date();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const logoDataUrl = await urlToDataUrl(homeserveLogo).catch((error) => {
     console.warn('No se pudo cargar el logo para el PDF', error);
     return '';
   });
-  let y = addHeader(doc, 'Acta final de trabajo realizado', `${workOrder.codigo_ot || workOrder.id} - ${workOrder.titulo}`, logoDataUrl, workOrder);
+  let y = addHeader(doc, 'Informe tecnico de orden de trabajo', `${workOrder.codigo_ot || workOrder.id} - ${workOrder.titulo}`, logoDataUrl, workOrder);
 
   const checklistOk = checklist.filter((item) => item.resultado === 'ok').length;
   y = addSummaryCards(doc, y, [
@@ -366,9 +389,11 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
     { label: 'Fotos', value: String(allPhotos.length || 0), color: COLORS.red },
     { label: 'Materiales', value: String(materials.length || 0), color: COLORS.primary }
   ]);
+  y = addReportIntro(doc, y, workOrder, generatedAt);
 
   y = addSection(doc, y, '1. Datos generales');
   y = addKeyValue(doc, y, 'OT', workOrder.codigo_ot || workOrder.id);
+  y = addKeyValue(doc, y, 'Informe generado', formatDate(generatedAt));
   y = addKeyValue(doc, y, 'Estado', workOrderStatusLabel(workOrder.estado));
   y = addKeyValue(doc, y, 'Tipo', workOrderTypeLabel(workOrder.tipo_ot || workOrder.tipo));
   y = addKeyValue(doc, y, 'Prioridad', priorityLabel(workOrder.prioridad));
@@ -503,7 +528,8 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
 
   addFooter(doc);
   const blob = doc.output('blob');
-  const filename = `acta-final-${workOrder.codigo_ot || workOrder.id}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const stamp = generatedAt.toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  const filename = `OT-${workOrder.codigo_ot || workOrder.id}-informe-${stamp}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '-');
   return { blob, filename, workOrder };
 }
 

@@ -80,7 +80,7 @@ export default function WorkOrderSignature() {
         nombreFirmante,
         dniFirmante
       });
-      setMessage('Firma guardada correctamente. La OT queda marcada como FIRMADA.');
+      setMessage('Firma guardada correctamente. La OT queda finalizada y lista para informe/validacion.');
       signatureRef.current.clear();
       setNombreFirmante('');
       setDniFirmante('');

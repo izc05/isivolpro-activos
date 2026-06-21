@@ -9,7 +9,16 @@ import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders } from '../services/workOrderService';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsUrl } from '../utils/mapUtils';
-import { priorityLabel, priorityTone } from '../utils/workOrderLifecycle';
+import {
+  ACTIVE_WORK_ORDER_STATUSES,
+  CLOSED_WORK_ORDER_STATUSES,
+  FINISHED_WORK_ORDER_STATUSES,
+  OFFICIAL_WORK_ORDER_STATUSES,
+  normalizedStatus,
+  priorityLabel,
+  priorityTone,
+  workOrderStatusLabel
+} from '../utils/workOrderLifecycle';
 
 export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId, activeTenant, activeInstallation, canManageWorkOrders } = useTenant();
@@ -48,7 +57,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
         row.activos?.nombre
       ].filter(Boolean).join(' ').toLowerCase();
       const matchesSearch = !text || searchable.includes(text);
-      const matchesStatus = filters.status === 'todas' || row.estado === filters.status;
+      const matchesStatus = filters.status === 'todas' || normalizedStatus(row.estado) === filters.status;
       const matchesPriority = filters.priority === 'todas' || (row.prioridad || 'normal') === filters.priority;
       return matchesSearch && matchesStatus && matchesPriority;
     });
@@ -56,12 +65,11 @@ export default function MyWorkOrders({ mode = 'mine' }) {
 
   const summary = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const openStatuses = ['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
     return {
-      open: rows.filter((row) => openStatuses.includes(row.estado)).length,
+      open: rows.filter((row) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(row.estado))).length,
       urgent: rows.filter((row) => ['urgente', 'critica'].includes(row.prioridad)).length,
       today: rows.filter((row) => row.fecha_prevista?.slice(0, 10) === today).length,
-      done: rows.filter((row) => ['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(row.estado)).length
+      done: rows.filter((row) => [...FINISHED_WORK_ORDER_STATUSES, ...CLOSED_WORK_ORDER_STATUSES].includes(normalizedStatus(row.estado))).length
     };
   }, [rows]);
 
@@ -125,15 +133,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
             <span><Filter size={15} /> Estado</span>
             <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
               <option value="todas">Todos</option>
-              <option value="NUEVA">Nueva</option>
-              <option value="ASIGNADA">Asignada</option>
-              <option value="ACEPTADA">Aceptada</option>
-              <option value="EN_CURSO">En curso</option>
-              <option value="PENDIENTE_MATERIAL">Pendiente material</option>
-              <option value="PENDIENTE_CLIENTE">Pendiente cliente</option>
-              <option value="FINALIZADA">Finalizada</option>
-              <option value="VALIDADA">Validada</option>
-              <option value="CANCELADA">Cancelada</option>
+              {OFFICIAL_WORK_ORDER_STATUSES.map((status) => <option key={status} value={status}>{workOrderStatusLabel(status)}</option>)}
             </select>
           </label>
           <label>

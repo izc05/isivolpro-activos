@@ -15,7 +15,12 @@ export const LEGACY_STATUS_MAP = {
   ACEPTADA: 'ASIGNADA',
   FIRMADA: 'FINALIZADA',
   INFORME_GENERADO: 'FINALIZADA',
-  CERRADA: 'VALIDADA'
+  CERRADA: 'VALIDADA',
+  CERRADO: 'VALIDADA',
+  NUEVO: 'NUEVA',
+  PENDIENTE: 'NUEVA',
+  SIN_TECNICO: 'NUEVA',
+  SIN_TECNICO_ASIGNADO: 'NUEVA'
 };
 
 export const WORK_ORDER_STATUS_LABELS = {
@@ -66,9 +71,9 @@ export const WORK_ORDER_STATUS_TONES = {
   CANCELADA: 'danger'
 };
 
-export const ACTIVE_WORK_ORDER_STATUSES = ['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
-export const FINISHED_WORK_ORDER_STATUSES = ['FINALIZADA', 'FIRMADA', 'INFORME_GENERADO'];
-export const CLOSED_WORK_ORDER_STATUSES = ['VALIDADA', 'CERRADA', 'CANCELADA'];
+export const ACTIVE_WORK_ORDER_STATUSES = ['NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
+export const FINISHED_WORK_ORDER_STATUSES = ['FINALIZADA'];
+export const CLOSED_WORK_ORDER_STATUSES = ['VALIDADA', 'CANCELADA'];
 
 export const OFFICIAL_WORK_ORDER_PRIORITIES = ['baja', 'normal', 'alta', 'urgente', 'critica'];
 export const WORK_ORDER_PRIORITY_LABELS = {
@@ -121,11 +126,20 @@ export const WORK_ORDER_TYPE_LABELS_OFFICIAL = {
 };
 
 export function normalizedStatus(status = '') {
-  return LEGACY_STATUS_MAP[status] || status;
+  const raw = String(status || '').trim();
+  if (!raw) return '';
+  const key = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return LEGACY_STATUS_MAP[key] || key;
 }
 
 export function workOrderStatusLabel(status = '') {
-  return WORK_ORDER_STATUS_LABELS[status] || statusLabel(status);
+  const normalized = normalizedStatus(status);
+  return WORK_ORDER_STATUS_LABELS[normalized] || WORK_ORDER_STATUS_LABELS[status] || statusLabel(status);
 }
 
 export function statusLabel(status = '') {

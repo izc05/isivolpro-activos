@@ -60,6 +60,19 @@ export default function WorkOrderReport() {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadSavedReport(report) {
+    const url = reportUrls[report.id] || await signedWorkOrderReportUrl(report);
+    if (!url) throw new Error('No se pudo preparar la descarga del informe guardado.');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = report.filename || 'informe-ot.pdf';
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   async function generateReport() {
     if (!activeTenantId || !workOrder) return;
     setError('');
@@ -67,7 +80,7 @@ export default function WorkOrderReport() {
     setGenerating(true);
     try {
       await generateAndUploadWorkOrderPdf(activeTenantId, workOrder.id);
-      setMessage('Informe generado correctamente. La OT queda preparada como finalizada para validacion del administrador.');
+      setMessage('Informe generado y guardado en la OT. Queda disponible en el historico de informes.');
       await refresh();
     } catch (err) {
       try {
@@ -85,12 +98,28 @@ export default function WorkOrderReport() {
   async function downloadLocal() {
     if (!activeTenantId || !workOrder) return;
     setError('');
+    setMessage('');
     setGenerating(true);
     try {
-      const { blob, filename } = await generateWorkOrderPdfBlob(activeTenantId, workOrder.id);
-      downloadBlob(blob, filename);
+      if (reports.length > 0) {
+        await downloadSavedReport(reports[0]);
+        setMessage('Descargando la ultima copia guardada en la OT.');
+        return;
+      }
+      const savedReport = await generateAndUploadWorkOrderPdf(activeTenantId, workOrder.id);
+      const url = await signedWorkOrderReportUrl(savedReport);
+      setReports((current) => [savedReport, ...current]);
+      setReportUrls((current) => ({ ...current, [savedReport.id]: url }));
+      await downloadSavedReport(savedReport);
+      setMessage('No habia informes guardados: se ha generado, guardado en la OT y descargado una copia local.');
     } catch (err) {
-      setError(err.message);
+      try {
+        const { blob, filename } = await generateWorkOrderPdfBlob(activeTenantId, workOrder.id);
+        downloadBlob(blob, filename);
+        setError(`${err.message}. Se ha descargado una copia local sin registro porque no se pudo guardar en la OT.`);
+      } catch (fallbackError) {
+        setError(`${err.message}. Ademas, no se pudo descargar copia local: ${fallbackError.message}`);
+      }
     } finally {
       setGenerating(false);
     }
@@ -125,7 +154,7 @@ export default function WorkOrderReport() {
             { key: 'created_at', label: 'Fecha', render: (row) => formatDateTime(row.created_at) },
             { key: 'filename', label: 'Archivo' },
             { key: 'created_by', label: 'Creado por', render: (row) => row.created_by_profile?.nombre || row.created_by_profile?.email || '-' },
-            { key: 'actions', label: 'Acciones', render: (row) => reportUrls[row.id] ? <a className="secondary-button" href={reportUrls[row.id]} target="_blank" rel="noreferrer">Abrir</a> : '-' }
+            { key: 'actions', label: 'Acciones', render: (row) => reportUrls[row.id] ? <div className="quick-actions"><a className="secondary-button" href={reportUrls[row.id]} target="_blank" rel="noreferrer">Abrir</a><button className="ghost-button" type="button" onClick={() => downloadSavedReport(row)}>Descargar</button></div> : '-' }
           ]}
           rows={reports}
           empty="Todavia no hay informes guardados"

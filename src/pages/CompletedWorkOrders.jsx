@@ -16,10 +16,10 @@ import {
 } from '../services/workOrderService';
 import { generateWorkOrderPdfBlob } from '../services/workOrderPdfService';
 import { formatDateTime } from '../utils/dateUtils';
-import { normalizedStatus, priorityLabel, priorityTone, workOrderTypeLabel } from '../utils/workOrderLifecycle';
+import { FINISHED_WORK_ORDER_STATUSES, CLOSED_WORK_ORDER_STATUSES, normalizedStatus, priorityLabel, priorityTone, workOrderStatusLabel, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 import { supabase } from '../services/supabaseClient';
 
-const DONE_STATUSES = ['FINALIZADA', 'VALIDADA', 'CERRADA', 'FIRMADA', 'INFORME_GENERADO'];
+const DONE_STATUSES = [...FINISHED_WORK_ORDER_STATUSES, ...CLOSED_WORK_ORDER_STATUSES];
 
 export default function CompletedWorkOrders() {
   const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
@@ -43,7 +43,7 @@ export default function CompletedWorkOrders() {
     setError('');
     try {
       const workOrders = await listWorkOrders(activeTenantId);
-      const completed = workOrders.filter((row) => DONE_STATUSES.includes(normalizedStatus(row.estado)) || DONE_STATUSES.includes(row.estado));
+      const completed = workOrders.filter((row) => DONE_STATUSES.includes(normalizedStatus(row.estado)));
       const otIds = completed.map((row) => row.id);
       const [materialsRes, reportsRes, photosRes] = await Promise.all([
         otIds.length ? supabase.from('ot_visita_materiales').select('*').eq('tenant_id', activeTenantId).in('ot_id', otIds) : Promise.resolve({ data: [], error: null }),
@@ -88,7 +88,7 @@ export default function CompletedWorkOrders() {
     return visibleRows.filter((row) => {
       const searchable = `${row.codigo_ot || ''} ${row.titulo || ''} ${row.instalaciones?.nombre || ''} ${row.ubicaciones?.nombre || ''} ${row.activos?.nombre || ''} ${row.assigned?.nombre || ''} ${row.assigned?.email || ''}`.toLowerCase();
       const matchText = !text || searchable.includes(text);
-      const matchStatus = filters.status === 'todas' || normalizedStatus(row.estado) === filters.status || row.estado === filters.status;
+      const matchStatus = filters.status === 'todas' || normalizedStatus(row.estado) === filters.status;
       const dateValue = row.fecha_fin || row.closed_at || row.updated_at || row.created_at;
       const date = dateValue ? new Date(dateValue) : null;
       const matchDate = filters.date === 'todas'
@@ -102,7 +102,7 @@ export default function CompletedWorkOrders() {
   const metrics = useMemo(() => ({
     realizadas: visibleRows.length,
     finalizadas: visibleRows.filter((row) => normalizedStatus(row.estado) === 'FINALIZADA').length,
-    validadas: visibleRows.filter((row) => normalizedStatus(row.estado) === 'VALIDADA' || row.estado === 'CERRADA').length,
+    validadas: visibleRows.filter((row) => normalizedStatus(row.estado) === 'VALIDADA').length,
     materiales: visibleMaterials.length,
     informes: visibleReports.length,
     fotos: visiblePhotos.length
@@ -187,7 +187,7 @@ export default function CompletedWorkOrders() {
       <WorkOrderSection title="Filtros" subtitle="Busca por OT, instalación, activo o técnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, trabajo, instalacion, activo o tecnico" /></label>
-          <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Finalizada</option><option value="VALIDADA">Validada</option><option value="CERRADA">Cerrada</option><option value="FIRMADA">Firmada</option><option value="INFORME_GENERADO">Informe generado</option></select></label>
+          <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option>{DONE_STATUSES.map((status) => <option key={status} value={status}>{workOrderStatusLabel(status)}</option>)}</select></label>
           <label><span>Fecha</span><select value={filters.date} onChange={(event) => setFilters((current) => ({ ...current, date: event.target.value }))}><option value="todas">Todas</option><option value="30">Ultimos 30 dias</option><option value="90">Ultimos 90 dias</option><option value="year">Este ano</option></select></label>
           <label><span>Vista rapida</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todas">Todas</option><option value="FINALIZADA">Pendientes validar</option><option value="VALIDADA">Validadas</option></select></label>
         </div>
