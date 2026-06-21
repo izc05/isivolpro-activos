@@ -1,5 +1,6 @@
 import { ArrowLeft, Building2, CalendarClock, UserRound, Wrench } from 'lucide-react';
 import WorkOrderPriorityBadge from './WorkOrderPriorityBadge';
+import WorkOrderPhotoStrip from './WorkOrderPhotoStrip';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
 import WorkOrderSteps from './WorkOrderSteps';
 import { formatDateTime } from '../../utils/dateUtils';
@@ -28,6 +29,7 @@ export default function WorkOrderPageHeader({ workOrder, titlePrefix = '', onBac
         <span><UserRound size={16} /><b>Técnico</b>{workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'}</span>
         <span><CalendarClock size={16} /><b>Prevista</b>{workOrder.fecha_prevista ? formatDateTime(workOrder.fecha_prevista) : '-'}</span>
       </div>
+      <WorkOrderPhotoStrip workOrder={workOrder} />
       <WorkOrderSteps status={workOrder.estado} />
       {actions && <div className="ot-page-actions">{actions}</div>}
     </section>

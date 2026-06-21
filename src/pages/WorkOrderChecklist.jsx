@@ -396,6 +396,24 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
 
       <div className="workorder-photo-block">
         <h3 className="section-heading"><Camera size={18} /> Fotos del punto</h3>
+        {photos.length > 0 && (
+          <div className="ot-checklist-photo-grid" aria-label="Fotos registradas en este punto">
+            {photos.map((photo) => (
+              <article className="ot-checklist-photo-card" key={photo.id}>
+                {photoUrls[photo.id] ? (
+                  <img src={photoUrls[photo.id]} alt={photo.comentario || photo.file_name || 'Foto OT'} />
+                ) : (
+                  <div className="ot-checklist-photo-loading">Cargando foto...</div>
+                )}
+                <div>
+                  <strong>{photo.comentario || 'Foto sin comentario'}</strong>
+                  <small>{photo.tipo_foto?.replaceAll('_', ' ') || 'foto'} · {new Date(photo.created_at).toLocaleString()}</small>
+                  {photo.created_by_profile && <small>Subida por {photo.created_by_profile.nombre || photo.created_by_profile.email}</small>}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
         <form className="form-grid" onSubmit={submitPhoto}>
           <label className={`photo-uploader ${file ? 'has-file' : ''}`} htmlFor={`photo-input-${item.id}`}>
             <input
@@ -433,23 +451,6 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
             <button className="primary-button" type="submit" disabled={uploading}><Camera size={18} /> {uploading ? 'Subiendo...' : 'Subir foto'}</button>
           </div>
         </form>
-
-        {photos.length > 0 && (
-          <div className="grid" style={{ marginTop: 12 }}>
-            {photos.map((photo) => (
-              <div className="card" key={photo.id}>
-                {photoUrls[photo.id] ? (
-                  <img src={photoUrls[photo.id]} alt={photo.comentario || photo.file_name || 'Foto OT'} style={{ width: '100%', borderRadius: 12, maxHeight: 260, objectFit: 'cover' }} />
-                ) : (
-                  <p className="muted">Cargando foto...</p>
-                )}
-                <p><strong>{photo.comentario || 'Sin comentario'}</strong></p>
-                <p className="muted">{photo.file_name || 'foto'} · {new Date(photo.created_at).toLocaleString()}</p>
-                {photo.created_by_profile && <p className="muted">Subida por {photo.created_by_profile.nombre || photo.created_by_profile.email}</p>}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );
