@@ -1734,6 +1734,39 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
+
+.qr-batch-panel {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+.qr-batch-panel h2 {
+  margin: 4px 0 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--primary);
+  font-size: 20px;
+}
+.qr-batch-controls {
+  min-width: min(360px, 100%);
+  display: grid;
+  gap: 10px;
+}
+.qr-batch-controls .primary-button {
+  justify-content: center;
+}
+@media (max-width: 760px) {
+  .qr-batch-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-batch-controls {
+    min-width: 0;
+  }
+}
 .qr-cascade {
   display: grid;
   gap: 18px;
