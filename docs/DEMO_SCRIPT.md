@@ -1,75 +1,108 @@
-# Guion de demostración
+# Guion de demostracion
 
-## IsiVoltPro Activos QR
+## Objetivo
 
-Este guion sirve para enseñar la aplicación a un cliente de forma ordenada.
+Este guion sirve para enseñar IsiVoltPro Activos QR con ejemplos completos, claros y visuales. La demo debe transmitir tres ideas: el tecnico encuentra informacion rapido, el administrador controla la trazabilidad y el cliente ve un resultado profesional.
 
-## 1. Presentación inicial
+## Escenario demo recomendado
 
-IsiVoltPro Activos QR es una herramienta para organizar la documentación técnica, el historial de mantenimiento y las incidencias de una instalación usando códigos QR o etiquetas NFC.
+Cliente activo: `Comunidad Los Olivos`.
 
-La idea es que el técnico llegue a una instalación, escanee un código y pueda ver de forma rápida la información autorizada: documentos, fotos, equipos, revisiones, incidencias y observaciones.
+Instalaciones de ejemplo:
 
-## 2. Problema habitual
+- `Garaje Comunidad Los Olivos`: inventario base, QR, documentos e incidencia preventiva.
+- `Clinica San Rafael Demo`: activos criticos de PCI y baja tension.
+- `Residencia Virgen del Carmen Demo`: mantenimiento preventivo de ACS y ejemplo de incidencia en curso.
 
-Normalmente la documentación de una instalación está repartida entre carpetas, correos, papeles, fotos del móvil y partes de trabajo. Eso provoca pérdidas de tiempo y dificulta saber qué se ha hecho y cuándo.
+Activos clave:
 
-## 3. Solución propuesta
+- `Bomba achique garaje`: activo con revision proxima y prioridad alta.
+- `Bomba PCI demo`: activo critico con procedimiento tecnico.
+- `Produccion ACS demo`: activo pendiente, ideal para explicar OT, checklist, fotos, firma e informe.
 
-Con IsiVoltPro, cada instalación, ubicación o equipo puede tener su QR o NFC. Al escanearlo, la aplicación muestra solo la información correspondiente y según los permisos del usuario.
+## Flujo de venta
 
-## 4. Demostración paso a paso
+### 1. Contexto
 
-### Paso 1 - Acceso
+Explicar el problema: documentacion repartida entre papeles, correos, fotos de movil y partes de trabajo. El valor de la aplicacion es ordenar ese caos alrededor de instalaciones, ubicaciones, activos y OT.
 
-Mostrar inicio de sesión y explicar que cada usuario entra con su cuenta.
+### 2. Inventario
 
-### Paso 2 - Instalaciones
+Abrir `Instalaciones`, entrar en una instalacion y mostrar:
 
-Mostrar una instalación de ejemplo, como una comunidad, hospital, local o industria.
+- Imagen o contexto visual de la instalacion.
+- Ubicaciones internas.
+- Activos con criticidad, estado y proxima revision.
+- Documentos asociados al activo o instalacion.
 
-### Paso 3 - Ubicaciones
+El ejemplo debe sentirse real: nombre reconocible, activo concreto, estado tecnico y siguiente accion.
 
-Mostrar zonas dentro de la instalación: cuarto eléctrico, sala de bombas, cubierta, garaje, sala técnica, etc.
+### 3. QR
 
-### Paso 4 - Activos
+Abrir `Generador QR` y enseñar que se puede generar QR por instalacion, ubicacion o activo.
 
-Mostrar activos: cuadro eléctrico, bomba, grupo de presión, climatizadora, extintor, acumulador, etc.
+Mensaje clave: el QR no contiene datos sensibles; solo apunta a un recurso protegido por permisos.
 
-### Paso 5 - Documentación
+### 4. Incidencias
 
-Mostrar cómo se vinculan documentos técnicos: manuales, esquemas, certificados, fotos o instrucciones.
+Abrir `Incidencias` y mostrar una incidencia ya creada. Despues explicar que puede convertirse en OT para que no se quede como aviso suelto.
 
-### Paso 6 - Incidencias
+Ejemplo recomendado: `Temperatura ACS irregular`.
 
-Registrar una incidencia de ejemplo con descripción y fotografía.
+### 5. OT
 
-### Paso 7 - QR/NFC
+Abrir el bloque OT en este orden:
 
-Mostrar cómo un QR lleva directamente al recurso correspondiente, siempre pasando por control de permisos.
+1. `Dashboard OT`: vision global sin depender del cliente o instalacion seleccionada.
+2. `Agenda OT`: planificacion por calendario.
+3. `Todas las OT`: listado operativo.
+4. Detalle de una OT: estado, activo, instalacion, tecnico, requisitos.
+5. `Checklist`: puntos, observaciones y fotos.
+6. `Firma cliente`.
+7. `Informe PDF`.
 
-### Paso 8 - Seguridad
+Mensaje clave: la OT no es solo un parte; es un expediente tecnico completo.
 
-Explicar que el QR no contiene información sensible, solo un token opaco. La información real está protegida por permisos.
+### 6. Mantenimiento
 
-## 5. Cierre comercial
+Abrir `Panel mantenimiento` y explicar la diferencia:
 
-IsiVoltPro permite ahorrar tiempo, mejorar la trazabilidad, reducir papel y facilitar que cualquier técnico autorizado encuentre la información correcta en el sitio correcto.
+- Plan de mantenimiento: que toca hacer.
+- Mantenimiento programado: cuando toca hacerlo.
+- OT: ejecucion real.
+- Historial: resultado consolidado.
 
-## 6. Preguntas frecuentes
+### 7. Cierre
 
-### ¿El cliente puede ver todo?
+Cerrar con una frase simple: IsiVoltPro reduce busquedas, mejora evidencias y deja un historico tecnico ordenado por instalacion y activo.
 
-No necesariamente. Se pueden asignar permisos por rol.
+## Checklist de calidad de cada ejemplo
 
-### ¿El QR contiene documentos?
+Antes de enseñar una pantalla, confirmar:
 
-No. El QR solo identifica el recurso. Los documentos están protegidos dentro del sistema.
+- Tiene un nombre realista, no generico.
+- Tiene una instalacion y ubicacion asociadas.
+- Tiene un activo concreto cuando aplica.
+- Tiene estado, prioridad o criticidad visibles.
+- Tiene siguiente accion o fecha prevista.
+- Tiene al menos un documento, foto, historial, incidencia u OT relacionada.
+- No muestra cajas vacias sin explicacion.
+- No depende de datos de otro cliente para entenderse.
 
-### ¿Se puede usar con NFC?
+## Preguntas frecuentes
 
-Sí. El mismo enlace o identificador puede grabarse en una etiqueta NFC.
+### El cliente puede ver todo?
 
-### ¿Se puede personalizar?
+No necesariamente. La visibilidad depende del rol y de los permisos.
 
-Sí. El sistema puede adaptarse a mantenimiento eléctrico, climatización, PCI, legionella, comunidades, hospitales o empresas.
+### El QR contiene documentos?
+
+No. El QR identifica el recurso; los documentos y fotos se sirven desde Storage privado con control de permisos.
+
+### Se puede usar con NFC?
+
+Si. El mismo enlace del QR puede grabarse en una etiqueta NFC.
+
+### Se puede personalizar?
+
+Si. El modelo encaja con mantenimiento electrico, climatizacion, PCI, ACS, comunidades, hospitales, residencias o empresas multisede.
