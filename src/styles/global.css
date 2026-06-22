@@ -1426,6 +1426,123 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
 .status-cancelada .ot-live-card {
   border-left-color: #b42318;
 }
+.ot-checklist-workspace {
+  display: grid;
+  gap: 16px;
+}
+.ot-checklist-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.ot-checklist-toolbar h2 {
+  margin: 3px 0 4px;
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.14;
+}
+.ot-checklist-toolbar p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+.ot-checklist-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.workorder-progress.compact {
+  margin: 0;
+}
+.ot-subscreen-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.ot-subscreen-tabs button {
+  min-width: 0;
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+}
+.ot-subscreen-tabs button svg {
+  color: #647086;
+  flex: 0 0 auto;
+}
+.ot-subscreen-tabs button span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ot-subscreen-tabs button strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+.ot-subscreen-tabs button small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ot-subscreen-tabs button.active {
+  border-color: #f0aaa3;
+  background: #fff3f1;
+  box-shadow: inset 4px 0 0 var(--primary-2);
+}
+.ot-subscreen-tabs button.active svg,
+.ot-subscreen-tabs button.active strong {
+  color: #a9362f;
+}
+.ot-subscreen-panel {
+  display: grid;
+  gap: 14px;
+}
+.ot-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 14px;
+}
+.ot-panel-heading h3 {
+  margin: 0 0 4px;
+  color: var(--primary);
+  font-size: 18px;
+}
+.ot-panel-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+.ot-summary-grid {
+  align-items: start;
+}
+.ot-checklist-empty {
+  box-shadow: none;
+  border-style: dashed;
+}
+.ot-close-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .ot-dashboard-panel {
   min-width: 0;
   display: grid;
@@ -3674,6 +3791,21 @@ select {
   .ot-field-card .quick-actions > *,
   .ot-installation-panel .quick-actions > * { flex: 1 1 100%; }
   .ot-map-frame { min-height: 230px; }
+  .ot-checklist-toolbar,
+  .ot-panel-heading {
+    display: grid;
+  }
+  .ot-checklist-toolbar-actions,
+  .ot-close-actions {
+    width: 100%;
+  }
+  .ot-checklist-toolbar-actions > *,
+  .ot-close-actions > * {
+    flex: 1 1 0;
+  }
+  .ot-subscreen-tabs {
+    grid-template-columns: 1fr;
+  }
   .users-summary-card { grid-template-columns: 1fr; }
   .role-guide-card { grid-template-columns: 1fr; }
   .pending-invitation-card .quick-actions > * { flex: 1 1 100%; }

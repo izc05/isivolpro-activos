@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleAlert, ImagePlus, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { Camera, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, X } from 'lucide-react';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
-import WorkOrderSection, { WorkOrderSectionHeader } from '../components/WorkOrders/WorkOrderSection';
+import { WorkOrderSectionHeader } from '../components/WorkOrders/WorkOrderSection';
 import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
 import { useTenant } from '../hooks/useTenant';
 import {
@@ -38,6 +38,12 @@ const RESULT_BADGES = {
 
 const newItemInitial = { descripcion: '', requiere_foto: false };
 
+const CHECKLIST_PANELS = [
+  { key: 'checklist', label: 'Checklist', subtitle: 'Puntos y fotos', icon: ListChecks },
+  { key: 'resumen', label: 'Resumen', subtitle: 'Estado de avance', icon: ClipboardCheck },
+  { key: 'cierre', label: 'Cierre', subtitle: 'Firma e informe', icon: FileSignature }
+];
+
 export default function WorkOrderChecklist() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -52,6 +58,7 @@ export default function WorkOrderChecklist() {
   const [loading, setLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState('Preparando checklist...');
   const [savingId, setSavingId] = useState('');
+  const [activePanel, setActivePanel] = useState('checklist');
 
   async function refresh() {
     if (tenantLoading) return;
@@ -167,69 +174,123 @@ export default function WorkOrderChecklist() {
         </div>
       )}
 
-      <section className="card workorder-command ot-command-panel">
-        <div className="grid two">
+      <section className="card ot-checklist-workspace">
+        <div className="ot-checklist-toolbar">
           <div>
-            <WorkOrderSectionHeader title="Resumen" subtitle="Avance del checklist de la OT" icon={Save} />
-            <div className="workorder-progress" aria-label={`Progreso ${progress.percent}%`}>
-              <span style={{ width: `${progress.percent}%` }} />
-            </div>
-            <WorkOrderInfoGrid columns={2}>
-              <WorkOrderInfoItem label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
-              <WorkOrderInfoItem label="Progreso" value={`${progress.done}/${progress.total} (${progress.percent}%)`} important />
-              <WorkOrderInfoItem label="Instalación" value={workOrder.instalaciones?.nombre || '-'} />
-              <WorkOrderInfoItem label="Activo" value={workOrder.activos?.nombre || '-'} />
-              <WorkOrderInfoItem label="OK" value={progress.ok} />
-              <WorkOrderInfoItem label="No OK" value={progress.failed} important={progress.failed > 0} />
-            </WorkOrderInfoGrid>
+            <span className="eyebrow">Checklist de trabajo</span>
+            <h2>{workOrder.codigo_ot || workOrder.titulo}</h2>
+            <p>{workOrder.instalaciones?.nombre || 'Sin instalacion'} - {workOrder.activos?.nombre || 'Sin activo'} - {progress.done}/{progress.total} completados</p>
           </div>
-          <div>
-            <WorkOrderSectionHeader title="Visita asociada" subtitle="Respuestas y fotos vinculadas a una intervención" icon={RefreshCw} />
-            <FormField label="Asignar respuestas y fotos a visita">
-              <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
-                <option value="">Sin visita concreta</option>
-                {visits.map((visit) => (
-                  <option key={visit.id} value={visit.id}>{new Date(visit.fecha_inicio).toLocaleString()} - {visit.estado}</option>
-                ))}
-              </select>
-            </FormField>
-            <p className="muted">Se preselecciona la visita en curso para que el tecnico no tenga que elegir identificadores manualmente.</p>
-            <div className="quick-actions">
-              <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Completar base</button>
-              <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Añadir punto</button>
-            </div>
+          <div className="ot-checklist-toolbar-actions">
+            <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Base</button>
+            <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Punto</button>
           </div>
         </div>
-      </section>
 
-      <div className="checklist-stack" style={{ marginTop: 16 }}>
-        {items.length === 0 && (
-          <section className="card empty-state">
-            <strong>Esta OT todavia no tiene checklist.</strong>
-            <span>Genera una plantilla base o añade puntos manualmente para empezar la visita.</span>
-            <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>
-          </section>
+        <div className="workorder-progress compact" aria-label={`Progreso ${progress.percent}%`}>
+          <span style={{ width: `${progress.percent}%` }} />
+        </div>
+
+        <div className="ot-subscreen-tabs" role="tablist" aria-label="Bloques del checklist">
+          {CHECKLIST_PANELS.map((panel) => {
+            const Icon = panel.icon;
+            return (
+              <button
+                key={panel.key}
+                type="button"
+                className={activePanel === panel.key ? 'active' : ''}
+                onClick={() => setActivePanel(panel.key)}
+                role="tab"
+                aria-selected={activePanel === panel.key}
+              >
+                <Icon size={18} />
+                <span>
+                  <strong>{panel.label}</strong>
+                  <small>{panel.subtitle}</small>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activePanel === 'checklist' && (
+          <div className="ot-subscreen-panel">
+            <div className="ot-panel-heading">
+              <div>
+                <h3>Puntos del checklist</h3>
+                <p>Registra resultado, observaciones y fotos sin mezclarlo con el cierre de la OT.</p>
+              </div>
+              <span className="badge">{items.length} punto(s)</span>
+            </div>
+            {items.length === 0 && (
+              <section className="empty-state ot-checklist-empty">
+                <strong>Esta OT todavia no tiene checklist.</strong>
+                <span>Genera una plantilla base o añade puntos manualmente para empezar la visita.</span>
+                <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>
+              </section>
+            )}
+            <div className="checklist-stack">
+              {items.map((item) => (
+                <ChecklistItemCard
+                  key={item.id}
+                  item={item}
+                  workOrder={workOrder}
+                  selectedVisitId={selectedVisitId}
+                  saving={savingId === item.id}
+                  onUpdate={updateItem}
+                />
+              ))}
+            </div>
+          </div>
         )}
-        {items.map((item) => (
-          <ChecklistItemCard
-            key={item.id}
-            item={item}
-            workOrder={workOrder}
-            selectedVisitId={selectedVisitId}
-            saving={savingId === item.id}
-            onUpdate={updateItem}
-          />
-        ))}
-      </div>
 
-      <WorkOrderSection title="Siguiente bloque" subtitle="Firma e informe de la intervención" icon={Save} defaultOpen={false}>
-        <p className="muted">Cuando todos los puntos esten revisados, pasa a firma del cliente y genera el PDF final.</p>
-        <div className="quick-actions">
-          <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
-          <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
-          <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
-        </div>
-      </WorkOrderSection>
+        {activePanel === 'resumen' && (
+          <div className="ot-subscreen-panel">
+            <div className="grid two ot-summary-grid">
+              <div>
+                <WorkOrderSectionHeader title="Resumen" subtitle="Avance del checklist de la OT" icon={Save} />
+                <WorkOrderInfoGrid columns={2}>
+                  <WorkOrderInfoItem label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
+                  <WorkOrderInfoItem label="Progreso" value={`${progress.done}/${progress.total} (${progress.percent}%)`} important />
+                  <WorkOrderInfoItem label="Instalacion" value={workOrder.instalaciones?.nombre || '-'} />
+                  <WorkOrderInfoItem label="Activo" value={workOrder.activos?.nombre || '-'} />
+                  <WorkOrderInfoItem label="OK" value={progress.ok} />
+                  <WorkOrderInfoItem label="No OK" value={progress.failed} important={progress.failed > 0} />
+                </WorkOrderInfoGrid>
+              </div>
+              <div>
+                <WorkOrderSectionHeader title="Visita asociada" subtitle="Respuestas y fotos vinculadas a una intervencion" icon={RefreshCw} />
+                <FormField label="Asignar respuestas y fotos a visita">
+                  <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
+                    <option value="">Sin visita concreta</option>
+                    {visits.map((visit) => (
+                      <option key={visit.id} value={visit.id}>{new Date(visit.fecha_inicio).toLocaleString()} - {visit.estado}</option>
+                    ))}
+                  </select>
+                </FormField>
+                <p className="muted">Se preselecciona la visita en curso para que el tecnico no tenga que elegir identificadores manualmente.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activePanel === 'cierre' && (
+          <div className="ot-subscreen-panel">
+            <div className="ot-panel-heading">
+              <div>
+                <h3>Siguiente bloque</h3>
+                <p>Cuando los puntos esten revisados, pasa a firma del cliente y genera el PDF final.</p>
+              </div>
+              <WorkOrderStatusBadge status={workOrder.estado} />
+            </div>
+            <div className="ot-close-actions">
+              <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
+              <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
+              <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
+            </div>
+          </div>
+        )}
+      </section>
 
       <Modal title="Añadir punto al checklist" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid" onSubmit={submitNewItem}>
