@@ -8,6 +8,7 @@ import OfflineBanner from './OfflineBanner';
 import InstallAppButton from './InstallAppButton';
 import NotificationBell from './NotificationBell';
 import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal.png';
+import GlobalSearch from '../Search/GlobalSearch';
 
 const mainNavItems = [
   { to: '/dashboard', label: 'Inicio', icon: BarChart3, permission: 'admin' },
@@ -208,6 +209,7 @@ export default function AppLayout() {
             </div>
           )}
           {isGlobalWorkOrderView && <div className="topbar-global-context">Vista global OT · Sin filtro de cliente o instalacion</div>}
+          {!useTechnicianMobileShell && <GlobalSearch tenantId={activeTenantId} />}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <NotificationBell />
           <InstallAppButton />
