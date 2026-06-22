@@ -831,6 +831,33 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   gap: 10px;
   flex-wrap: wrap;
 }
+.assigned-ot-time-cue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid #dbe3ee;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.assigned-ot-time-cue.warn {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+.assigned-ot-time-cue.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
+.assigned-ot-time-cue.ok {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #047857;
+}
 .assigned-ot-heading { justify-content: space-between; }
 .assigned-ot-code {
   font-weight: 900;

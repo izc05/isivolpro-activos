@@ -20,6 +20,28 @@ import {
   workOrderStatusLabel
 } from '../utils/workOrderLifecycle';
 
+function dayStart(date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function scheduleCue(value) {
+  if (!value) return { label: 'Sin fecha', tone: '' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { label: 'Sin fecha', tone: '' };
+
+  const today = dayStart(new Date());
+  const target = dayStart(date);
+  const diffDays = Math.round((target - today) / 86400000);
+
+  if (diffDays < 0) return { label: 'Vencida', tone: 'danger' };
+  if (diffDays === 0) return { label: 'Hoy', tone: 'warn' };
+  if (diffDays === 1) return { label: 'Mañana', tone: 'ok' };
+  if (diffDays <= 7) return { label: `En ${diffDays} días`, tone: '' };
+  return { label: 'Próxima', tone: '' };
+}
+
 export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId, activeTenant, activeInstallation, canManageWorkOrders } = useTenant();
   const [rows, setRows] = useState([]);
@@ -188,6 +210,7 @@ function AssignedWorkOrderCards({ rows }) {
       {rows.map((row) => {
         const mapsUrl = buildMapsUrl(row.instalaciones);
         const phone = row.instalaciones?.contacto_telefono;
+        const cue = scheduleCue(row.fecha_prevista);
         return (
           <article className="assigned-ot-card" key={row.id}>
             <WorkOrderThumbnail row={row} compact />
@@ -199,6 +222,7 @@ function AssignedWorkOrderCards({ rows }) {
               <h2>{row.titulo}</h2>
               <div className="assigned-ot-meta">
                 <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad || 'normal')}</span>
+                <span className={`assigned-ot-time-cue ${cue.tone}`}>{cue.label}</span>
                 <span>{row.fecha_prevista ? formatDateTime(row.fecha_prevista) : 'Sin fecha prevista'}</span>
               </div>
               <div className="assigned-ot-place">
