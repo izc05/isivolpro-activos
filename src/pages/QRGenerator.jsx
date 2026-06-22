@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Download, FileText } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import QRCodeCard from '../components/QR/QRCodeCard';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
+import { downloadBlob, generateQrBatchPdf } from '../services/qrBatchService';
 
 const LEVELS = {
   instalacion: 'Instalacion',
@@ -18,6 +20,10 @@ export default function QRGenerator() {
   const [level, setLevel] = useState('instalacion');
   const [selectedId, setSelectedId] = useState(activeInstallationId || '');
   const [qrKind, setQrKind] = useState('internal');
+  const [batchMode, setBatchMode] = useState('cascade');
+  const [batchMessage, setBatchMessage] = useState('');
+  const [batchError, setBatchError] = useState('');
+  const [batchLoading, setBatchLoading] = useState(false);
 
   const visibleInstallations = useMemo(() => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations, [installations, activeInstallationId]);
   const visibleLocations = useMemo(() => activeInstallationId ? locations.filter((item) => item.instalacion_id === activeInstallationId) : locations, [locations, activeInstallationId]);
@@ -47,6 +53,27 @@ export default function QRGenerator() {
     ];
   }, [selected, level, visibleLocations, visibleAssets, qrKind]);
 
+  const batchItems = useMemo(() => {
+    if (batchMode === 'selected' && selected) {
+      return [{ id: selected.id, title: selected.nombre, subtitle: subtitleFor(selected), token: selected.qr_token, type: LEVELS[level] }];
+    }
+
+    if (batchMode === 'cascade' && selected && level === 'instalacion') {
+      return [
+        { id: selected.id, title: selected.nombre, subtitle: qrKind === 'public-incident' ? 'Aviso externo instalacion' : 'QR general instalacion', token: selected.qr_token, type: 'Instalacion' },
+        ...cascade
+      ];
+    }
+
+    return options.map((item) => ({
+      id: item.id,
+      title: item.nombre,
+      subtitle: subtitleFor(item),
+      token: item.qr_token,
+      type: LEVELS[level]
+    }));
+  }, [batchMode, selected, level, qrKind, cascade, options]);
+
   function changeLevel(nextLevel) {
     setLevel(nextLevel);
     setSelectedId(nextLevel === 'instalacion' && activeInstallationId ? activeInstallationId : '');
@@ -58,6 +85,25 @@ export default function QRGenerator() {
     if (level === 'instalacion') return `${prefix} de instalacion`;
     if (level === 'ubicacion') return `${prefix} - ${item.instalaciones?.nombre || 'ubicacion'}`;
     return `${prefix} - ${[item.instalaciones?.nombre, item.ubicaciones?.nombre].filter(Boolean).join(' - ') || 'activo'}`;
+  }
+
+  async function downloadBatchPdf() {
+    setBatchMessage('');
+    setBatchError('');
+    setBatchLoading(true);
+    try {
+      const { blob, filename, count } = await generateQrBatchPdf({
+        items: batchItems,
+        kind: qrKind,
+        title: batchMode === 'cascade' && selected ? `QR ${selected.nombre}` : `QR ${LEVELS[level]}`
+      });
+      downloadBlob(blob, filename);
+      setBatchMessage(`PDF generado con ${count} QR.`);
+    } catch (err) {
+      setBatchError(err.message);
+    } finally {
+      setBatchLoading(false);
+    }
   }
 
   return (
@@ -81,6 +127,29 @@ export default function QRGenerator() {
         </div>
         {selected && <QRCodeCard token={selected.qr_token} title={selected.nombre} subtitle={subtitleFor(selected)} kind={qrKind} />}
       </div>
+
+      <section className="card qr-batch-panel">
+        <div>
+          <span className="section-eyebrow">Impresion por lotes</span>
+          <h2><FileText size={20} /> Hoja PDF de etiquetas QR</h2>
+          <p className="muted">Genera una hoja A4 con etiquetas QR listas para imprimir. Usa el mismo tipo de QR seleccionado arriba.</p>
+        </div>
+        <div className="qr-batch-controls">
+          <label className="form-field">
+            <span>Contenido del PDF</span>
+            <select value={batchMode} onChange={(event) => setBatchMode(event.target.value)}>
+              <option value="selected">Solo el QR seleccionado</option>
+              {level === 'instalacion' && <option value="cascade">Instalacion seleccionada + ubicaciones + activos</option>}
+              <option value="visible">Todos los {LEVELS[level].toLowerCase()} visibles</option>
+            </select>
+          </label>
+          <button className="primary-button" type="button" onClick={downloadBatchPdf} disabled={batchLoading || batchItems.length === 0}>
+            <Download size={18} /> {batchLoading ? 'Generando...' : `Descargar PDF (${batchItems.length})`}
+          </button>
+        </div>
+        {batchMessage && <p className="success-text">{batchMessage}</p>}
+        {batchError && <p className="error-text">{batchError}</p>}
+      </section>
 
       {level === 'instalacion' && selected && (
         <section className="section-stack">
