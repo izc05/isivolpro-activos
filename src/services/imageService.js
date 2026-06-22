@@ -7,16 +7,29 @@ import salaTecnicaImage from '../assets/demo/sala-tecnica.jpg';
 
 const DEMO_ENTITY_IMAGES = {
   instalacion: {
+    'garaje comunidad los olivos': comunidadLosOlivosImage,
     'clinica san rafael demo': clinicaSanRafaelImage,
     'clinica san rafael': clinicaSanRafaelImage,
+    'residencia virgen del carmen demo': residenciaJardinImage,
+    'residencia virgen del carmen': residenciaJardinImage,
     'comunidad los olivos': comunidadLosOlivosImage,
     'residencia jardin': residenciaJardinImage
   },
   ubicacion: {
+    'cuarto electrico': salaTecnicaImage,
     'sala pci': salaTecnicaImage,
     'sala sai': salaTecnicaImage,
+    'sala de produccion acs': salaTecnicaImage,
     'cubierta climatizacion': salaTecnicaImage,
     'zona principal': comunidadLosOlivosImage
+  },
+  activo: {
+    'cuadro general garaje': salaTecnicaImage,
+    'bomba achique garaje': salaTecnicaImage,
+    'grupo presion agua': salaTecnicaImage,
+    'bomba pci demo': salaTecnicaImage,
+    'cuadro general bt demo': salaTecnicaImage,
+    'produccion acs demo': salaTecnicaImage
   }
 };
 

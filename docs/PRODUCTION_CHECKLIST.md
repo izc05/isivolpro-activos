@@ -32,6 +32,8 @@ Lista de comprobación antes de presentar la aplicación a clientes reales o usa
 
 - [ ] Revisar migraciones SQL.
 - [ ] Crear datos de prueba realistas.
+- [ ] Confirmar que los ejemplos demo cubren comunidad, clinica/residencia, activos criticos, documentos, incidencias, mantenimiento y OT.
+- [ ] Confirmar que ningun ejemplo visible queda vacio sin accion, historial, documento o explicacion.
 - [ ] Probar soft delete.
 - [ ] Probar auditoría de accesos.
 - [ ] Probar invitaciones de usuarios.
