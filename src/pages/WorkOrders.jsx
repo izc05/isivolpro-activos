@@ -39,7 +39,7 @@ function requirementsForType(type) {
 }
 
 function buildInitialForm(activeInstallationId = '') {
-  const tipo = 'preventiva';
+  const tipo = 'mantenimiento_preventivo';
   return {
     instalacion_id: activeInstallationId || '',
     ubicacion_id: '',
