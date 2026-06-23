@@ -196,7 +196,7 @@ export default function WorkOrders() {
     setOpen(true);
   }
 
-  async function submit(event, status) {
+  async function submit(event, status, options = {}) {
     event.preventDefault();
     if (saving) return;
     setError('');
@@ -211,9 +211,11 @@ export default function WorkOrders() {
       await refresh().catch((refreshError) => {
         console.warn('No se pudo refrescar el listado de OT tras crear la orden', refreshError);
       });
-      const successMessage = finalStatus === 'BORRADOR' ? 'Borrador de OT guardado correctamente.' : 'Orden de trabajo creada y asignada correctamente.';
+      const successMessage = options.destination === 'checklist'
+        ? 'Orden de trabajo creada. Prepara el checklist antes de enviarla al técnico.'
+        : finalStatus === 'BORRADOR' ? 'Borrador de OT guardado correctamente.' : 'Orden de trabajo creada y asignada correctamente.';
       setMessage(successMessage);
-      navigate(`/ots/${created.id}`, { state: { message: successMessage } });
+      navigate(options.destination === 'checklist' ? `/ots/${created.id}/checklist` : `/ots/${created.id}`, { state: { message: successMessage } });
     } catch (err) {
       setError(friendlyCreateError(err));
     } finally {
@@ -292,7 +294,7 @@ export default function WorkOrders() {
       />
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
-        <form className="form-grid workorder-form" onSubmit={(event) => submit(event)}>
+        <form className="form-grid workorder-form" onSubmit={(event) => submit(event, 'BORRADOR', { destination: 'checklist' })}>
           <WorkOrderSection title="1. Destino" subtitle="Instalación, ubicación y activo" icon={ClipboardCheck} defaultOpen>
             <div className="grid two">
               <FormField label="Instalacion obligatoria"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId)}><option value="">Seleccionar</option>{visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
@@ -332,7 +334,8 @@ export default function WorkOrders() {
           <div className="form-actions">
             <button className="ghost-button" type="button" disabled={saving} onClick={() => setOpen(false)}>Cancelar</button>
             <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, 'BORRADOR')}>Guardar borrador</button>
-            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y asignar' : 'Crear como nueva'}</button>
+            <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, form.assigned_to ? 'ASIGNADA' : 'NUEVA')}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y asignar ahora' : 'Crear como nueva'}</button>
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear y preparar checklist'}</button>
           </div>
         </form>
       </Modal>
