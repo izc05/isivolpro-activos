@@ -300,10 +300,13 @@ export default function WorkOrderDetail() {
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </WorkOrderSection>
 
-      <WorkOrderSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title="Trabajo en campo" subtitle="Ejecución de la intervención, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+        <p className="ot-field-work-note">
+          La intervención es el parte de campo del técnico: abrir o continuar visita, registrar tiempos, observaciones, materiales, fotos y resultado. El checklist queda como bloque de comprobaciones.
+        </p>
         <div className="ot-next-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>}
+          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}

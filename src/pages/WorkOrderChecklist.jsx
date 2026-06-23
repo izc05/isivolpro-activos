@@ -109,7 +109,7 @@ export default function WorkOrderChecklist() {
 
   const status = normalizedStatus(workOrder?.estado);
   const isPreparation = ['BORRADOR', 'NUEVA'].includes(status);
-  const canEditDefinition = Boolean(canManageWorkOrders && isPreparation);
+  const canEditDefinition = Boolean(canManageWorkOrders && !['VALIDADA', 'CANCELADA'].includes(status));
 
   async function generateDefaultChecklist() {
     if (!workOrder) return;
@@ -349,7 +349,7 @@ export default function WorkOrderChecklist() {
               <WorkOrderStatusBadge status={workOrder.estado} />
             </div>
             <div className="ot-close-actions">
-              <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Abrir visita</Link>
+              <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Registrar intervención</Link>
               <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
               <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
             </div>

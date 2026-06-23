@@ -242,7 +242,7 @@ function AssignedWorkOrderCards({ rows }) {
               <div className="quick-actions">
                 {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Ruta</a>}
                 {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
-                <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>
+                <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>
               </div>
             </div>
           </article>

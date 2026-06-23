@@ -152,6 +152,18 @@
   border-radius: 8px;
   background: #f8fafc;
   box-shadow: 0 8px 18px rgba(42, 49, 64, .05);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.ot-photo-tile:hover,
+.ot-photo-tile:focus-visible {
+  border-color: #ef5a50;
+  box-shadow: 0 14px 28px rgba(42, 49, 64, .12);
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .ot-photo-tile img {
@@ -194,6 +206,95 @@
 .ot-photo-tile small {
   color: rgba(255, 255, 255, .86);
   font-size: 12px;
+}
+
+.ot-photo-tile em {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .92);
+  color: #b42318;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .12);
+}
+
+.ot-photo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ot-photo-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, .68);
+  cursor: zoom-out;
+}
+
+.ot-photo-overlay-panel {
+  position: relative;
+  width: min(980px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .26);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, .38);
+}
+
+.ot-photo-overlay-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 16px;
+}
+
+.ot-photo-overlay-panel h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.ot-photo-overlay-panel p {
+  margin: 4px 0 0;
+  color: #52637a;
+  font-weight: 750;
+}
+
+.ot-photo-overlay-panel img {
+  width: 100%;
+  max-height: calc(92vh - 96px);
+  object-fit: contain;
+  background: #0f172a;
+}
+
+.ot-field-work-note {
+  margin: 0 0 12px;
+  border: 1px solid #dbeafe;
+  border-left: 4px solid #ef5a50;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #334155;
+  padding: 12px 14px;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .ot-checklist-photo-grid {
