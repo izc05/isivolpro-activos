@@ -176,8 +176,14 @@ export async function createWorkOrder(tenantId, payload) {
   const normalized = normalizePayload(payload);
   const { data, error } = await supabase.from('ordenes_trabajo').insert({ tenant_id: tenantId, ...normalized, created_by: userId }).select().single();
   if (error) throw error;
-  if (normalized.configuracion?.requiere_checklist !== false) await ensureDefaultChecklist(data);
-  await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: data.id, metadata: { status: data.estado, type: data.tipo } });
+  if (normalized.configuracion?.requiere_checklist !== false) {
+    await ensureDefaultChecklist(data).catch((checklistError) => {
+      console.warn('No se pudo crear el checklist base de la OT', checklistError);
+    });
+  }
+  await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: data.id, metadata: { status: data.estado, type: data.tipo } }).catch((auditError) => {
+    console.warn('No se pudo registrar auditoria de creacion de OT', auditError);
+  });
   return data;
 }
 

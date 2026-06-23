@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Mail, Navigation, PackagePlus, Phone, ShieldCheck } from 'lucide-react';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -44,6 +44,7 @@ const EMPTY_REVIEW_DATA = { checklist: [], visits: [], materials: [], photos: []
 export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { activeTenantId, canManageWorkOrders } = useTenant();
   const [row, setRow] = useState(null);
   const [reviewData, setReviewData] = useState(EMPTY_REVIEW_DATA);
@@ -80,6 +81,10 @@ export default function WorkOrderDetail() {
   useEffect(() => {
     refresh();
   }, [activeTenantId, id]);
+
+  useEffect(() => {
+    if (location.state?.message) setMessage(location.state.message);
+  }, [location.state]);
 
   const isClosed = row ? isWorkOrderClosed(row) : false;
   const materials = reviewData.materials || [];

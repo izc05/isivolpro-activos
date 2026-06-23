@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -10,7 +10,7 @@ import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
-import { createWorkOrder, defaultRequirementsForType, ensureDefaultChecklist, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
+import { createWorkOrder, defaultRequirementsForType, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
 import { softDeleteWorkOrder } from '../services/workOrderDeleteService';
 import { listTenantMembers } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -64,8 +64,14 @@ function buildInitialForm(activeInstallationId = '') {
   };
 }
 
+function friendlyCreateError(error) {
+  console.error('Error creando OT', error);
+  return 'No se ha podido completar la creación de la orden de trabajo. Revise los datos o inténtelo nuevamente.';
+}
+
 export default function WorkOrders() {
   const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
+  const navigate = useNavigate();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -80,13 +86,14 @@ export default function WorkOrders() {
   const [filters, setFilters] = useState({ search: '', status: 'todos', priority: 'todas', type: 'todos' });
 
   async function refresh() {
-    if (!activeTenantId) return;
+    if (!activeTenantId) return [];
     const [workOrders, tenantMembers] = await Promise.all([
       listWorkOrders(activeTenantId),
       listTenantMembers(activeTenantId)
     ]);
     setRows(workOrders);
     setMembers(tenantMembers);
+    return workOrders;
   }
 
   useEffect(() => {
@@ -191,6 +198,7 @@ export default function WorkOrders() {
 
   async function submit(event, status) {
     event.preventDefault();
+    if (saving) return;
     setError('');
     setMessage('');
     setSaving(true);
@@ -198,13 +206,16 @@ export default function WorkOrders() {
       const finalStatus = status || (form.assigned_to ? 'ASIGNADA' : 'NUEVA');
       const payload = { ...form, instalacion_id: form.instalacion_id || activeInstallationId, estado: finalStatus };
       const created = await createWorkOrder(activeTenantId, payload);
-      if (payload.configuracion?.requiere_checklist) await ensureDefaultChecklist(created);
       setForm(buildInitialForm(activeInstallationId));
       setOpen(false);
-      await refresh();
-      setMessage(finalStatus === 'BORRADOR' ? 'Borrador de OT guardado.' : 'OT creada correctamente.');
+      await refresh().catch((refreshError) => {
+        console.warn('No se pudo refrescar el listado de OT tras crear la orden', refreshError);
+      });
+      const successMessage = finalStatus === 'BORRADOR' ? 'Borrador de OT guardado correctamente.' : 'Orden de trabajo creada y asignada correctamente.';
+      setMessage(successMessage);
+      navigate(`/ots/${created.id}`, { state: { message: successMessage } });
     } catch (err) {
-      setError(err.message);
+      setError(friendlyCreateError(err));
     } finally {
       setSaving(false);
     }
@@ -319,7 +330,7 @@ export default function WorkOrders() {
           </WorkOrderSection>
 
           <div className="form-actions">
-            <button className="ghost-button" type="button" onClick={() => setOpen(false)}>Cancelar</button>
+            <button className="ghost-button" type="button" disabled={saving} onClick={() => setOpen(false)}>Cancelar</button>
             <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, 'BORRADOR')}>Guardar borrador</button>
             <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y asignar' : 'Crear como nueva'}</button>
           </div>
