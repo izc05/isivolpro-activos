@@ -142,8 +142,25 @@ async function currentUserId() {
   return data.user?.id || null;
 }
 
-export async function listWorkOrders(tenantId) {
-  const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(id,tenant_id,nombre), activos(id,tenant_id,nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+export async function listWorkOrders(tenantId, options = {}) {
+  const userId = options.onlyMine || options.createdByMe ? await currentUserId() : null;
+  let query = supabase
+    .from('ordenes_trabajo')
+    .select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(id,tenant_id,nombre), activos(id,tenant_id,nombre), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email)')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+
+  if (options.onlyMine) {
+    if (!userId) return [];
+    query = query.eq('assigned_to', userId);
+  }
+
+  if (options.createdByMe) {
+    if (!userId) return [];
+    query = query.eq('created_by', userId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -294,3 +311,4 @@ export async function signedChecklistPhotoUrl(photo, expiresIn = 600) {
   if (!photo?.bucket || !photo?.path) return '';
   return createSignedUrl({ tenantId: photo.tenant_id, bucket: photo.bucket, path: photo.path, entityType: 'ot_foto', entityId: photo.id, expiresIn });
 }
+

@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Security/ProtectedRoute';
-import { AdminRoute, HomeRedirect, InventoryRoute, WorkOrderManagerRoute } from './components/Security/RoleRoute';
+import { AdminRoute, CoordinatorRoute, HomeRedirect, IncidentRoute, InventoryRoute, MaintenanceRoute, OcaRoute, TechnicianRoute, WorkOrderManagerRoute } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
 import AuthCallback from './pages/AuthCallback';
@@ -66,45 +66,45 @@ export default function App() {
       <Route path="/qr-no-valido" element={<InvalidQr />} />
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<HomeRedirect />} />
-        <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+        <Route path="dashboard" element={<CoordinatorRoute><Dashboard /></CoordinatorRoute>} />
         <Route path="scanner" element={<QRScanner />} />
         <Route path="clientes" element={<AdminRoute><Clients /></AdminRoute>} />
         <Route path="instalaciones" element={<InventoryRoute><Installations /></InventoryRoute>} />
-        <Route path="instalaciones/:id" element={<InstallationDetail />} />
+        <Route path="instalaciones/:id" element={<InventoryRoute><InstallationDetail /></InventoryRoute>} />
         <Route path="ubicaciones" element={<InventoryRoute><Locations /></InventoryRoute>} />
-        <Route path="ubicaciones/:id" element={<LocationDetail />} />
+        <Route path="ubicaciones/:id" element={<InventoryRoute><LocationDetail /></InventoryRoute>} />
         <Route path="activos" element={<InventoryRoute><Assets /></InventoryRoute>} />
-        <Route path="activos/:id" element={<AssetDetail />} />
+        <Route path="activos/:id" element={<InventoryRoute><AssetDetail /></InventoryRoute>} />
         <Route path="documentos" element={<InventoryRoute><Documents /></InventoryRoute>} />
         <Route path="videos" element={<InventoryRoute><Videos /></InventoryRoute>} />
         <Route path="fotos" element={<InventoryRoute><Photos /></InventoryRoute>} />
-        <Route path="mantenimiento" element={<InventoryRoute><MaintenanceDashboard /></InventoryRoute>} />
-        <Route path="mantenimiento/planes" element={<InventoryRoute><MaintenancePlans /></InventoryRoute>} />
-        <Route path="mantenimiento/planes/:id" element={<InventoryRoute><MaintenancePlanDetail /></InventoryRoute>} />
-        <Route path="mantenimiento/calendario" element={<InventoryRoute><MaintenanceCalendar /></InventoryRoute>} />
-        <Route path="mantenimiento/pendientes" element={<InventoryRoute><PendingMaintenance /></InventoryRoute>} />
-        <Route path="mantenimiento/correctivos" element={<InventoryRoute><CorrectiveMaintenance /></InventoryRoute>} />
-        <Route path="mantenimiento/historial" element={<InventoryRoute><MaintenanceHistory /></InventoryRoute>} />
-        <Route path="oca" element={<InventoryRoute><OcaDashboard /></InventoryRoute>} />
-        <Route path="oca/inspecciones" element={<InventoryRoute><OcaInspections /></InventoryRoute>} />
-        <Route path="oca/inspecciones/nueva" element={<InventoryRoute><OcaInspectionDetail mode="new" /></InventoryRoute>} />
-        <Route path="oca/inspecciones/:id" element={<InventoryRoute><OcaInspectionDetail /></InventoryRoute>} />
-        <Route path="oca/vencimientos" element={<InventoryRoute><OcaDueDates /></InventoryRoute>} />
-        <Route path="oca/incidencias" element={<InventoryRoute><OcaIncidents /></InventoryRoute>} />
-        <Route path="oca/documentacion" element={<InventoryRoute><OcaDocuments /></InventoryRoute>} />
+        <Route path="mantenimiento" element={<MaintenanceRoute><MaintenanceDashboard /></MaintenanceRoute>} />
+        <Route path="mantenimiento/planes" element={<MaintenanceRoute><MaintenancePlans /></MaintenanceRoute>} />
+        <Route path="mantenimiento/planes/:id" element={<MaintenanceRoute><MaintenancePlanDetail /></MaintenanceRoute>} />
+        <Route path="mantenimiento/calendario" element={<MaintenanceRoute><MaintenanceCalendar /></MaintenanceRoute>} />
+        <Route path="mantenimiento/pendientes" element={<MaintenanceRoute><PendingMaintenance /></MaintenanceRoute>} />
+        <Route path="mantenimiento/correctivos" element={<MaintenanceRoute><CorrectiveMaintenance /></MaintenanceRoute>} />
+        <Route path="mantenimiento/historial" element={<MaintenanceRoute><MaintenanceHistory /></MaintenanceRoute>} />
+        <Route path="oca" element={<OcaRoute><OcaDashboard /></OcaRoute>} />
+        <Route path="oca/inspecciones" element={<OcaRoute><OcaInspections /></OcaRoute>} />
+        <Route path="oca/inspecciones/nueva" element={<OcaRoute><OcaInspectionDetail mode="new" /></OcaRoute>} />
+        <Route path="oca/inspecciones/:id" element={<OcaRoute><OcaInspectionDetail /></OcaRoute>} />
+        <Route path="oca/vencimientos" element={<OcaRoute><OcaDueDates /></OcaRoute>} />
+        <Route path="oca/incidencias" element={<OcaRoute><OcaIncidents /></OcaRoute>} />
+        <Route path="oca/documentacion" element={<OcaRoute><OcaDocuments /></OcaRoute>} />
         <Route path="ots-dashboard" element={<WorkOrderManagerRoute><WorkOrderDashboard /></WorkOrderManagerRoute>} />
         <Route path="ots-control" element={<WorkOrderManagerRoute><WorkOrderControl /></WorkOrderManagerRoute>} />
         <Route path="ots-agenda" element={<WorkOrderManagerRoute><WorkOrderAgenda /></WorkOrderManagerRoute>} />
         <Route path="ots" element={<WorkOrderManagerRoute><WorkOrders /></WorkOrderManagerRoute>} />
         <Route path="ots-realizadas" element={<WorkOrderManagerRoute><CompletedWorkOrders /></WorkOrderManagerRoute>} />
-        <Route path="mis-ots" element={<MyWorkOrders />} />
+        <Route path="mis-ots" element={<TechnicianRoute><MyWorkOrders /></TechnicianRoute>} />
         <Route path="ots-creadas" element={<WorkOrderManagerRoute><MyWorkOrders mode="created" /></WorkOrderManagerRoute>} />
-        <Route path="ots/:id" element={<WorkOrderDetail />} />
-        <Route path="ots/:id/visita" element={<WorkOrderVisit />} />
-        <Route path="ots/:id/checklist" element={<WorkOrderChecklist />} />
-        <Route path="ots/:id/firma" element={<WorkOrderSignature />} />
-        <Route path="ots/:id/informe" element={<WorkOrderReport />} />
-        <Route path="incidencias" element={<Incidents />} />
+        <Route path="ots/:id" element={<TechnicianRoute><WorkOrderDetail /></TechnicianRoute>} />
+        <Route path="ots/:id/visita" element={<TechnicianRoute><WorkOrderVisit /></TechnicianRoute>} />
+        <Route path="ots/:id/checklist" element={<TechnicianRoute><WorkOrderChecklist /></TechnicianRoute>} />
+        <Route path="ots/:id/firma" element={<TechnicianRoute><WorkOrderSignature /></TechnicianRoute>} />
+        <Route path="ots/:id/informe" element={<TechnicianRoute><WorkOrderReport /></TechnicianRoute>} />
+        <Route path="incidencias" element={<IncidentRoute><Incidents /></IncidentRoute>} />
         <Route path="qr" element={<AdminRoute><QRGenerator /></AdminRoute>} />
         <Route path="usuarios-panel" element={<AdminRoute><UserModule /></AdminRoute>} />
         <Route path="usuarios/:memberId" element={<AdminRoute><UserDetail /></AdminRoute>} />
@@ -117,3 +117,5 @@ export default function App() {
     </Routes>
   );
 }
+
+
