@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { Camera, CircleAlert, ClipboardCheck, FileImage, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, Settings2, X } from 'lucide-react';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -39,7 +39,9 @@ const RESULT_BADGES = {
 const newItemInitial = { descripcion: '', requiere_foto: false };
 
 const CHECKLIST_PANELS = [
-  { key: 'checklist', label: 'Checklist', subtitle: 'Puntos y fotos', icon: ListChecks },
+  { key: 'preparacion', label: 'Preparacion', subtitle: 'Visita y base', icon: Settings2 },
+  { key: 'checklist', label: 'Checklist', subtitle: 'Puntos de control', icon: ListChecks },
+  { key: 'evidencias', label: 'Evidencias', subtitle: 'Fotos requeridas', icon: FileImage },
   { key: 'resumen', label: 'Resumen', subtitle: 'Estado de avance', icon: ClipboardCheck },
   { key: 'cierre', label: 'Cierre', subtitle: 'Firma e informe', icon: FileSignature }
 ];
@@ -58,7 +60,12 @@ export default function WorkOrderChecklist() {
   const [loading, setLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState('Preparando checklist...');
   const [savingId, setSavingId] = useState('');
-  const [activePanel, setActivePanel] = useState('checklist');
+  const [activePanel, setActivePanel] = useState('preparacion');
+
+  async function ensureAndLoadChecklist(orderData) {
+    await ensureDefaultChecklist(orderData);
+    return listWorkOrderChecklist(orderData.tenant_id, orderData.id);
+  }
 
   async function refresh() {
     if (tenantLoading) return;
@@ -74,7 +81,7 @@ export default function WorkOrderChecklist() {
       const orderData = await getWorkOrder(activeTenantId, id);
       setLoadingStep('Preparando checklist base...');
       const [checklistData, visitData] = await Promise.all([
-        ensureDefaultChecklist(orderData),
+        ensureAndLoadChecklist(orderData),
         listWorkOrderVisits(activeTenantId, id)
       ]);
       setWorkOrder(orderData);
@@ -98,15 +105,33 @@ export default function WorkOrderChecklist() {
     const done = items.filter((item) => item.resultado !== 'pendiente').length;
     const failed = items.filter((item) => item.resultado === 'no_ok').length;
     const ok = items.filter((item) => item.resultado === 'ok').length;
-    return { total, done, failed, ok, percent: total ? Math.round((done / total) * 100) : 0 };
+    const photoRequired = items.filter((item) => item.requiere_foto).length;
+    const pending = total - done;
+    return { total, done, failed, ok, pending, photoRequired, percent: total ? Math.round((done / total) * 100) : 0 };
   }, [items]);
+
+  const activeVisit = useMemo(
+    () => visits.find((visit) => visit.id === selectedVisitId) || visits.find((visit) => visit.estado === 'EN_CURSO') || visits[0],
+    [visits, selectedVisitId]
+  );
+
+  const evidenceItems = useMemo(() => items.filter((item) => item.requiere_foto), [items]);
+
+  const panelStatus = {
+    preparacion: selectedVisitId ? 'Visita elegida' : visits.length ? 'Elegir visita' : 'Sin visita',
+    checklist: progress.total ? `${progress.done}/${progress.total}` : 'Sin base',
+    evidencias: `${progress.photoRequired} foto(s)`,
+    resumen: `${progress.percent}%`,
+    cierre: progress.pending === 0 && progress.total > 0 ? 'Listo' : 'Pendiente'
+  };
 
   async function generateDefaultChecklist() {
     if (!workOrder) return;
     setError('');
     try {
-      const data = await ensureDefaultChecklist(workOrder);
+      const data = await ensureAndLoadChecklist(workOrder);
       setItems(data);
+      setActivePanel('checklist');
     } catch (err) {
       setError(err.message);
     }
@@ -191,6 +216,11 @@ export default function WorkOrderChecklist() {
           <span style={{ width: `${progress.percent}%` }} />
         </div>
 
+        <div className="ot-flow-current">
+          <strong>Paso actual: {CHECKLIST_PANELS.find((panel) => panel.key === activePanel)?.label}</strong>
+          <span>{panelStatus[activePanel]}</span>
+        </div>
+
         <div className="ot-subscreen-tabs" role="tablist" aria-label="Bloques del checklist">
           {CHECKLIST_PANELS.map((panel) => {
             const Icon = panel.icon;
@@ -208,10 +238,50 @@ export default function WorkOrderChecklist() {
                   <strong>{panel.label}</strong>
                   <small>{panel.subtitle}</small>
                 </span>
+                <em>{panelStatus[panel.key]}</em>
               </button>
             );
           })}
         </div>
+
+        {activePanel === 'preparacion' && (
+          <div className="ot-subscreen-panel">
+            <div className="ot-panel-heading">
+              <div>
+                <h3>Preparar trabajo</h3>
+                <p>Antes de responder puntos, confirma la visita asociada y que la plantilla base esta cargada.</p>
+              </div>
+              <span className="badge">{items.length ? 'Base cargada' : 'Sin base'}</span>
+            </div>
+            <div className="grid two ot-summary-grid">
+              <div className="ot-step-card">
+                <WorkOrderSectionHeader title="Visita asociada" subtitle="Donde se guardaran respuestas y fotos" icon={RefreshCw} />
+                <FormField label="Asignar respuestas y fotos a visita">
+                  <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
+                    <option value="">Sin visita concreta</option>
+                    {visits.map((visit) => (
+                      <option key={visit.id} value={visit.id}>{new Date(visit.fecha_inicio).toLocaleString()} - {visit.estado}</option>
+                    ))}
+                  </select>
+                </FormField>
+                <p className="muted">{activeVisit ? `Seleccionada: ${new Date(activeVisit.fecha_inicio).toLocaleString()} - ${activeVisit.estado}` : 'No hay visitas registradas para esta OT.'}</p>
+              </div>
+              <div className="ot-step-card">
+                <WorkOrderSectionHeader title="Plantilla y puntos" subtitle="Base del checklist de esta OT" icon={ListChecks} />
+                <WorkOrderInfoGrid columns={2}>
+                  <WorkOrderInfoItem label="Puntos" value={progress.total} important />
+                  <WorkOrderInfoItem label="Pendientes" value={progress.pending} important={progress.pending > 0} />
+                  <WorkOrderInfoItem label="Fotos requeridas" value={progress.photoRequired} />
+                  <WorkOrderInfoItem label="Estado OT" value={<WorkOrderStatusBadge status={workOrder.estado} />} />
+                </WorkOrderInfoGrid>
+                <div className="quick-actions">
+                  <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Completar base</button>
+                  <button className="primary-button" type="button" onClick={() => setActivePanel('checklist')}>Ir al checklist</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activePanel === 'checklist' && (
           <div className="ot-subscreen-panel">
@@ -244,6 +314,38 @@ export default function WorkOrderChecklist() {
           </div>
         )}
 
+        {activePanel === 'evidencias' && (
+          <div className="ot-subscreen-panel">
+            <div className="ot-panel-heading">
+              <div>
+                <h3>Evidencias fotograficas</h3>
+                <p>Revisa que los puntos que requieren foto tengan evidencia antes de pasar a firma e informe.</p>
+              </div>
+              <span className="badge">{progress.photoRequired} requerido(s)</span>
+            </div>
+            {evidenceItems.length === 0 ? (
+              <section className="empty-state ot-checklist-empty">
+                <strong>No hay fotos obligatorias en este checklist.</strong>
+                <span>Si necesitas documentar una evidencia, marca un punto como "requiere foto" o sube fotos opcionales desde el punto.</span>
+                <button className="secondary-button" type="button" onClick={() => setActivePanel('checklist')}>Volver a puntos</button>
+              </section>
+            ) : (
+              <div className="ot-evidence-list">
+                {evidenceItems.map((item) => (
+                  <button className="ot-evidence-row" type="button" key={item.id} onClick={() => setActivePanel('checklist')}>
+                    <Camera size={18} />
+                    <span>
+                      <strong>{item.punto}. {item.descripcion}</strong>
+                      <small>{RESULT_LABELS[item.resultado] || item.resultado} - abre el punto para ver o subir fotos</small>
+                    </span>
+                    <span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activePanel === 'resumen' && (
           <div className="ot-subscreen-panel">
             <div className="grid two ot-summary-grid">
@@ -259,16 +361,17 @@ export default function WorkOrderChecklist() {
                 </WorkOrderInfoGrid>
               </div>
               <div>
-                <WorkOrderSectionHeader title="Visita asociada" subtitle="Respuestas y fotos vinculadas a una intervencion" icon={RefreshCw} />
-                <FormField label="Asignar respuestas y fotos a visita">
-                  <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)}>
-                    <option value="">Sin visita concreta</option>
-                    {visits.map((visit) => (
-                      <option key={visit.id} value={visit.id}>{new Date(visit.fecha_inicio).toLocaleString()} - {visit.estado}</option>
-                    ))}
-                  </select>
-                </FormField>
-                <p className="muted">Se preselecciona la visita en curso para que el tecnico no tenga que elegir identificadores manualmente.</p>
+                <WorkOrderSectionHeader title="Lectura rapida" subtitle="Que falta antes de cerrar" icon={ClipboardCheck} />
+                <WorkOrderInfoGrid columns={2}>
+                  <WorkOrderInfoItem label="Pendientes" value={progress.pending} important={progress.pending > 0} />
+                  <WorkOrderInfoItem label="Fotos requeridas" value={progress.photoRequired} />
+                  <WorkOrderInfoItem label="Visita" value={activeVisit ? activeVisit.estado : 'Sin visita'} />
+                  <WorkOrderInfoItem label="No OK" value={progress.failed} important={progress.failed > 0} />
+                </WorkOrderInfoGrid>
+                <div className="quick-actions">
+                  <button className="secondary-button" type="button" onClick={() => setActivePanel('preparacion')}>Preparacion</button>
+                  <button className="primary-button" type="button" onClick={() => setActivePanel(progress.pending ? 'checklist' : 'cierre')}>{progress.pending ? 'Seguir checklist' : 'Ir a cierre'}</button>
+                </div>
               </div>
             </div>
           </div>

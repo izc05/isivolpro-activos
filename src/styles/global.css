@@ -1296,9 +1296,30 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
 .workorder-progress.compact {
   margin: 0;
 }
+.ot-flow-current {
+  min-height: 42px;
+  border: 1px solid #c9e8f2;
+  border-radius: 8px;
+  background: #f0fbff;
+  color: #075985;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.ot-flow-current strong {
+  color: #075985;
+  font-size: 14px;
+}
+.ot-flow-current span {
+  color: #075985;
+  font-size: 12px;
+  font-weight: 900;
+}
 .ot-subscreen-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 .ot-subscreen-tabs button {
@@ -1312,6 +1333,7 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  position: relative;
   text-align: left;
 }
 .ot-subscreen-tabs button svg {
@@ -1331,6 +1353,22 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ot-subscreen-tabs button em {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  max-width: 80px;
+  border-radius: 999px;
+  background: white;
+  color: #526070;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1371,15 +1409,68 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
 .ot-summary-grid {
   align-items: start;
 }
+.ot-step-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
 .ot-checklist-empty {
   box-shadow: none;
   border-style: dashed;
+}
+.ot-evidence-list {
+  display: grid;
+  gap: 10px;
+}
+.ot-evidence-row {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--primary);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  text-align: left;
+}
+.ot-evidence-row:hover {
+  border-color: #f0aaa3;
+  background: #fffafa;
+}
+.ot-evidence-row > svg {
+  color: #a9362f;
+}
+.ot-evidence-row span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ot-evidence-row strong,
+.ot-evidence-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ot-evidence-row small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 .ot-close-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+@media (max-width: 1280px) {
+  .ot-subscreen-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .ot-dashboard-panel {
   min-width: 0;
