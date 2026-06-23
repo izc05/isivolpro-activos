@@ -219,6 +219,7 @@ export async function listWorkOrders(tenantId, options = {}) {
   if (options.onlyMine) {
     if (!userId) return [];
     query = query.eq('assigned_to', userId);
+    query = query.neq('estado', 'BORRADOR');
   }
 
   if (options.createdByMe) {
@@ -262,7 +263,7 @@ export async function createWorkOrder(tenantId, payload) {
 export async function seedChecklist(tenantId, workOrderId, type = 'mantenimiento', createdBy = null) {
   const existing = await supabase.from('ot_checklist_respuestas').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('ot_id', workOrderId);
   if (existing.error) throw existing.error;
-  if ((existing.count || 0) > 0) return [];
+  if ((existing.count || 0) > 0) return listWorkOrderChecklist(tenantId, workOrderId);
   const items = checklistTemplateForType(type).map((item, index) => ({ tenant_id: tenantId, ot_id: workOrderId, orden: index + 1, punto: item.punto, descripcion: item.descripcion, requiere_foto: item.requiere_foto, created_by: createdBy }));
   const { data, error } = await supabase.from('ot_checklist_respuestas').insert(items).select();
   if (error) throw error;
@@ -337,10 +338,17 @@ export async function listWorkOrderChecklist(tenantId, workOrderId) {
 
 export async function updateChecklistItem(item, payload) {
   await assertWorkOrderOpen(item.tenant_id, item.ot_id);
-  const { data, error } = await supabase.from('ot_checklist_respuestas').update({ visita_id: payload.visita_id || item.visita_id || null, resultado: payload.resultado || item.resultado || 'pendiente', observacion: payload.observacion || null, requiere_foto: Boolean(payload.requiere_foto), medicion_valor: payload.medicion_valor || null, accion_realizada: payload.accion_realizada || null, defecto: payload.defecto || null, estado_despues: payload.estado_despues || null, recomendacion: payload.recomendacion || null, updated_at: new Date().toISOString() }).eq('id', item.id).eq('tenant_id', item.tenant_id).select().single();
+  const { data, error } = await supabase.from('ot_checklist_respuestas').update({ visita_id: payload.visita_id || item.visita_id || null, punto: payload.punto || item.punto, descripcion: payload.descripcion ?? item.descripcion, resultado: payload.resultado || item.resultado || 'pendiente', observacion: payload.observacion || null, requiere_foto: Boolean(payload.requiere_foto), medicion_valor: payload.medicion_valor || null, accion_realizada: payload.accion_realizada || null, defecto: payload.defecto || null, estado_despues: payload.estado_despues || null, recomendacion: payload.recomendacion || null, updated_at: new Date().toISOString() }).eq('id', item.id).eq('tenant_id', item.tenant_id).select().single();
   if (error) throw error;
   await logAudit({ tenantId: item.tenant_id, action: 'update_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: item.id, metadata: { otId: item.ot_id, result: payload.resultado } });
   return data;
+}
+
+export async function deleteChecklistItem(item) {
+  await assertWorkOrderOpen(item.tenant_id, item.ot_id);
+  const { error } = await supabase.from('ot_checklist_respuestas').delete().eq('id', item.id).eq('tenant_id', item.tenant_id);
+  if (error) throw error;
+  await logAudit({ tenantId: item.tenant_id, action: 'delete_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: item.id, metadata: { otId: item.ot_id } });
 }
 
 export async function listChecklistPhotos(tenantId, checklistItemId) {
