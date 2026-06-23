@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, X } from 'lucide-react';
+import { Camera, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -11,6 +11,7 @@ import { useTenant } from '../hooks/useTenant';
 import {
   CHECKLIST_RESULTS,
   createChecklistItem,
+  deleteChecklistItem,
   ensureDefaultChecklist,
   getWorkOrder,
   listChecklistPhotos,
@@ -21,6 +22,8 @@ import {
   updateChecklistItem,
   uploadChecklistPhoto
 } from '../services/workOrderService';
+import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
+import { normalizedStatus } from '../utils/workOrderLifecycle';
 
 const RESULT_LABELS = {
   pendiente: 'Pendiente',
@@ -47,7 +50,7 @@ const CHECKLIST_PANELS = [
 export default function WorkOrderChecklist() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeTenantId, loading: tenantLoading } = useTenant();
+  const { activeTenantId, canManageWorkOrders, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [items, setItems] = useState([]);
   const [visits, setVisits] = useState([]);
@@ -55,9 +58,12 @@ export default function WorkOrderChecklist() {
   const [open, setOpen] = useState(false);
   const [newItem, setNewItem] = useState(newItemInitial);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState('Preparando checklist...');
   const [savingId, setSavingId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
+  const [sending, setSending] = useState(false);
   const [activePanel, setActivePanel] = useState('checklist');
 
   async function refresh() {
@@ -72,9 +78,9 @@ export default function WorkOrderChecklist() {
     setError('');
     try {
       const orderData = await getWorkOrder(activeTenantId, id);
-      setLoadingStep('Preparando checklist base...');
+      setLoadingStep('Cargando puntos del checklist...');
       const [checklistData, visitData] = await Promise.all([
-        ensureDefaultChecklist(orderData),
+        listWorkOrderChecklist(activeTenantId, id),
         listWorkOrderVisits(activeTenantId, id)
       ]);
       setWorkOrder(orderData);
@@ -101,12 +107,17 @@ export default function WorkOrderChecklist() {
     return { total, done, failed, ok, percent: total ? Math.round((done / total) * 100) : 0 };
   }, [items]);
 
+  const status = normalizedStatus(workOrder?.estado);
+  const isPreparation = ['BORRADOR', 'NUEVA'].includes(status);
+  const canEditDefinition = Boolean(canManageWorkOrders && isPreparation);
+
   async function generateDefaultChecklist() {
     if (!workOrder) return;
     setError('');
     try {
       const data = await ensureDefaultChecklist(workOrder);
       setItems(data);
+      setMessage('Plantilla base preparada. Puedes ajustar, quitar o añadir puntos antes de enviar la OT.');
     } catch (err) {
       setError(err.message);
     }
@@ -136,10 +147,50 @@ export default function WorkOrderChecklist() {
     try {
       const created = await createChecklistItem(workOrder, { ...newItem, visita_id: selectedVisitId || null });
       setItems((current) => [...current, created]);
+      setMessage('Punto añadido al checklist.');
       setNewItem(newItemInitial);
       setOpen(false);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function deleteItem(item) {
+    if (!window.confirm(`Eliminar el punto "${item.descripcion}" del checklist?`)) return;
+    setDeletingId(item.id);
+    setError('');
+    try {
+      await deleteChecklistItem(item);
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      setMessage('Punto eliminado del checklist.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingId('');
+    }
+  }
+
+  async function sendToTechnician() {
+    if (!workOrder) return;
+    if (items.length === 0) {
+      setError('Prepara al menos un punto de checklist antes de enviar la OT.');
+      return;
+    }
+    if (!workOrder.assigned_to) {
+      setError('Asigna un técnico a la OT antes de enviarla.');
+      return;
+    }
+    setSending(true);
+    setError('');
+    setMessage('');
+    try {
+      const updated = await updateWorkOrderLifecycleStatus(workOrder, 'ASIGNADA');
+      setWorkOrder((current) => ({ ...current, ...updated }));
+      setMessage('OT enviada al técnico con el checklist preparado.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
     }
   }
 
@@ -173,6 +224,7 @@ export default function WorkOrderChecklist() {
           <button className="secondary-button" type="button" onClick={refresh}><RefreshCw size={18} /> Reintentar</button>
         </div>
       )}
+      {message && <p className="success-text">{message}</p>}
 
       <section className="card ot-checklist-workspace">
         <div className="ot-checklist-toolbar">
@@ -186,6 +238,16 @@ export default function WorkOrderChecklist() {
             <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Punto</button>
           </div>
         </div>
+
+        {canManageWorkOrders && isPreparation && (
+          <div className="workorder-alert info">
+            <ClipboardCheck size={20} />
+            <p>Checklist en preparación. Ajusta las preguntas de esta OT antes de enviarla al técnico.</p>
+            <button className="primary-button" type="button" disabled={sending || items.length === 0} onClick={sendToTechnician}>
+              <Send size={18} /> {sending ? 'Enviando...' : 'Enviar al técnico'}
+            </button>
+          </div>
+        )}
 
         <div className="workorder-progress compact" aria-label={`Progreso ${progress.percent}%`}>
           <span style={{ width: `${progress.percent}%` }} />
@@ -237,7 +299,10 @@ export default function WorkOrderChecklist() {
                   workOrder={workOrder}
                   selectedVisitId={selectedVisitId}
                   saving={savingId === item.id}
+                  deleting={deletingId === item.id}
+                  canEditDefinition={canEditDefinition}
                   onUpdate={updateItem}
+                  onDelete={deleteItem}
                 />
               ))}
             </div>
@@ -311,7 +376,8 @@ export default function WorkOrderChecklist() {
   );
 }
 
-function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate }) {
+function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting, canEditDefinition, onUpdate, onDelete }) {
+  const [description, setDescription] = useState(item.descripcion || '');
   const [observation, setObservation] = useState(item.observacion || '');
   const [photos, setPhotos] = useState([]);
   const [photoUrls, setPhotoUrls] = useState({});
@@ -330,8 +396,9 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
+    setDescription(item.descripcion || '');
     setObservation(item.observacion || '');
-  }, [item.observacion]);
+  }, [item.descripcion, item.observacion]);
 
   useEffect(() => {
     setExtra({
@@ -417,6 +484,11 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
         badge={<span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>}
       />
       <div className="form-grid">
+        {canEditDefinition && (
+          <FormField label="Pregunta o comprobación">
+            <textarea rows="2" value={description} onChange={(event) => setDescription(event.target.value)} onBlur={() => onUpdate(item, { descripcion: description, observacion: observation })} />
+          </FormField>
+        )}
         <FormField label="Resultado">
           <select value={item.resultado} disabled={saving} onChange={(event) => onUpdate(item, { resultado: event.target.value, observacion: observation })}>
             {CHECKLIST_RESULTS.map((result) => <option key={result} value={result}>{RESULT_LABELS[result]}</option>)}
@@ -451,6 +523,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, onUpdate 
           </FormField>
         )}
         <div className="form-actions">
+          {canEditDefinition && <button className="danger-button" type="button" disabled={deleting} onClick={() => onDelete(item)}><Trash2 size={18} /> {deleting ? 'Eliminando...' : 'Eliminar punto'}</button>}
           <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation, ...extra })}><Save size={18} /> Guardar punto</button>
         </div>
       </div>
