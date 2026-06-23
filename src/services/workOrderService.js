@@ -132,14 +132,58 @@ function isMissingConfigurationColumn(error) {
   return text.includes('configuracion') && (text.includes('pgrst204') || text.includes('schema cache') || text.includes('could not find'));
 }
 
-function withoutConfiguration(payload) {
-  const { configuracion, ...rest } = payload;
-  return rest;
+function isLegacyWorkOrderSchemaError(error) {
+  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  const modernColumns = ['configuracion', 'tipo_ot', 'sintomas', 'trabajo_solicitado', 'instrucciones_tecnico', 'resultado_esperado', 'fecha_limite', 'duracion_estimada_minutos'];
+  return isMissingConfigurationColumn(error)
+    || (modernColumns.some((column) => text.includes(column)) && (text.includes('pgrst204') || text.includes('schema cache') || text.includes('could not find')))
+    || text.includes('ordenes_trabajo_tipo_check')
+    || text.includes('ordenes_trabajo_prioridad_check')
+    || text.includes('ordenes_trabajo_estado_check');
+}
+
+function legacyWorkOrderType(type) {
+  const normalized = normalizeWorkOrderType(type);
+  if (['revision', 'instalacion', 'inspeccion'].includes(normalized)) return normalized;
+  if (['diagnostico', 'reparacion', 'urgencia', 'mantenimiento_correctivo'].includes(normalized)) return 'averia';
+  if (['mantenimiento_preventivo', 'seguimiento', 'verificacion_funcionamiento', 'medicion'].includes(normalized)) return 'mantenimiento';
+  return 'otro';
+}
+
+function legacyPriority(priority) {
+  if (priority === 'baja' || priority === 'alta' || priority === 'urgente') return priority;
+  if (priority === 'critica') return 'urgente';
+  return 'media';
+}
+
+function legacyStatus(status) {
+  if (status === 'BORRADOR') return 'BORRADOR';
+  if (status === 'CANCELADA') return 'CANCELADA';
+  return 'ASIGNADA';
+}
+
+function legacyWorkOrderPayload(payload) {
+  return {
+    tenant_id: payload.tenant_id,
+    instalacion_id: payload.instalacion_id,
+    ubicacion_id: payload.ubicacion_id || null,
+    activo_id: payload.activo_id || null,
+    titulo: payload.titulo,
+    descripcion: payload.descripcion || payload.trabajo_solicitado || null,
+    tipo: legacyWorkOrderType(payload.tipo_ot || payload.tipo),
+    prioridad: legacyPriority(payload.prioridad),
+    estado: legacyStatus(payload.estado),
+    assigned_to: payload.assigned_to || null,
+    fecha_prevista: payload.fecha_prevista || null,
+    fecha_inicio: payload.fecha_inicio || null,
+    fecha_fin: payload.fecha_fin || null,
+    created_by: payload.created_by || null
+  };
 }
 
 function withDefaultConfiguration(row, fallbackConfiguration = null) {
   if (!row) return row;
-  const type = row.tipo_ot || row.tipo;
+  const type = normalizeWorkOrderType(row.tipo_ot || row.tipo);
   return {
     ...row,
     configuracion: {
@@ -198,9 +242,9 @@ export async function createWorkOrder(tenantId, payload) {
   const normalized = normalizePayload(payload);
   const basePayload = { tenant_id: tenantId, ...normalized, created_by: userId };
   let { data, error } = await supabase.from('ordenes_trabajo').insert(basePayload).select().single();
-  if (error && isMissingConfigurationColumn(error)) {
-    console.warn('La columna ordenes_trabajo.configuracion no existe en Supabase. Creando OT sin configuracion hasta aplicar la migracion 034.', error);
-    ({ data, error } = await supabase.from('ordenes_trabajo').insert(withoutConfiguration(basePayload)).select().single());
+  if (error && isLegacyWorkOrderSchemaError(error)) {
+    console.warn('El esquema de ordenes_trabajo en Supabase parece anterior al modelo OT actual. Creando OT con payload compatible hasta aplicar las migraciones OT.', error);
+    ({ data, error } = await supabase.from('ordenes_trabajo').insert(legacyWorkOrderPayload(basePayload)).select().single());
   }
   if (error) throw error;
   const created = withDefaultConfiguration(data, normalized.configuracion);
