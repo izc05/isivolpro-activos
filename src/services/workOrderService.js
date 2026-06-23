@@ -127,6 +127,72 @@ function normalizePayload(payload) {
   };
 }
 
+function isMissingConfigurationColumn(error) {
+  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return text.includes('configuracion') && (text.includes('pgrst204') || text.includes('schema cache') || text.includes('could not find'));
+}
+
+function isLegacyWorkOrderSchemaError(error) {
+  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  const modernColumns = ['configuracion', 'tipo_ot', 'sintomas', 'trabajo_solicitado', 'instrucciones_tecnico', 'resultado_esperado', 'fecha_limite', 'duracion_estimada_minutos'];
+  return isMissingConfigurationColumn(error)
+    || (modernColumns.some((column) => text.includes(column)) && (text.includes('pgrst204') || text.includes('schema cache') || text.includes('could not find')))
+    || text.includes('ordenes_trabajo_tipo_check')
+    || text.includes('ordenes_trabajo_prioridad_check')
+    || text.includes('ordenes_trabajo_estado_check');
+}
+
+function legacyWorkOrderType(type) {
+  const normalized = normalizeWorkOrderType(type);
+  if (['revision', 'instalacion', 'inspeccion'].includes(normalized)) return normalized;
+  if (['diagnostico', 'reparacion', 'urgencia', 'mantenimiento_correctivo'].includes(normalized)) return 'averia';
+  if (['mantenimiento_preventivo', 'seguimiento', 'verificacion_funcionamiento', 'medicion'].includes(normalized)) return 'mantenimiento';
+  return 'otro';
+}
+
+function legacyPriority(priority) {
+  if (priority === 'baja' || priority === 'alta' || priority === 'urgente') return priority;
+  if (priority === 'critica') return 'urgente';
+  return 'media';
+}
+
+function legacyStatus(status) {
+  if (status === 'BORRADOR') return 'BORRADOR';
+  if (status === 'CANCELADA') return 'CANCELADA';
+  return 'ASIGNADA';
+}
+
+function legacyWorkOrderPayload(payload) {
+  return {
+    tenant_id: payload.tenant_id,
+    instalacion_id: payload.instalacion_id,
+    ubicacion_id: payload.ubicacion_id || null,
+    activo_id: payload.activo_id || null,
+    titulo: payload.titulo,
+    descripcion: payload.descripcion || payload.trabajo_solicitado || null,
+    tipo: legacyWorkOrderType(payload.tipo_ot || payload.tipo),
+    prioridad: legacyPriority(payload.prioridad),
+    estado: legacyStatus(payload.estado),
+    assigned_to: payload.assigned_to || null,
+    fecha_prevista: payload.fecha_prevista || null,
+    fecha_inicio: payload.fecha_inicio || null,
+    fecha_fin: payload.fecha_fin || null,
+    created_by: payload.created_by || null
+  };
+}
+
+function withDefaultConfiguration(row, fallbackConfiguration = null) {
+  if (!row) return row;
+  const type = normalizeWorkOrderType(row.tipo_ot || row.tipo);
+  return {
+    ...row,
+    configuracion: {
+      ...defaultRequirementsForType(type),
+      ...(row.configuracion || fallbackConfiguration || {})
+    }
+  };
+}
+
 function assertEditable(workOrder) {
   if (['CERRADA', 'VALIDADA', 'CANCELADA'].includes(workOrder?.estado)) throw new Error('La OT esta cerrada y no admite cambios.');
 }
@@ -162,29 +228,35 @@ export async function listWorkOrders(tenantId, options = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => withDefaultConfiguration(row));
 }
 
 export async function getWorkOrder(tenantId, id) {
   const { data, error } = await supabase.from('ordenes_trabajo').select('*, instalaciones(id,tenant_id,nombre,direccion,contacto_nombre,contacto_telefono,latitud,longitud,maps_url), ubicaciones(id,tenant_id,nombre), activos(id,tenant_id,nombre,marca,modelo,numero_serie), assigned:profiles!ordenes_trabajo_assigned_to_fkey(nombre,email), created_by_profile:profiles!ordenes_trabajo_created_by_fkey(nombre,email)').eq('tenant_id', tenantId).eq('id', id).single();
   if (error) throw error;
-  return data;
+  return withDefaultConfiguration(data);
 }
 
 export async function createWorkOrder(tenantId, payload) {
   const userId = await currentUserId();
   const normalized = normalizePayload(payload);
-  const { data, error } = await supabase.from('ordenes_trabajo').insert({ tenant_id: tenantId, ...normalized, created_by: userId }).select().single();
+  const basePayload = { tenant_id: tenantId, ...normalized, created_by: userId };
+  let { data, error } = await supabase.from('ordenes_trabajo').insert(basePayload).select().single();
+  if (error && isLegacyWorkOrderSchemaError(error)) {
+    console.warn('El esquema de ordenes_trabajo en Supabase parece anterior al modelo OT actual. Creando OT con payload compatible hasta aplicar las migraciones OT.', error);
+    ({ data, error } = await supabase.from('ordenes_trabajo').insert(legacyWorkOrderPayload(basePayload)).select().single());
+  }
   if (error) throw error;
-  if (normalized.configuracion?.requiere_checklist !== false) {
-    await ensureDefaultChecklist(data).catch((checklistError) => {
+  const created = withDefaultConfiguration(data, normalized.configuracion);
+  if (created.configuracion?.requiere_checklist !== false) {
+    await ensureDefaultChecklist(created).catch((checklistError) => {
       console.warn('No se pudo crear el checklist base de la OT', checklistError);
     });
   }
-  await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: data.id, metadata: { status: data.estado, type: data.tipo } }).catch((auditError) => {
+  await logAudit({ tenantId, action: 'create_work_order', entityType: 'orden_trabajo', entityId: created.id, metadata: { status: created.estado, type: created.tipo } }).catch((auditError) => {
     console.warn('No se pudo registrar auditoria de creacion de OT', auditError);
   });
-  return data;
+  return created;
 }
 
 export async function seedChecklist(tenantId, workOrderId, type = 'mantenimiento', createdBy = null) {
