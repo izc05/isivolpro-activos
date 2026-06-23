@@ -37,20 +37,20 @@ const workOrderNavItems = [
 ];
 
 const maintenanceNavItems = [
-  { to: '/mantenimiento', label: 'Panel mantenimiento', icon: BarChart3, permission: 'inventory' },
-  { to: '/mantenimiento/planes', label: 'Planes preventivos', icon: ClipboardCheck, permission: 'inventory' },
-  { to: '/mantenimiento/calendario', label: 'Calendario', icon: CalendarClock, permission: 'inventory' },
-  { to: '/mantenimiento/pendientes', label: 'Trabajos pendientes', icon: ListChecks, permission: 'inventory' },
-  { to: '/mantenimiento/correctivos', label: 'Correctivos', icon: AlertTriangle, permission: 'inventory' },
-  { to: '/mantenimiento/historial', label: 'Historial', icon: History, permission: 'inventory' }
+  { to: '/mantenimiento', label: 'Panel mantenimiento', icon: BarChart3, permission: 'maintenance' },
+  { to: '/mantenimiento/planes', label: 'Planes preventivos', icon: ClipboardCheck, permission: 'maintenance' },
+  { to: '/mantenimiento/calendario', label: 'Calendario', icon: CalendarClock, permission: 'maintenance' },
+  { to: '/mantenimiento/pendientes', label: 'Trabajos pendientes', icon: ListChecks, permission: 'maintenance' },
+  { to: '/mantenimiento/correctivos', label: 'Correctivos', icon: AlertTriangle, permission: 'maintenance' },
+  { to: '/mantenimiento/historial', label: 'Historial', icon: History, permission: 'maintenance' }
 ];
 
 const ocaNavItems = [
-  { to: '/oca', label: 'Panel OCA', icon: BarChart3, permission: 'inventory' },
-  { to: '/oca/inspecciones', label: 'Inspecciones', icon: ShieldCheck, permission: 'inventory' },
-  { to: '/oca/vencimientos', label: 'Próximas y vencidas', icon: CalendarClock, permission: 'inventory' },
-  { to: '/oca/incidencias', label: 'Incidencias OCA', icon: AlertTriangle, permission: 'inventory' },
-  { to: '/oca/documentacion', label: 'Documentación', icon: FileWarning, permission: 'inventory' }
+  { to: '/oca', label: 'Panel OCA', icon: BarChart3, permission: 'oca' },
+  { to: '/oca/inspecciones', label: 'Inspecciones', icon: ShieldCheck, permission: 'oca' },
+  { to: '/oca/vencimientos', label: 'Próximas y vencidas', icon: CalendarClock, permission: 'oca' },
+  { to: '/oca/incidencias', label: 'Incidencias OCA', icon: AlertTriangle, permission: 'oca' },
+  { to: '/oca/documentacion', label: 'Documentación', icon: FileWarning, permission: 'oca' }
 ];
 
 const userNavItems = [
@@ -84,6 +84,8 @@ export default function AppLayout() {
     canUseWorkOrders,
     canManageUsers,
     canViewAudit,
+    canViewOca,
+    isCoordinator,
     canUseQrGenerator,
     canCreateIncidents,
     isTechnician,
@@ -105,6 +107,8 @@ export default function AppLayout() {
     if (item.permission === 'admin') return isTenantAdmin || isSuperAdmin;
     if (item.permission === 'inventory') return canViewInventory;
     if (item.permission === 'qr') return canUseQrGenerator;
+    if (item.permission === 'maintenance') return canManageWorkOrders;
+    if (item.permission === 'oca') return canViewOca;
     if (item.permission === 'workorders_manage') return canManageWorkOrders;
     if (item.permission === 'workorders') return canUseWorkOrders || canManageWorkOrders;
     if (item.permission === 'incidents') return canCreateIncidents;
@@ -123,7 +127,7 @@ export default function AppLayout() {
   const visibleWorkOrderNavItems = workOrderNavItems.filter(canSeeItem);
   const visibleUserNavItems = userNavItems.filter(canSeeItem);
 
-  const showFullNavigation = isTenantAdmin || canViewInventory || canManageWorkOrders || canManageUsers;
+  const showFullNavigation = isTenantAdmin || isCoordinator || canViewInventory || canManageWorkOrders || canManageUsers || canViewOca;
   const useTechnicianMobileShell = isTechnician && !isTenantAdmin && !canManageWorkOrders && !canManageUsers;
   const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
@@ -175,7 +179,7 @@ export default function AppLayout() {
               <PanelLeftOpen size={18} /> Menu
             </button>
           )}
-          {!isGlobalWorkOrderView && (
+          {!isGlobalWorkOrderView && !useTechnicianMobileShell && (
             <div className="topbar-selectors">
               {tenants.length > 0 && (
                 <label className="topbar-selector client-selector">
@@ -203,7 +207,7 @@ export default function AppLayout() {
           )}
           {useTechnicianMobileShell && !isGlobalWorkOrderView && (
             <div className="technician-topbar-summary">
-              <strong>{activeInstallation?.nombre || activeTenant?.nombre || 'Trabajo técnico'}</strong>
+              <strong>Mis trabajos asignados</strong>
               <span>{activeTenant?.nombre || 'Cliente activo'}</span>
             </div>
           )}
@@ -251,3 +255,4 @@ function NavItem({ item, compact = false }) {
     </NavLink>
   );
 }
+
