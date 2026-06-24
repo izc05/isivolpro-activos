@@ -21,6 +21,7 @@ import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleSe
 import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
 import {
   isWorkOrderClosed,
+  normalizedStatus,
   statusLabel,
   statusTransitionHelp,
   validNextActions,
@@ -87,6 +88,7 @@ export default function WorkOrderDetail() {
   }, [location.state]);
 
   const isClosed = row ? isWorkOrderClosed(row) : false;
+  const currentStatus = normalizedStatus(row?.estado);
   const materials = reviewData.materials || [];
   const reviewItems = useMemo(() => (row ? buildFinalReviewItems(row, reviewData) : []), [row, reviewData]);
   const canValidateReview = finalReviewCanValidate(reviewItems);
@@ -301,13 +303,17 @@ export default function WorkOrderDetail() {
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </WorkOrderSection>
 
-      <WorkOrderSection title="Trabajo en campo" subtitle="Ejecución de la intervención, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title={canManageWorkOrders ? 'Trabajo en campo' : 'Mi intervención'} subtitle={canManageWorkOrders ? 'Ejecución de la intervención, checklist, firma e informe' : 'Acepta, inicia la visita y completa el trabajo'} icon={ClipboardCheck} defaultOpen>
         <p className="ot-field-work-note">
-          La intervención es el parte de campo del técnico: abrir o continuar visita, registrar tiempos, observaciones, materiales, fotos y resultado. El checklist queda como bloque de comprobaciones.
+          {canManageWorkOrders
+            ? 'La intervención es el parte de campo del técnico: abrir o continuar visita, registrar tiempos, observaciones, materiales, fotos y resultado. El checklist queda como bloque de comprobaciones.'
+            : currentStatus === 'ASIGNADA'
+            ? 'Primero acepta la OT para confirmar que la has recibido. Después podrás iniciar la intervención al llegar a la instalación.'
+            : 'Continúa la visita, registra observaciones, materiales, fotos y resultado antes de cerrar.'}
         </p>
         <div className="ot-next-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>}
+          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}

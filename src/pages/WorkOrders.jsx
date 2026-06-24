@@ -269,7 +269,7 @@ export default function WorkOrders() {
       <WorkOrderSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalación o técnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
         <div className="user-filter-grid">
           <label><span>Buscar</span><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Codigo, titulo, instalacion o tecnico" /></label>
-          <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todos">Todos</option>{['BORRADOR', 'NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="todos">Todos</option>{['BORRADOR', 'NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
           <label><span>Prioridad</span><select value={filters.priority} onChange={(event) => setFilters((current) => ({ ...current, priority: event.target.value }))}><option value="todas">Todas</option>{OFFICIAL_WORK_ORDER_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priorityLabel(priority)}</option>)}</select></label>
           <label><span>Tipo</span><select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="todos">Todos</option>{OFFICIAL_WORK_ORDER_TYPES.map((type) => <option key={type} value={type}>{workOrderTypeLabel(type)}</option>)}</select></label>
         </div>
@@ -295,6 +295,12 @@ export default function WorkOrders() {
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid workorder-form" onSubmit={(event) => submit(event, 'BORRADOR', { destination: 'checklist' })}>
+          <div className="ot-admin-flow-note" aria-label="Flujo recomendado para preparar una OT">
+            <span><strong>1</strong> Crear borrador</span>
+            <span><strong>2</strong> Preparar checklist</span>
+            <span><strong>3</strong> Enviar al tecnico</span>
+            <span><strong>4</strong> Validar cierre</span>
+          </div>
           <WorkOrderSection title="1. Destino" subtitle="Instalación, ubicación y activo" icon={ClipboardCheck} defaultOpen>
             <div className="grid two">
               <FormField label="Instalacion obligatoria"><select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId)}><option value="">Seleccionar</option>{visibleInstallations.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></FormField>
@@ -334,8 +340,8 @@ export default function WorkOrders() {
           <div className="form-actions">
             <button className="ghost-button" type="button" disabled={saving} onClick={() => setOpen(false)}>Cancelar</button>
             <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, 'BORRADOR')}>Guardar borrador</button>
-            <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, form.assigned_to ? 'ASIGNADA' : 'NUEVA')}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y asignar ahora' : 'Crear como nueva'}</button>
-            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear y preparar checklist'}</button>
+            <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, form.assigned_to ? 'ASIGNADA' : 'NUEVA')}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y enviar al tecnico' : 'Crear sin tecnico'}</button>
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear borrador y preparar checklist'}</button>
           </div>
         </form>
       </Modal>

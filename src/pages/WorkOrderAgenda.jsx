@@ -158,7 +158,7 @@ export default function WorkOrderAgenda() {
           <span>Estado</span>
           <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
             <option value="todas">Todos</option>
-            {['NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => (
+            {['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'VALIDADA', 'CANCELADA'].map((status) => (
               <option key={status} value={status}>{workOrderStatusLabel(status)}</option>
             ))}
           </select>
