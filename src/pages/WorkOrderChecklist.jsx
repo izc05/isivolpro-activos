@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
+import { Camera, CheckCircle2, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, PlayCircle, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -57,6 +57,7 @@ export default function WorkOrderChecklist() {
   const [savingId, setSavingId] = useState('');
   const [deletingId, setDeletingId] = useState('');
   const [sending, setSending] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [activePanel, setActivePanel] = useState('checklist');
 
   async function refresh() {
@@ -103,6 +104,8 @@ export default function WorkOrderChecklist() {
   const status = normalizedStatus(workOrder?.estado);
   const isPreparation = ['BORRADOR', 'NUEVA'].includes(status);
   const canEditDefinition = Boolean(canManageWorkOrders && !['VALIDADA', 'CANCELADA'].includes(status));
+  const activeVisit = visits.find((visit) => visit.estado === 'EN_CURSO') || null;
+  const technicianMustStartVisit = Boolean(!canManageWorkOrders && ['ASIGNADA', 'ACEPTADA'].includes(status) && !activeVisit);
 
   async function generateDefaultChecklist() {
     if (!workOrder) return;
@@ -187,6 +190,34 @@ export default function WorkOrderChecklist() {
     }
   }
 
+  async function completeChecklist() {
+    if (!workOrder) return;
+    setCompleting(true);
+    setError('');
+    setMessage('');
+    try {
+      const currentItems = await listWorkOrderChecklist(workOrder.tenant_id, workOrder.id);
+      const pendingItems = currentItems.filter((item) => item.resultado === 'pendiente');
+      const photoEntries = await Promise.all(currentItems.map(async (item) => [item.id, await listChecklistPhotos(item.tenant_id, item.id)]));
+      const photosByItem = Object.fromEntries(photoEntries);
+      const missingRequiredPhotos = currentItems.filter((item) => item.requiere_foto && (photosByItem[item.id] || []).length === 0);
+      setItems(currentItems);
+      if (pendingItems.length > 0 || missingRequiredPhotos.length > 0) {
+        const pendingText = pendingItems.length > 0 ? `${pendingItems.length} punto(s) sin resultado` : '';
+        const photoText = missingRequiredPhotos.length > 0 ? `${missingRequiredPhotos.length} foto(s) obligatoria(s) pendiente(s)` : '';
+        setError([pendingText, photoText].filter(Boolean).join('. ') + '.');
+        setActivePanel('checklist');
+        return;
+      }
+      setMessage('Checklist completado. Continúa con firma, informe o finalización de la intervención.');
+      setActivePanel('cierre');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   if (loading || tenantLoading) {
     return (
       <section className="card workorder-loading">
@@ -244,6 +275,14 @@ export default function WorkOrderChecklist() {
           </div>
         )}
 
+        {technicianMustStartVisit && (
+          <div className="workorder-alert info">
+            <PlayCircle size={20} />
+            <p>Antes de rellenar el checklist debes iniciar la OT para registrar hora y coordenadas de llegada.</p>
+            <Link className="primary-button" to={`/ots/${workOrder.id}/visita`}><PlayCircle size={18} /> Iniciar OT</Link>
+          </div>
+        )}
+
         <div className="workorder-progress compact" aria-label={`Progreso ${progress.percent}%`}>
           <span style={{ width: `${progress.percent}%` }} />
         </div>
@@ -275,9 +314,9 @@ export default function WorkOrderChecklist() {
             <div className="ot-panel-heading">
               <div>
                 <h3>Puntos del checklist</h3>
-                <p>Registra resultado, observaciones y fotos sin mezclarlo con el cierre de la OT.</p>
+                <p>{technicianMustStartVisit ? 'Inicia primero la OT para poder identificar y completar los puntos.' : 'Marca cada punto como OK, No OK o No aplica. Las fotos obligatorias deben subirse antes de completar.'}</p>
               </div>
-              <span className="badge">{items.length} punto(s)</span>
+              <span className="badge">{progress.done}/{progress.total}</span>
             </div>
             {items.length === 0 && (
               <section className="empty-state ot-checklist-empty">
@@ -287,7 +326,7 @@ export default function WorkOrderChecklist() {
               </section>
             )}
             <div className="checklist-stack">
-              {items.map((item) => (
+              {!technicianMustStartVisit && items.map((item) => (
                 <ChecklistItemCard
                   key={item.id}
                   item={item}
@@ -301,6 +340,13 @@ export default function WorkOrderChecklist() {
                 />
               ))}
             </div>
+            {!technicianMustStartVisit && items.length > 0 && (
+              <div className="form-actions ot-checklist-complete-actions">
+                <button className="primary-button" type="button" disabled={completing} onClick={completeChecklist}>
+                  <CheckCircle2 size={18} /> {completing ? 'Comprobando...' : 'Checklist completado'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -470,12 +516,26 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
     if (input) input.value = '';
   }
 
+  function changeResult(value) {
+    setPhotoError('');
+    if (item.requiere_foto && value !== 'pendiente' && photos.length === 0) {
+      setPhotoError('Este punto requiere foto obligatoria antes de marcarlo como completado.');
+      return;
+    }
+    onUpdate(item, { resultado: value, observacion: observation });
+  }
+
+  const missingRequiredPhoto = item.requiere_foto && photos.length === 0;
+  const itemCompleted = item.resultado !== 'pendiente' && !missingRequiredPhoto;
+  const itemBadge = itemCompleted ? <span className="badge ok">Completado</span> : missingRequiredPhoto ? <span className="badge warn">Falta foto</span> : <span className="badge">Pendiente</span>;
+
   return (
     <section className="card ot-checklist-card">
       <WorkOrderSectionHeader
         title={`${item.punto}. ${item.descripcion}`}
         subtitle={`${item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · ${photos.length} foto(s)`}
         icon={Camera}
+        badge={itemBadge}
       />
       <div className="form-grid">
         {canEditDefinition && (
@@ -484,7 +544,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           </FormField>
         )}
         <FormField label="Resultado">
-          <select value={item.resultado} disabled={saving} onChange={(event) => onUpdate(item, { resultado: event.target.value, observacion: observation })}>
+          <select value={item.resultado} disabled={saving} onChange={(event) => changeResult(event.target.value)}>
             {CHECKLIST_RESULTS.map((result) => <option key={result} value={result}>{RESULT_LABELS[result]}</option>)}
           </select>
         </FormField>
