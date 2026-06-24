@@ -65,7 +65,13 @@ export async function updateWorkOrderLifecycleStatus(row, status, options = {}) 
     .single();
 
   if (error) throw error;
-  await logAudit({ tenantId: row.tenant_id, action: 'update_work_order_status', entityType: 'orden_trabajo', entityId: row.id, metadata: { from: row.estado, to: status, adminNotes: options.adminNotes || null } });
+  await logAudit({
+    tenantId: row.tenant_id,
+    action: status === 'ACEPTADA' ? 'accept_work_order' : 'update_work_order_status',
+    entityType: 'orden_trabajo',
+    entityId: row.id,
+    metadata: { from: row.estado, to: status, adminNotes: options.adminNotes || null }
+  });
   if (['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(status)) {
     await closeMaintenanceFromWorkOrder(data);
   }

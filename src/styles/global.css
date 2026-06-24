@@ -1004,6 +1004,43 @@ th { color: #647086; font-size: 12px; font-weight: 850; letter-spacing: .02em; t
   font-size: 19px;
   line-height: 1.25;
 }
+.assigned-ot-steps,
+.field-flow-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.assigned-ot-steps li,
+.field-flow-steps li {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+}
+.assigned-ot-steps li.active,
+.field-flow-steps li.active {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+.assigned-ot-steps li.done,
+.field-flow-steps li.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #047857;
+}
 .assigned-ot-place {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -4206,6 +4243,11 @@ select {
 
   .technician-mobile-shell .assigned-ot-card h2 {
     font-size: 18px;
+  }
+
+  .technician-mobile-shell .assigned-ot-steps,
+  .technician-mobile-shell .field-flow-steps {
+    grid-template-columns: 1fr;
   }
 
   .technician-mobile-shell .assigned-ot-contact {

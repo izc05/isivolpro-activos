@@ -2,6 +2,7 @@ export const OFFICIAL_WORK_ORDER_STATUSES = [
   'BORRADOR',
   'NUEVA',
   'ASIGNADA',
+  'ACEPTADA',
   'EN_CURSO',
   'PAUSADA',
   'PENDIENTE_MATERIAL',
@@ -12,7 +13,6 @@ export const OFFICIAL_WORK_ORDER_STATUSES = [
 ];
 
 export const LEGACY_STATUS_MAP = {
-  ACEPTADA: 'ASIGNADA',
   FIRMADA: 'FINALIZADA',
   INFORME_GENERADO: 'FINALIZADA',
   CERRADA: 'VALIDADA',
@@ -44,7 +44,8 @@ export const WORK_ORDER_STATUS_LABELS = {
 export const WORK_ORDER_STATUS_HELP = {
   BORRADOR: 'Creada pero aun no lanzada.',
   NUEVA: 'Creada y pendiente de asignar o planificar.',
-  ASIGNADA: 'Ya tiene tecnico o responsable asignado.',
+  ASIGNADA: 'Ya tiene tecnico o responsable asignado. Pendiente de aceptacion.',
+  ACEPTADA: 'El tecnico ha aceptado la OT. Siguiente paso: iniciar la intervencion.',
   EN_CURSO: 'El tecnico ha empezado el trabajo.',
   PAUSADA: 'Trabajo detenido temporalmente.',
   PENDIENTE_MATERIAL: 'Falta material o repuesto.',
@@ -71,7 +72,7 @@ export const WORK_ORDER_STATUS_TONES = {
   CANCELADA: 'danger'
 };
 
-export const ACTIVE_WORK_ORDER_STATUSES = ['NUEVA', 'ASIGNADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
+export const ACTIVE_WORK_ORDER_STATUSES = ['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
 export const FINISHED_WORK_ORDER_STATUSES = ['FINALIZADA'];
 export const CLOSED_WORK_ORDER_STATUSES = ['VALIDADA', 'CANCELADA'];
 
@@ -174,7 +175,8 @@ export function validNextActions(row = {}) {
   const actions = {
     BORRADOR: ['NUEVA', 'ASIGNADA', 'CANCELADA'],
     NUEVA: ['ASIGNADA', 'EN_CURSO', 'CANCELADA'],
-    ASIGNADA: ['EN_CURSO', 'PAUSADA', 'CANCELADA'],
+    ASIGNADA: ['ACEPTADA', 'PAUSADA', 'CANCELADA'],
+    ACEPTADA: ['EN_CURSO', 'PAUSADA', 'CANCELADA'],
     EN_CURSO: ['PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'FINALIZADA', 'CANCELADA'],
     PAUSADA: ['EN_CURSO', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE', 'CANCELADA'],
     PENDIENTE_MATERIAL: ['EN_CURSO', 'FINALIZADA', 'CANCELADA'],

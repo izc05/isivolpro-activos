@@ -94,7 +94,7 @@ export default function AppLayout() {
     setActiveInstallationId
   } = tenant;
   const location = useLocation();
-  const [openGroups, setOpenGroups] = useState({ inventory: true, maintenance: true, oca: true, workorders: true, users: true });
+  const [openGroups, setOpenGroups] = useState({ inventory: false, maintenance: false, oca: false, workorders: false, users: false });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
   const isGlobalWorkOrderView = location.pathname.startsWith('/ots-dashboard') || location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
 

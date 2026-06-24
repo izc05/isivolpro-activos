@@ -166,8 +166,8 @@ export default function WorkOrderDetail() {
     <>
       <WorkOrderPageHeader
         workOrder={row}
-        onBack={() => navigate('/ots')}
-        actions={nextActions.length > 0 && (
+        onBack={() => navigate(canManageWorkOrders ? '/ots' : '/mis-ots')}
+        actions={canManageWorkOrders && nextActions.length > 0 && (
           <div className="quick-actions">
             {nextActions.slice(0, 3).map((status) => (
               <button key={status} className={status === 'VALIDADA' ? 'primary-button' : status === 'CANCELADA' ? 'danger-button' : 'secondary-button'} type="button" onClick={() => changeStatus(status)}>
@@ -211,42 +211,43 @@ export default function WorkOrderDetail() {
         {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
       </WorkOrderSection>
 
-      <WorkOrderSection
-        title="Revision final"
-        subtitle="Comprobacion previa antes de cerrar definitivamente la OT"
-        icon={ShieldCheck}
-        badge={canValidateReview ? 'lista' : `${pendingReviewItems.length} pendiente(s)`}
-        defaultOpen={row.estado === 'FINALIZADA' || pendingReviewItems.length > 0}
-      >
-        <div className="final-review-list">
-          {reviewItems.map((item) => (
-            <article className={`final-review-item ${item.passed ? 'ok' : item.required ? 'danger' : 'warn'}`} key={item.key}>
-              <span>{item.passed ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}</span>
-              <div>
-                <strong>{item.label}</strong>
-                <small>{item.detail}</small>
-              </div>
-              <b>{item.required ? 'obligatorio' : 'opcional'}</b>
-            </article>
-          ))}
-        </div>
-        {pendingReviewItems.length > 0 && <p className="warning-text">No se puede validar todavía. Faltan requisitos obligatorios.</p>}
-        {canManageWorkOrders && !isClosed && (
-          <div className="form-grid" style={{ marginTop: 14 }}>
-            <FormField label="Notas de revision del administrador">
-              <textarea rows="3" value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="Ej. Revisado informe, fotos y firma. Se valida cierre." />
-            </FormField>
-            <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-              <button className="primary-button" type="button" disabled={!canValidateReview || validating} onClick={validateFinalReview}>
-                {validating ? 'Validando...' : 'Validar OT'}
-              </button>
-              <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Revisar informe</Link>
-              <Link className="ghost-button" to={`/ots/${row.id}/checklist`}>Revisar checklist</Link>
-            </div>
+      {canManageWorkOrders && (
+        <WorkOrderSection
+          title="Revision final"
+          subtitle="Comprobacion previa antes de cerrar definitivamente la OT"
+          icon={ShieldCheck}
+          badge={canValidateReview ? 'lista' : `${pendingReviewItems.length} pendiente(s)`}
+          defaultOpen={row.estado === 'FINALIZADA' || pendingReviewItems.length > 0}
+        >
+          <div className="final-review-list">
+            {reviewItems.map((item) => (
+              <article className={`final-review-item ${item.passed ? 'ok' : item.required ? 'danger' : 'warn'}`} key={item.key}>
+                <span>{item.passed ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}</span>
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </div>
+                <b>{item.required ? 'obligatorio' : 'opcional'}</b>
+              </article>
+            ))}
           </div>
-        )}
-        {!canManageWorkOrders && <p className="muted">Solo el administrador puede validar definitivamente la OT.</p>}
-      </WorkOrderSection>
+          {pendingReviewItems.length > 0 && <p className="warning-text">No se puede validar todavía. Faltan requisitos obligatorios.</p>}
+          {!isClosed && (
+            <div className="form-grid" style={{ marginTop: 14 }}>
+              <FormField label="Notas de revision del administrador">
+                <textarea rows="3" value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="Ej. Revisado informe, fotos y firma. Se valida cierre." />
+              </FormField>
+              <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+                <button className="primary-button" type="button" disabled={!canValidateReview || validating} onClick={validateFinalReview}>
+                  {validating ? 'Validando...' : 'Validar OT'}
+                </button>
+                <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Revisar informe</Link>
+                <Link className="ghost-button" to={`/ots/${row.id}/checklist`}>Revisar checklist</Link>
+              </div>
+            </div>
+          )}
+        </WorkOrderSection>
+      )}
 
       <WorkOrderSection title="Instalación y activo" subtitle="Destino de la orden de trabajo" icon={Navigation} defaultOpen={false}>
         <WorkOrderInfoGrid columns={4}>
@@ -300,10 +301,13 @@ export default function WorkOrderDetail() {
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </WorkOrderSection>
 
-      <WorkOrderSection title="Trabajo en campo" subtitle="Visita, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title="Trabajo en campo" subtitle="Ejecución de la intervención, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+        <p className="ot-field-work-note">
+          La intervención es el parte de campo del técnico: abrir o continuar visita, registrar tiempos, observaciones, materiales, fotos y resultado. El checklist queda como bloque de comprobaciones.
+        </p>
         <div className="ot-next-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Abrir visita</Link>}
+          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}

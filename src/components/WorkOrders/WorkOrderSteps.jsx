@@ -4,6 +4,7 @@ import { normalizedStatus } from '../../utils/workOrderLifecycle';
 const FLOW_STEPS = [
   { key: 'created', label: 'Creada', statuses: ['BORRADOR', 'NUEVA'] },
   { key: 'assigned', label: 'Asignada', statuses: ['ASIGNADA'] },
+  { key: 'accepted', label: 'Aceptada', statuses: ['ACEPTADA'] },
   { key: 'field', label: 'En curso', statuses: ['EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'] },
   { key: 'finished', label: 'Finalizada', statuses: ['FINALIZADA'] },
   { key: 'validated', label: 'Validada', statuses: ['VALIDADA'] }

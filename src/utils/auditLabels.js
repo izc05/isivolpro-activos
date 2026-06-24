@@ -10,6 +10,7 @@ const ACTION_LABELS = {
   close_incident: 'Incidencia cerrada',
   convert_incident_to_work_order: 'Incidencia convertida en OT',
   create_work_order: 'OT creada',
+  accept_work_order: 'OT aceptada por técnico',
   update_work_order: 'OT actualizada',
   update_work_order_status: 'Estado de OT actualizado',
   delete_work_order: 'OT dada de baja',

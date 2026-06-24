@@ -6,7 +6,7 @@ export default function AccessDenied() {
       <div className="card" style={{ maxWidth: 460, color: '#102033' }}>
         <h1>Acceso denegado</h1>
         <p>No tienes permisos suficientes para consultar este recurso.</p>
-        <Link className="primary-button" to="/dashboard">Volver al dashboard</Link>
+        <Link className="primary-button" to="/">Volver al inicio</Link>
       </div>
     </div>
   );
