@@ -162,11 +162,16 @@ export default function WorkOrderVisit() {
     setSaving(true);
     try {
       const location = await getBrowserLocation();
+      if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
+        setError('No se ha podido recoger la ubicación. Activa el permiso de ubicación del navegador antes de iniciar la OT.');
+        return;
+      }
       const visit = await startWorkOrderVisit(workOrder, location, visitDraft);
       setActiveVisit(visit);
       setObservations('');
       setMessage('Intervención iniciada correctamente.');
       await refresh();
+      navigate(`/ots/${workOrder.id}/checklist`);
     } catch (err) {
       setError(err.message);
     } finally {

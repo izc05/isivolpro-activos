@@ -13,7 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
 
-  if (isAuthenticated) return <Navigate to={location.state?.from?.pathname || '/dashboard'} replace />;
+  if (isAuthenticated) return <Navigate to={location.state?.from?.pathname || '/'} replace />;
 
   async function handleSubmit(event) {
     event.preventDefault();
