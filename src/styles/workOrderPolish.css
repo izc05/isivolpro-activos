@@ -16,7 +16,7 @@
 
 .ot-flow-steps {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
   align-items: stretch;
 }
@@ -76,6 +76,37 @@
   padding: 10px 12px;
   font-weight: 750;
   line-height: 1.45;
+}
+
+.ot-admin-flow-note {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.ot-admin-flow-note span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ot-admin-flow-note strong {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff1f0;
+  color: #c0362c;
+  flex: 0 0 auto;
 }
 
 .ot-next-actions {

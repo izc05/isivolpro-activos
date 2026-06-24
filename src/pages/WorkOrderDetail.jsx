@@ -21,6 +21,7 @@ import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleSe
 import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
 import {
   isWorkOrderClosed,
+  normalizedStatus,
   statusLabel,
   statusTransitionHelp,
   validNextActions,
@@ -87,6 +88,7 @@ export default function WorkOrderDetail() {
   }, [location.state]);
 
   const isClosed = row ? isWorkOrderClosed(row) : false;
+  const currentStatus = normalizedStatus(row?.estado);
   const materials = reviewData.materials || [];
   const reviewItems = useMemo(() => (row ? buildFinalReviewItems(row, reviewData) : []), [row, reviewData]);
   const canValidateReview = finalReviewCanValidate(reviewItems);
@@ -180,36 +182,38 @@ export default function WorkOrderDetail() {
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      <WorkOrderSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validación final" icon={ClipboardCheck} badge={<WorkOrderStatusBadge status={row.estado} />} defaultOpen>
-        <WorkOrderInfoGrid columns={4}>
-          <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} important />
-          <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={row.prioridad} />} important />
-          <WorkOrderInfoItem label="Tipo" value={workOrderTypeLabel(row.tipo_ot || row.tipo)} important />
-          <WorkOrderInfoItem label="Técnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} important />
-          {row.tipo_ot_detalle && <WorkOrderInfoItem label="Detalle tipo" value={row.tipo_ot_detalle} />}
-          <WorkOrderInfoItem label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
-          <WorkOrderInfoItem label="Duración estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
-        </WorkOrderInfoGrid>
-        <div className="ot-info-group">
-          <h3>Planificación temporal</h3>
+      {canManageWorkOrders && (
+        <WorkOrderSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validación final" icon={ClipboardCheck} badge={<WorkOrderStatusBadge status={row.estado} />} defaultOpen={false}>
           <WorkOrderInfoGrid columns={4}>
-            <WorkOrderInfoItem label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} important />
-            <WorkOrderInfoItem label="Fecha límite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} important />
-            <WorkOrderInfoItem label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
-            <WorkOrderInfoItem label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
+            <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={row.estado} />} important />
+            <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={row.prioridad} />} important />
+            <WorkOrderInfoItem label="Tipo" value={workOrderTypeLabel(row.tipo_ot || row.tipo)} important />
+            <WorkOrderInfoItem label="Técnico asignado" value={row.assigned?.nombre || row.assigned?.email || 'Sin asignar'} important />
+            {row.tipo_ot_detalle && <WorkOrderInfoItem label="Detalle tipo" value={row.tipo_ot_detalle} />}
+            <WorkOrderInfoItem label="Creada por" value={row.creator?.nombre || row.creator?.email || '-'} />
+            <WorkOrderInfoItem label="Duración estimada" value={row.duracion_estimada_minutos ? `${row.duracion_estimada_minutos} min` : '-'} />
           </WorkOrderInfoGrid>
-        </div>
-        <div className="ot-info-group">
-          <h3>Revisión administrativa</h3>
-          <WorkOrderInfoGrid columns={3}>
-            <WorkOrderInfoItem label="Revisión admin" value={row.revision_admin_estado || 'no_requerida'} important />
-            <WorkOrderInfoItem label="Validada el" value={row.closed_at ? formatDateTime(row.closed_at) : '-'} />
-            <WorkOrderInfoItem label="Notas" value={row.revision_admin_notas || '-'} wide />
-          </WorkOrderInfoGrid>
-        </div>
-        {statusTransitionHelp(row.estado) && <p className="ot-context-note">{statusTransitionHelp(row.estado)}</p>}
-        {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
-      </WorkOrderSection>
+          <div className="ot-info-group">
+            <h3>Planificación temporal</h3>
+            <WorkOrderInfoGrid columns={4}>
+              <WorkOrderInfoItem label="Fecha prevista" value={row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-'} important />
+              <WorkOrderInfoItem label="Fecha límite" value={row.fecha_limite ? formatDateTime(row.fecha_limite) : '-'} important />
+              <WorkOrderInfoItem label="Inicio" value={row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-'} />
+              <WorkOrderInfoItem label="Fin" value={row.fecha_fin ? formatDateTime(row.fecha_fin) : '-'} />
+            </WorkOrderInfoGrid>
+          </div>
+          <div className="ot-info-group">
+            <h3>Revisión administrativa</h3>
+            <WorkOrderInfoGrid columns={3}>
+              <WorkOrderInfoItem label="Revisión admin" value={row.revision_admin_estado || 'no_requerida'} important />
+              <WorkOrderInfoItem label="Validada el" value={row.closed_at ? formatDateTime(row.closed_at) : '-'} />
+              <WorkOrderInfoItem label="Notas" value={row.revision_admin_notas || '-'} wide />
+            </WorkOrderInfoGrid>
+          </div>
+          {statusTransitionHelp(row.estado) && <p className="ot-context-note">{statusTransitionHelp(row.estado)}</p>}
+          {isClosed && <p className="warning-text">OT cerrada: solo lectura. Para modificarla debe reabrirse con motivo y permisos.</p>}
+        </WorkOrderSection>
+      )}
 
       {canManageWorkOrders && (
         <WorkOrderSection
@@ -301,13 +305,17 @@ export default function WorkOrderDetail() {
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </WorkOrderSection>
 
-      <WorkOrderSection title="Trabajo en campo" subtitle="Ejecución de la intervención, checklist, firma e informe" icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title={canManageWorkOrders ? 'Accesos de intervención' : 'Mi intervención'} subtitle={canManageWorkOrders ? 'Visita, checklist, firma e informe' : 'Acepta, inicia la visita y completa el trabajo'} icon={ClipboardCheck} defaultOpen>
         <p className="ot-field-work-note">
-          La intervención es el parte de campo del técnico: abrir o continuar visita, registrar tiempos, observaciones, materiales, fotos y resultado. El checklist queda como bloque de comprobaciones.
+          {canManageWorkOrders
+            ? 'Accesos rápidos para revisar o continuar el trabajo de campo asociado a esta OT.'
+            : currentStatus === 'ASIGNADA'
+            ? 'Primero acepta la OT para confirmar que la has recibido. Después podrás iniciar la intervención al llegar a la instalación.'
+            : 'Continúa la visita, registra observaciones, materiales, fotos y resultado antes de cerrar.'}
         </p>
         <div className="ot-next-actions">
           <Link className="secondary-button" to="/scanner">Escanear QR</Link>
-          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>}
+          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
