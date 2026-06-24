@@ -7,6 +7,7 @@ import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge'
 import WorkOrderThumbnail from '../components/WorkOrders/WorkOrderThumbnail';
 import { useTenant } from '../hooks/useTenant';
 import { listWorkOrders } from '../services/workOrderService';
+import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsUrl } from '../utils/mapUtils';
 import {
@@ -46,6 +47,8 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   const { activeTenantId, activeTenant, activeInstallation, canManageWorkOrders } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [savingId, setSavingId] = useState('');
   const [filters, setFilters] = useState({ search: '', status: 'todas', priority: 'todas' });
 
   async function refresh() {
@@ -103,11 +106,27 @@ export default function MyWorkOrders({ mode = 'mine' }) {
     setFilters({ search: '', status: 'todas', priority: 'todas' });
   }
 
+  async function acceptWorkOrder(row) {
+    setSavingId(row.id);
+    setError('');
+    setMessage('');
+    try {
+      const updated = await updateWorkOrderLifecycleStatus(row, 'ACEPTADA');
+      setRows((current) => current.map((entry) => entry.id === row.id ? { ...entry, ...updated } : entry));
+      setMessage(`OT ${row.codigo_ot || row.id.slice(0, 8)} aceptada. Ya puedes iniciar la intervencion.`);
+    } catch (err) {
+      setError('No se ha podido aceptar la OT. Revisa la conexión e inténtalo de nuevo.');
+      console.error('Error aceptando OT', err);
+    } finally {
+      setSavingId('');
+    }
+  }
+
   return (
     <>
       <PageHeader
-        title={isCreated ? 'OT creadas por mi' : 'OT asignadas'}
-        subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : 'Ordenes enviadas al tecnico para iniciar visitas, registrar observaciones y completar checklist.'}
+        title={isCreated ? 'OT creadas por mi' : isTechnicianView ? 'Mis trabajos' : 'OT asignadas'}
+        subtitle={isCreated ? 'Seguimiento de las ordenes que has abierto para otros tecnicos o equipos.' : isTechnicianView ? 'Acepta cada OT, inicia la intervención al llegar y completa checklist, fotos y cierre.' : 'Ordenes enviadas al tecnico para iniciar visitas, registrar observaciones y completar checklist.'}
         action={canManageWorkOrders ? <Link className="secondary-button" to="/ots">Ver todas</Link> : <Link className="primary-button" to="/scanner"><QrCode size={18} /> Escanear QR</Link>}
       />
       {canManageWorkOrders && (
@@ -143,6 +162,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
         </section>
       )}
       {error && <p className="error-text">{error}</p>}
+      {message && <p className="success-text">{message}</p>}
       <section className="assigned-ot-filter-panel">
         <div className="assigned-ot-search">
           <Search size={18} />
@@ -196,13 +216,13 @@ export default function MyWorkOrders({ mode = 'mine' }) {
           empty="No has creado OT"
         />
       ) : (
-        <AssignedWorkOrderCards rows={filteredRows} />
+        <AssignedWorkOrderCards rows={filteredRows} savingId={savingId} onAccept={acceptWorkOrder} />
       )}
     </>
   );
 }
 
-function AssignedWorkOrderCards({ rows }) {
+function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
   if (rows.length === 0) return <p className="muted">No tienes OT asignadas</p>;
 
   return (
@@ -211,6 +231,9 @@ function AssignedWorkOrderCards({ rows }) {
         const mapsUrl = buildMapsUrl(row.instalaciones);
         const phone = row.instalaciones?.contacto_telefono;
         const cue = scheduleCue(row.fecha_prevista);
+        const status = normalizedStatus(row.estado);
+        const needsAcceptance = status === 'ASIGNADA';
+        const isAccepted = status === 'ACEPTADA';
         return (
           <article className="assigned-ot-card" key={row.id}>
             <WorkOrderThumbnail row={row} compact />
@@ -220,6 +243,11 @@ function AssignedWorkOrderCards({ rows }) {
                 <WorkOrderStatusBadge status={row.estado} />
               </div>
               <h2>{row.titulo}</h2>
+              <ol className="assigned-ot-steps" aria-label="Pasos de la OT">
+                <li className={needsAcceptance ? 'active' : 'done'}>1. Aceptar</li>
+                <li className={isAccepted ? 'active' : ['EN_CURSO', 'FINALIZADA', 'VALIDADA'].includes(status) ? 'done' : ''}>2. Iniciar</li>
+                <li className={status === 'EN_CURSO' ? 'active' : ['FINALIZADA', 'VALIDADA'].includes(status) ? 'done' : ''}>3. Completar</li>
+              </ol>
               <div className="assigned-ot-meta">
                 <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad || 'normal')}</span>
                 <span className={`assigned-ot-time-cue ${cue.tone}`}>{cue.label}</span>
@@ -242,7 +270,13 @@ function AssignedWorkOrderCards({ rows }) {
               <div className="quick-actions">
                 {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Ruta</a>}
                 {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
-                <Link className="primary-button" to={`/ots/${row.id}/visita`}>Registrar intervención</Link>
+                {needsAcceptance ? (
+                  <button className="primary-button" type="button" disabled={savingId === row.id} onClick={() => onAccept?.(row)}>
+                    {savingId === row.id ? 'Aceptando...' : 'Aceptar OT'}
+                  </button>
+                ) : (
+                  <Link className="primary-button" to={`/ots/${row.id}/visita`}>{isAccepted ? 'Iniciar intervención' : 'Continuar intervención'}</Link>
+                )}
               </div>
             </div>
           </article>

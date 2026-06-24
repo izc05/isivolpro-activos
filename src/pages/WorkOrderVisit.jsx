@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Clock, Mail, MapPin, Navigation, Phone, PlayCircle, PlusCircle, Save, StopCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Mail, MapPin, Navigation, Phone, PlayCircle, PlusCircle, Save, StopCircle } from 'lucide-react';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
@@ -24,8 +24,10 @@ import {
   VISIT_TYPES,
   WORK_ORDER_TYPE_LABELS
 } from '../services/workOrderService';
+import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
+import { normalizedStatus } from '../utils/workOrderLifecycle';
 
 function getBrowserLocation() {
   return new Promise((resolve) => {
@@ -85,6 +87,7 @@ export default function WorkOrderVisit() {
     observaciones: ''
   });
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -128,18 +131,41 @@ export default function WorkOrderVisit() {
     refresh();
   }, [activeTenantId, id]);
 
-  const canStartVisit = useMemo(() => !activeVisit && workOrder && !['CERRADA', 'CANCELADA'].includes(workOrder.estado), [activeVisit, workOrder]);
+  const status = normalizedStatus(workOrder?.estado);
+  const needsAcceptance = status === 'ASIGNADA';
+  const canAcceptWorkOrder = Boolean(workOrder && needsAcceptance && !activeVisit);
+  const canStartVisit = useMemo(() => !activeVisit && workOrder && ['ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(status), [activeVisit, workOrder, status]);
   const hasPreviousVisits = visits.some((visit) => visit.estado === 'FINALIZADA');
+
+  async function acceptWorkOrder() {
+    if (!workOrder) return;
+    setError('');
+    setMessage('');
+    setSaving(true);
+    try {
+      const updated = await updateWorkOrderLifecycleStatus(workOrder, 'ACEPTADA');
+      setWorkOrder((current) => ({ ...current, ...updated }));
+      setMessage('OT aceptada. Ahora puedes iniciar la intervención cuando llegues a la instalación.');
+      await refresh();
+    } catch (err) {
+      setError('No se ha podido aceptar la OT. Revisa la conexión e inténtalo de nuevo.');
+      console.error('Error aceptando OT', err);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function startVisit() {
     if (!workOrder) return;
     setError('');
+    setMessage('');
     setSaving(true);
     try {
       const location = await getBrowserLocation();
       const visit = await startWorkOrderVisit(workOrder, location, visitDraft);
       setActiveVisit(visit);
       setObservations('');
+      setMessage('Intervención iniciada correctamente.');
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -222,8 +248,9 @@ export default function WorkOrderVisit() {
 
   return (
     <>
-      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Intervención" onBack={() => navigate(`/ots/${workOrder.id}`)} />
+      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Intervención de campo" onBack={() => navigate(`/ots/${workOrder.id}`)} />
       {error && <p className="error-text">{error}</p>}
+      {message && <p className="success-text">{message}</p>}
 
       <div className="grid two">
         <WorkOrderSection title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
@@ -242,11 +269,27 @@ export default function WorkOrderVisit() {
 
         <InstallationFieldCard installation={workOrder.instalaciones} />
 
-        <WorkOrderSection title="Intervención en campo" subtitle="Inicio, datos técnicos y cierre de visita" icon={PlayCircle} defaultOpen>
+        <WorkOrderSection title="Intervención en campo" subtitle="1. Acepta la OT · 2. Inicia al llegar · 3. Registra y finaliza" icon={PlayCircle} defaultOpen>
+          <ol className="field-flow-steps" aria-label="Pasos de intervención">
+            <li className={needsAcceptance ? 'active' : 'done'}>Aceptar OT</li>
+            <li className={!needsAcceptance && !activeVisit ? 'active' : activeVisit ? 'done' : ''}>Iniciar intervención</li>
+            <li className={activeVisit ? 'active' : ''}>Completar datos</li>
+          </ol>
+          {canAcceptWorkOrder && (
+            <div className="workorder-alert info">
+              <CheckCircle2 size={20} />
+              <p>Antes de iniciar, confirma que aceptas esta OT. El administrador verá la confirmación en movimientos recientes.</p>
+              <button className="primary-button" type="button" disabled={saving} onClick={acceptWorkOrder}>
+                <CheckCircle2 size={18} /> {saving ? 'Aceptando...' : 'Aceptar OT'}
+              </button>
+            </div>
+          )}
           {!activeVisit && (
             <>
               <p className="muted">
-                {hasPreviousVisits
+                {needsAcceptance
+                  ? 'Acepta primero la OT para confirmar que la has recibido y puedes atenderla.'
+                  : hasPreviousVisits
                   ? 'Esta OT ya tiene intervenciones finalizadas. Puedes abrir una nueva visita si queda trabajo pendiente, material por revisar o seguimiento.'
                   : 'Pulsa iniciar cuando llegues a la instalacion. Si el movil lo permite, se guardara la ubicacion aproximada.'}
               </p>
@@ -261,10 +304,10 @@ export default function WorkOrderVisit() {
                 </FormField>
               )}
               <button className="primary-button" type="button" disabled={!canStartVisit || saving} onClick={startVisit}>
-                {hasPreviousVisits ? <><PlusCircle size={18} /> Nueva intervencion</> : <><PlayCircle size={18} /> Iniciar visita</>}
+                {hasPreviousVisits ? <><PlusCircle size={18} /> Nueva intervención</> : <><PlayCircle size={18} /> Iniciar intervención</>}
               </button>
-              {!canStartVisit && workOrder && (
-                <p className="muted">Solo se bloquean nuevas intervenciones cuando la OT esta cerrada o cancelada.</p>
+              {!canStartVisit && workOrder && !needsAcceptance && (
+                <p className="muted">Solo se bloquean nuevas intervenciones cuando la OT está cerrada o cancelada.</p>
               )}
             </>
           )}
