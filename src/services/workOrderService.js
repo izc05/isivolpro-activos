@@ -309,7 +309,8 @@ export async function startWorkOrderVisit(workOrder, location = {}, payload = {}
   const now = new Date().toISOString();
   const { data, error } = await supabase.from('ot_visitas').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, tecnico_id: userId || workOrder.assigned_to || null, fecha_inicio: now, estado: 'EN_CURSO', latitud: location.latitude || null, longitud: location.longitude || null, tipo_visita: payload.tipo_visita || workOrder.tipo_ot || workOrder.tipo || 'diagnostico', tipo_visita_detalle: payload.tipo_visita_detalle || null, estado_inicial: payload.estado_inicial || null, situacion_encontrada: payload.situacion_encontrada || null, observaciones: payload.observaciones || null }).select().single();
   if (error) throw error;
-  await supabase.from('ordenes_trabajo').update({ estado: 'EN_CURSO', fecha_inicio: workOrder.fecha_inicio || now, updated_at: now }).eq('tenant_id', workOrder.tenant_id).eq('id', workOrder.id);
+  const updateResult = await supabase.from('ordenes_trabajo').update({ estado: 'EN_CURSO', fecha_inicio: workOrder.fecha_inicio || now, updated_at: now }).eq('tenant_id', workOrder.tenant_id).eq('id', workOrder.id).select('id,estado').single();
+  if (updateResult.error) throw updateResult.error;
   await logAudit({ tenantId: workOrder.tenant_id, action: 'start_work_order_visit', entityType: 'ot_visita', entityId: data.id, metadata: { otId: workOrder.id } });
   return data;
 }
@@ -325,7 +326,8 @@ export async function finishWorkOrderVisit(visit, payload = {}) {
   const { data, error } = await supabase.from('ot_visitas').update({ ...payload, estado: 'FINALIZADA', fecha_fin: now, resultado_cierre: payload.resultado_cierre || 'trabajo_completado', motivo_cierre: payload.motivo_cierre || null, proxima_accion: payload.proxima_accion || null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.id).select().single();
   if (error) throw error;
   const nextStatus = payload.resultado_cierre === 'pendiente_material' ? 'PENDIENTE_MATERIAL' : payload.resultado_cierre === 'pendiente_cliente' ? 'PENDIENTE_CLIENTE' : payload.resultado_cierre === 'necesita_otra_visita' ? 'PAUSADA' : 'FINALIZADA';
-  await supabase.from('ordenes_trabajo').update({ estado: nextStatus, fecha_fin: nextStatus === 'FINALIZADA' ? now : null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.ot_id);
+  const updateResult = await supabase.from('ordenes_trabajo').update({ estado: nextStatus, fecha_fin: nextStatus === 'FINALIZADA' ? now : null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.ot_id).select('id,estado').single();
+  if (updateResult.error) throw updateResult.error;
   await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id, result: payload.resultado_cierre } });
   return data;
 }

@@ -233,10 +233,12 @@ export default function WorkOrderChecklist() {
             <h2>{workOrder.codigo_ot || workOrder.titulo}</h2>
             <p>{workOrder.instalaciones?.nombre || 'Sin instalacion'} - {workOrder.activos?.nombre || 'Sin activo'} - {progress.done}/{progress.total} completados</p>
           </div>
-          <div className="ot-checklist-toolbar-actions">
-            <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Base</button>
-            <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Punto</button>
-          </div>
+          {canManageWorkOrders && (
+            <div className="ot-checklist-toolbar-actions">
+              <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Base</button>
+              <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Punto</button>
+            </div>
+          )}
         </div>
 
         {canManageWorkOrders && isPreparation && (
@@ -287,8 +289,8 @@ export default function WorkOrderChecklist() {
             {items.length === 0 && (
               <section className="empty-state ot-checklist-empty">
                 <strong>Esta OT todavia no tiene checklist.</strong>
-                <span>Genera una plantilla base o añade puntos manualmente para empezar la visita.</span>
-                <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>
+                <span>{canManageWorkOrders ? 'Genera una plantilla base o añade puntos manualmente para empezar la visita.' : 'Todavia no hay puntos preparados para esta OT. Revisa la intervención o avisa al responsable.'}</span>
+                {canManageWorkOrders && <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>}
               </section>
             )}
             <div className="checklist-stack">
