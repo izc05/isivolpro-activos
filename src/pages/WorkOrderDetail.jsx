@@ -46,7 +46,7 @@ export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { activeTenantId, canManageWorkOrders } = useTenant();
+  const { activeTenantId, canManageWorkOrders, loading: tenantLoading } = useTenant();
   const [row, setRow] = useState(null);
   const [reviewData, setReviewData] = useState(EMPTY_REVIEW_DATA);
   const [materialOpen, setMaterialOpen] = useState(false);
@@ -59,7 +59,12 @@ export default function WorkOrderDetail() {
   const [validating, setValidating] = useState(false);
 
   async function refresh() {
-    if (!activeTenantId || !id) return;
+    if (tenantLoading) return;
+    if (!activeTenantId || !id) {
+      setLoading(false);
+      setError('No se ha encontrado una empresa activa para cargar la OT.');
+      return;
+    }
     setLoading(true);
     try {
       const [data, finalReview] = await Promise.all([
@@ -81,7 +86,7 @@ export default function WorkOrderDetail() {
 
   useEffect(() => {
     refresh();
-  }, [activeTenantId, id]);
+  }, [activeTenantId, tenantLoading, id]);
 
   useEffect(() => {
     if (location.state?.message) setMessage(location.state.message);

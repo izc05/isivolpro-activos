@@ -50,7 +50,7 @@ function getBrowserLocation() {
 export default function WorkOrderVisit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [visits, setVisits] = useState([]);
   const [activeVisit, setActiveVisit] = useState(null);
@@ -92,7 +92,12 @@ export default function WorkOrderVisit() {
   const [saving, setSaving] = useState(false);
 
   async function refresh() {
-    if (!activeTenantId || !id) return;
+    if (tenantLoading) return;
+    if (!activeTenantId || !id) {
+      setLoading(false);
+      setError('No se ha encontrado una empresa activa para cargar la intervención.');
+      return;
+    }
     setLoading(true);
     try {
       const [orderData, visitData] = await Promise.all([
@@ -129,7 +134,7 @@ export default function WorkOrderVisit() {
 
   useEffect(() => {
     refresh();
-  }, [activeTenantId, id]);
+  }, [activeTenantId, tenantLoading, id]);
 
   const status = normalizedStatus(workOrder?.estado);
   const needsAcceptance = status === 'ASIGNADA';

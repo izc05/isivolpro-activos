@@ -16,7 +16,7 @@ export default function WorkOrderSignature() {
   const { id } = useParams();
   const navigate = useNavigate();
   const signatureRef = useRef(null);
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [visits, setVisits] = useState([]);
   const [selectedVisitId, setSelectedVisitId] = useState('');
@@ -29,7 +29,12 @@ export default function WorkOrderSignature() {
   const [saving, setSaving] = useState(false);
 
   async function refresh() {
-    if (!activeTenantId || !id) return;
+    if (tenantLoading) return;
+    if (!activeTenantId || !id) {
+      setLoading(false);
+      setError('No se ha encontrado una empresa activa para cargar la firma.');
+      return;
+    }
     setLoading(true);
     try {
       const [orderData, visitData] = await Promise.all([
@@ -56,7 +61,7 @@ export default function WorkOrderSignature() {
 
   useEffect(() => {
     refresh();
-  }, [activeTenantId, id]);
+  }, [activeTenantId, tenantLoading, id]);
 
   const selectedVisit = visits.find((visit) => visit.id === selectedVisitId);
 
