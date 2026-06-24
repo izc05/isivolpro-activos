@@ -5,7 +5,7 @@ import WorkOrderStatusBadge from './WorkOrderStatusBadge';
 import WorkOrderSteps from './WorkOrderSteps';
 import { formatDateTime } from '../../utils/dateUtils';
 
-export default function WorkOrderPageHeader({ workOrder, titlePrefix = '', onBack, actions }) {
+export default function WorkOrderPageHeader({ workOrder, titlePrefix = '', onBack, actions, showBadges = true, showSteps = true }) {
   if (!workOrder) return null;
   const code = workOrder.codigo_ot || `OT ${workOrder.id?.slice(0, 8) || ''}`;
   const title = [titlePrefix, code].filter(Boolean).join(' ');
@@ -18,10 +18,12 @@ export default function WorkOrderPageHeader({ workOrder, titlePrefix = '', onBac
           <h1>{title}</h1>
           <p>{workOrder.titulo || workOrder.descripcion || 'Orden de trabajo sin descripción.'}</p>
         </div>
-        <div className="ot-page-badges">
-          <WorkOrderStatusBadge status={workOrder.estado} />
-          <WorkOrderPriorityBadge priority={workOrder.prioridad} />
-        </div>
+        {showBadges && (
+          <div className="ot-page-badges">
+            <WorkOrderStatusBadge status={workOrder.estado} />
+            <WorkOrderPriorityBadge priority={workOrder.prioridad} />
+          </div>
+        )}
       </div>
       <div className="ot-page-meta">
         <span><Wrench size={16} /><b>Activo</b>{workOrder.activos?.nombre || '-'}</span>
@@ -30,7 +32,7 @@ export default function WorkOrderPageHeader({ workOrder, titlePrefix = '', onBac
         <span><CalendarClock size={16} /><b>Prevista</b>{workOrder.fecha_prevista ? formatDateTime(workOrder.fecha_prevista) : '-'}</span>
       </div>
       <WorkOrderPhotoStrip workOrder={workOrder} />
-      <WorkOrderSteps status={workOrder.estado} />
+      {showSteps && <WorkOrderSteps status={workOrder.estado} />}
       {actions && <div className="ot-page-actions">{actions}</div>}
     </section>
   );

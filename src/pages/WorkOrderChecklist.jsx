@@ -32,13 +32,6 @@ const RESULT_LABELS = {
   no_aplica: 'No aplica'
 };
 
-const RESULT_BADGES = {
-  pendiente: '',
-  ok: 'ok',
-  no_ok: 'danger',
-  no_aplica: 'warn'
-};
-
 const newItemInitial = { descripcion: '', requiere_foto: false };
 
 const CHECKLIST_PANELS = [
@@ -216,7 +209,7 @@ export default function WorkOrderChecklist() {
 
   return (
     <>
-      <WorkOrderPageHeader workOrder={workOrder} titlePrefix="Checklist" onBack={() => navigate(`/ots/${workOrder.id}`)} />
+      <WorkOrderPageHeader workOrder={workOrder} onBack={() => navigate(`/ots/${workOrder.id}`)} showBadges={false} />
       {error && (
         <div className="workorder-alert">
           <CircleAlert size={20} />
@@ -230,7 +223,7 @@ export default function WorkOrderChecklist() {
         <div className="ot-checklist-toolbar">
           <div>
             <span className="eyebrow">Checklist de trabajo</span>
-            <h2>{workOrder.codigo_ot || workOrder.titulo}</h2>
+            <h2>{workOrder.titulo || workOrder.codigo_ot}</h2>
             <p>{workOrder.instalaciones?.nombre || 'Sin instalacion'} - {workOrder.activos?.nombre || 'Sin activo'} - {progress.done}/{progress.total} completados</p>
           </div>
           {canManageWorkOrders && (
@@ -483,7 +476,6 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
         title={`${item.punto}. ${item.descripcion}`}
         subtitle={`${item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · ${photos.length} foto(s)`}
         icon={Camera}
-        badge={<span className={`badge ${RESULT_BADGES[item.resultado] || ''}`}>{RESULT_LABELS[item.resultado] || item.resultado}</span>}
       />
       <div className="form-grid">
         {canEditDefinition && (
@@ -496,10 +488,12 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
             {CHECKLIST_RESULTS.map((result) => <option key={result} value={result}>{RESULT_LABELS[result]}</option>)}
           </select>
         </FormField>
-        <label className="checkbox-row">
-          <input type="checkbox" checked={item.requiere_foto} disabled={saving} onChange={(event) => onUpdate(item, { requiere_foto: event.target.checked, observacion: observation })} />
-          <span>Requiere foto</span>
-        </label>
+        {canEditDefinition && (
+          <label className="checkbox-row">
+            <input type="checkbox" checked={item.requiere_foto} disabled={saving} onChange={(event) => onUpdate(item, { requiere_foto: event.target.checked, observacion: observation })} />
+            <span>Requiere foto</span>
+          </label>
+        )}
         <FormField label="Observacion">
           <textarea rows="3" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
         </FormField>
