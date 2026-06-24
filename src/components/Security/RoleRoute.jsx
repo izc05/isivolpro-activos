@@ -37,11 +37,11 @@ export function WorkOrderManagerRoute({ children }) {
 }
 
 export function TechnicianRoute({ children }) {
-  return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico']} fallback="/denegado">{children}</PermissionRoute>;
+  return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico', 'tecnico_externo']} fallback="/denegado">{children}</PermissionRoute>;
 }
 
 export function IncidentRoute({ children }) {
-  return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico']} fallback="/denegado">{children}</PermissionRoute>;
+  return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico', 'tecnico_externo']} fallback="/denegado">{children}</PermissionRoute>;
 }
 
 export function HomeRedirect() {

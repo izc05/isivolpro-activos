@@ -263,7 +263,7 @@ export default function WorkOrderVisit() {
       {message && <p className="success-text">{message}</p>}
 
       <div className="grid two">
-        <WorkOrderSection title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+        <WorkOrderSection title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen={false}>
           <WorkOrderInfoGrid columns={2}>
             <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
             <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={workOrder.prioridad} />} important />
@@ -362,7 +362,7 @@ export default function WorkOrderVisit() {
       </div>
 
       {activeVisit && (
-        <WorkOrderSection title="Materiales de la visita" subtitle="Material usado, retirado o pendiente" icon={PlusCircle} defaultOpen>
+        <WorkOrderSection title="Materiales de la visita" subtitle="Material usado, retirado o pendiente" icon={PlusCircle} defaultOpen={false}>
           <form className="form-grid" onSubmit={addMaterial}>
             <div className="grid two">
               <FormField label="Descripcion libre">
@@ -406,7 +406,7 @@ export default function WorkOrderVisit() {
         </WorkOrderSection>
       )}
 
-      <WorkOrderSection title="Historial de intervenciones" subtitle="Visitas realizadas y estado de cada intervención" icon={Clock} defaultOpen>
+      <WorkOrderSection title="Historial de intervenciones" subtitle="Visitas realizadas y estado de cada intervención" icon={Clock} defaultOpen={false}>
         <DataTable
           columns={[
             { key: 'fecha_inicio', label: 'Inicio', render: (row) => formatDateTime(row.fecha_inicio) },
@@ -484,7 +484,7 @@ function InstallationFieldCard({ installation }) {
   const email = installation?.contacto_email;
 
   return (
-    <WorkOrderSection title="Instalación y contacto" subtitle="Datos de acceso y comunicación" icon={MapPin} defaultOpen>
+    <WorkOrderSection title="Instalación y contacto" subtitle="Datos de acceso y comunicación" icon={MapPin} defaultOpen={false}>
       <WorkOrderInfoGrid columns={2}>
         <WorkOrderInfoItem label="Instalación" value={installation?.nombre || '-'} important />
         <WorkOrderInfoItem label="Dirección" value={installation?.direccion || '-'} wide />

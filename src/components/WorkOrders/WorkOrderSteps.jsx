@@ -29,7 +29,7 @@ export default function WorkOrderSteps({ status }) {
         const active = !cancelled && index === activeIndex;
         const Icon = cancelled ? AlertTriangle : done ? CheckCircle2 : active ? CircleDot : Clock3;
         return (
-          <span className={`ot-flow-step ${done ? 'done' : ''} ${active ? 'active' : ''}`} key={step.key}>
+          <span className={`ot-flow-step ot-flow-step-${step.key} ${done ? 'done' : ''} ${active ? 'active' : ''}`} key={step.key}>
             <Icon size={16} />
             <b>{step.label}</b>
           </span>

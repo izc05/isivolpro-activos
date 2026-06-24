@@ -54,6 +54,12 @@
   color: #c2410c;
 }
 
+.ot-flow-step.active.ot-flow-step-accepted {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
 .ot-flow-steps.cancelled .ot-flow-step {
   background: #f8fafc;
   border-color: #e3e8ef;
