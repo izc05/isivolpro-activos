@@ -11,17 +11,24 @@ function installationStorageKey(tenantId) {
 }
 
 export function TenantProvider({ children }) {
-  const { isAuthenticated, isSuperAdmin } = useAuth();
+  const { isAuthenticated, isSuperAdmin, loading: authLoading } = useAuth();
   const [tenants, setTenants] = useState([]);
   const [activeTenantId, setActiveTenantIdState] = useState(sessionStorage.getItem('activeTenantId'));
   const [activeMember, setActiveMember] = useState(undefined);
   const [installations, setInstallations] = useState([]);
   const [activeInstallationId, setActiveInstallationIdState] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [tenantResolved, setTenantResolved] = useState(false);
   const [roleLoading, setRoleLoading] = useState(false);
   const [installationsLoading, setInstallationsLoading] = useState(false);
 
   useEffect(() => {
+    if (authLoading) {
+      setLoading(true);
+      setTenantResolved(false);
+      return;
+    }
+
     if (!isAuthenticated) {
       setTenants([]);
       setActiveTenantIdState(null);
@@ -30,11 +37,14 @@ export function TenantProvider({ children }) {
       setActiveInstallationIdState(null);
       setRoleLoading(false);
       setInstallationsLoading(false);
+      setLoading(false);
+      setTenantResolved(true);
       sessionStorage.removeItem('activeTenantId');
       return;
     }
 
     setLoading(true);
+    setTenantResolved(false);
     listTenants()
       .then((items) => {
         setTenants(items);
@@ -42,6 +52,7 @@ export function TenantProvider({ children }) {
         const storedIsValid = items.some((tenant) => tenant.id === storedTenantId);
         const currentIsValid = items.some((tenant) => tenant.id === activeTenantId);
         const nextTenantId = storedIsValid ? storedTenantId : currentIsValid ? activeTenantId : items[0]?.id || null;
+        setActiveMember(undefined);
         setActiveTenantIdState(nextTenantId);
         if (nextTenantId) sessionStorage.setItem('activeTenantId', nextTenantId);
         else sessionStorage.removeItem('activeTenantId');
@@ -54,8 +65,11 @@ export function TenantProvider({ children }) {
         setInstallations([]);
         setActiveInstallationIdState(null);
       })
-      .finally(() => setLoading(false));
-  }, [isAuthenticated]);
+      .finally(() => {
+        setLoading(false);
+        setTenantResolved(true);
+      });
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || !activeTenantId) {
@@ -124,10 +138,11 @@ export function TenantProvider({ children }) {
     activeInstallationId,
     ...permissions,
     isTechnician: permissions.isInternalTechnician || permissions.isExternalTechnician,
-    loading,
+    loading: authLoading || loading || !tenantResolved,
     roleLoading,
     installationsLoading,
     setActiveTenantId: (tenantId) => {
+      setActiveMember(undefined);
       setActiveTenantIdState(tenantId);
       setActiveInstallationIdState(null);
       if (tenantId) sessionStorage.setItem('activeTenantId', tenantId);
@@ -149,7 +164,7 @@ export function TenantProvider({ children }) {
       setInstallations(items);
       return items;
     }
-  }), [tenants, activeTenant, activeTenantId, activeMember, activeRole, isSuperAdmin, installations, activeInstallation, activeInstallationId, permissions, loading, roleLoading, installationsLoading]);
+  }), [tenants, activeTenant, activeTenantId, activeMember, activeRole, isSuperAdmin, installations, activeInstallation, activeInstallationId, permissions, authLoading, loading, tenantResolved, roleLoading, installationsLoading]);
 
   return createElement(TenantContext.Provider, { value }, children);
 }

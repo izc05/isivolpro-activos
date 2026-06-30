@@ -328,6 +328,287 @@
   line-height: 1.45;
 }
 
+.ot-field-intervention {
+  grid-column: 1 / -1;
+}
+
+.ot-checklist-card {
+  gap: 10px;
+  padding: 12px;
+  scroll-margin-top: 92px;
+}
+
+.checklist-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.checklist-stack .ot-checklist-card {
+  margin: 0;
+}
+
+.ot-checklist-card.collapsed {
+  gap: 0;
+  padding: 0;
+}
+
+.ot-checklist-card.collapsed .ot-section-header {
+  border-left-color: transparent;
+  padding: 12px 14px;
+}
+
+.ot-checklist-card .ot-section-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.ot-checklist-point-number {
+  min-width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #df4f45;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 5px 12px rgba(223, 79, 69, .2);
+}
+
+.ot-checklist-jump {
+  position: sticky;
+  top: 74px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .96);
+  padding: 8px 10px;
+  box-shadow: 0 8px 20px rgba(42, 49, 64, .08);
+  backdrop-filter: blur(8px);
+}
+
+.ot-checklist-jump > strong {
+  flex: 0 0 auto;
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.ot-checklist-jump > div {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 1px;
+}
+
+.ot-checklist-jump button {
+  min-width: 34px;
+  height: 34px;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ot-checklist-jump button.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.ot-checklist-jump button.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.ot-checklist-jump button.pending {
+  border-color: #f0aaa3;
+  background: #fff7f6;
+  color: #a9362f;
+}
+
+.ot-checklist-jump button:hover,
+.ot-checklist-jump button:focus-visible {
+  outline: 2px solid #df4f45;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .ot-checklist-jump {
+    top: 64px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ot-checklist-jump > div {
+    width: 100%;
+  }
+
+  .ot-checklist-card .ot-section-copy strong {
+    font-size: 17px;
+  }
+}
+
+.ot-checklist-card .ot-section-header {
+  border-radius: 8px;
+}
+
+.ot-checklist-fields {
+  gap: 10px;
+}
+
+.ot-checklist-fields .form-actions {
+  margin-top: 0;
+}
+
+.ot-checklist-card .workorder-photo-block {
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.ot-checklist-card .workorder-photo-block .section-heading {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.ot-checklist-card .photo-uploader {
+  min-height: 72px;
+  grid-template-columns: 58px 1fr;
+  padding: 7px;
+}
+
+.ot-checklist-card .photo-uploader img,
+.ot-checklist-card .photo-uploader-icon {
+  width: 58px;
+  height: 54px;
+}
+
+.ot-important-action,
+.ot-finish-action {
+  min-height: 50px;
+  padding-inline: 18px;
+  font-weight: 900;
+  box-shadow: 0 10px 22px rgba(223, 79, 69, .18);
+}
+
+.ot-finish-action:disabled {
+  border-color: #d7dee8;
+  background: #e9edf2;
+  color: #7b8798;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.ot-checklist-required {
+  margin-top: 2px;
+  align-items: center;
+}
+
+.ot-checklist-required p {
+  flex: 1;
+  margin: 0;
+}
+
+.ot-checklist-required .primary-button {
+  flex: 0 0 auto;
+}
+
+.ot-guided-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ot-guided-actions > * {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  grid-template-rows: auto auto;
+  align-content: center;
+  gap: 2px 9px;
+  padding: 12px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.ot-guided-actions > * > span {
+  grid-row: 1 / 3;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .2);
+  font-weight: 900;
+}
+
+.ot-guided-actions strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.ot-guided-actions small {
+  opacity: .82;
+  font-size: 12px;
+}
+
+.ot-guided-actions .current {
+  border-color: #df4f45;
+  box-shadow: 0 10px 22px rgba(223, 79, 69, .22);
+}
+
+.ot-guided-actions .done {
+  border-color: #86efac;
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.ot-guided-actions button:disabled {
+  border-color: #e1e7ef;
+  background: #f4f6f8;
+  color: #8a94a4;
+  opacity: 1;
+}
+
+.ot-return-visit {
+  justify-self: start;
+}
+
+.ot-signature-overlay {
+  width: min(100%, 620px);
+}
+
+.ot-pdf-overlay {
+  justify-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.ot-pdf-overlay > svg {
+  color: #df4f45;
+}
+
+.ot-pdf-overlay h3,
+.ot-pdf-overlay p {
+  margin: 0;
+}
+
+.ot-pdf-overlay p {
+  margin-top: 6px;
+}
+
 .ot-checklist-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -667,5 +948,40 @@
 
   .ot-section-copy small {
     font-size: 12px;
+  }
+
+  .ot-section-body {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .ot-checklist-required {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+
+  .ot-checklist-required .primary-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .ot-section .form-actions .ot-important-action,
+  .ot-section .form-actions .ot-finish-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ot-guided-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .ot-guided-actions > * {
+    min-height: 66px;
+    width: 100%;
+  }
+
+  .ot-signature-overlay .form-actions > * {
+    width: 100%;
+    justify-content: center;
   }
 }

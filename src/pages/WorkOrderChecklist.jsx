@@ -1,28 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle2, CircleAlert, ClipboardCheck, FileSignature, ImagePlus, ListChecks, PlayCircle, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
+import { Camera, CheckCircle2, CircleAlert, ClipboardCheck, Download, FileSignature, FileText, ImagePlus, ListChecks, PlayCircle, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
 import FormField from '../components/Forms/FormField';
 import Modal from '../components/Layout/Modal';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
 import WorkOrderPageHeader from '../components/WorkOrders/WorkOrderPageHeader';
 import { WorkOrderSectionHeader } from '../components/WorkOrders/WorkOrderSection';
 import { WorkOrderInfoGrid, WorkOrderInfoItem } from '../components/WorkOrders/WorkOrderInfoGrid';
+import SignaturePad from '../components/WorkOrders/SignaturePad';
 import { useTenant } from '../hooks/useTenant';
 import {
   CHECKLIST_RESULTS,
+  ASSET_FINAL_STATUSES,
   createChecklistItem,
   deleteChecklistItem,
   ensureDefaultChecklist,
+  finishWorkOrderVisit,
   getWorkOrder,
   listChecklistPhotos,
   listWorkOrderChecklist,
   listWorkOrderVisits,
   PHOTO_TYPES,
+  VISIT_CLOSE_RESULTS,
   signedChecklistPhotoUrl,
   updateChecklistItem,
   uploadChecklistPhoto
 } from '../services/workOrderService';
 import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
+import { uploadVisitSignature } from '../services/workOrderSignatureService';
+import { generateAndUploadWorkOrderPdf, generateWorkOrderPdfBlob, listWorkOrderReports, signedWorkOrderReportUrl } from '../services/workOrderPdfService';
+import { formatDateTime } from '../utils/dateUtils';
 import { normalizedStatus } from '../utils/workOrderLifecycle';
 
 const RESULT_LABELS = {
@@ -47,6 +54,7 @@ export default function WorkOrderChecklist() {
   const [workOrder, setWorkOrder] = useState(null);
   const [items, setItems] = useState([]);
   const [visits, setVisits] = useState([]);
+  const [reports, setReports] = useState([]);
   const [selectedVisitId, setSelectedVisitId] = useState('');
   const [open, setOpen] = useState(false);
   const [newItem, setNewItem] = useState(newItemInitial);
@@ -59,6 +67,16 @@ export default function WorkOrderChecklist() {
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [activePanel, setActivePanel] = useState('checklist');
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [signatureSaving, setSignatureSaving] = useState(false);
+  const [signerName, setSignerName] = useState('');
+  const [signerId, setSignerId] = useState('');
+  const signatureRef = useRef(null);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [closeSaving, setCloseSaving] = useState(false);
+  const [closeDraft, setCloseDraft] = useState({ resultado_cierre: 'trabajo_completado', motivo_cierre: '', proxima_accion: '', estado_final_activo: 'no_comprobado' });
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   async function refresh() {
     if (tenantLoading) return;
@@ -73,13 +91,15 @@ export default function WorkOrderChecklist() {
     try {
       const orderData = await getWorkOrder(activeTenantId, id);
       setLoadingStep('Cargando puntos del checklist...');
-      const [checklistData, visitData] = await Promise.all([
+      const [checklistData, visitData, reportData] = await Promise.all([
         listWorkOrderChecklist(activeTenantId, id),
-        listWorkOrderVisits(activeTenantId, id)
+        listWorkOrderVisits(activeTenantId, id),
+        listWorkOrderReports(activeTenantId, id)
       ]);
       setWorkOrder(orderData);
       setItems(checklistData);
       setVisits(visitData);
+      setReports(reportData);
       const activeVisit = visitData.find((visit) => visit.estado === 'EN_CURSO') || visitData[0];
       setSelectedVisitId((current) => current || activeVisit?.id || '');
     } catch (err) {
@@ -105,6 +125,15 @@ export default function WorkOrderChecklist() {
   const isPreparation = ['BORRADOR', 'NUEVA'].includes(status);
   const canEditDefinition = Boolean(canManageWorkOrders && !['VALIDADA', 'CANCELADA'].includes(status));
   const activeVisit = visits.find((visit) => visit.estado === 'EN_CURSO') || null;
+  const checklistComplete = progress.total > 0 && progress.done === progress.total;
+  const customerSignatureRequired = Boolean(workOrder?.configuracion?.requiere_firma_cliente);
+  const technicianSignatureRequired = Boolean(workOrder?.configuracion?.requiere_firma_tecnico);
+  const hasCustomerSignature = visits.some((visit) => Boolean(visit.firma_path));
+  const hasTechnicianSignature = visits.some((visit) => Boolean(visit.firma_tecnico_path));
+  const signaturesComplete = (!customerSignatureRequired || hasCustomerSignature) && (!technicianSignatureRequired || hasTechnicianSignature);
+  const nextSignatureType = technicianSignatureRequired && !hasTechnicianSignature ? 'tecnico' : 'cliente';
+  const visitClosed = !activeVisit && visits.some((visit) => visit.estado === 'FINALIZADA');
+  const reportReady = reports.length > 0;
   const technicianMustStartVisit = Boolean(!canManageWorkOrders && ['ASIGNADA', 'ACEPTADA'].includes(status) && !activeVisit);
 
   async function generateDefaultChecklist() {
@@ -218,6 +247,96 @@ export default function WorkOrderChecklist() {
     }
   }
 
+  async function saveSignature(event) {
+    event.preventDefault();
+    const visit = visits.find((entry) => entry.id === selectedVisitId) || activeVisit || visits[0];
+    if (!visit) {
+      setError('No hay una visita disponible para asociar la firma.');
+      return;
+    }
+    setSignatureSaving(true);
+    setError('');
+    try {
+      const fileName = `firma-${workOrder.codigo_ot || workOrder.id}-${Date.now()}.png`;
+      const signatureFile = await signatureRef.current.toFile(fileName);
+      await uploadVisitSignature({ workOrder, visit, file: signatureFile, nombreFirmante: signerName, dniFirmante: signerId, signatureType: nextSignatureType });
+      setSignatureOpen(false);
+      setSignerName('');
+      setSignerId('');
+      signatureRef.current.clear();
+      setMessage(nextSignatureType === 'tecnico' && customerSignatureRequired && !hasCustomerSignature ? 'Firma del técnico guardada. Ahora debe firmar el cliente.' : 'Firma guardada. El siguiente paso es generar y descargar el PDF.');
+      await refresh();
+      setActivePanel('cierre');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSignatureSaving(false);
+    }
+  }
+
+  async function closeIntervention(event) {
+    event.preventDefault();
+    const visit = visits.find((entry) => entry.estado === 'EN_CURSO');
+    if (!visit || !signaturesComplete || !reportReady) {
+      setError('Completa las firmas obligatorias y descarga el PDF antes de cerrar la intervención.');
+      return;
+    }
+    setCloseSaving(true);
+    setError('');
+    try {
+      await finishWorkOrderVisit(visit, closeDraft);
+      setCloseOpen(false);
+      setMessage('Intervención cerrada. Ya puedes generar el informe PDF.');
+      await refresh();
+      setActivePanel('cierre');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCloseSaving(false);
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function generateAndDownloadPdf() {
+    setPdfGenerating(true);
+    setError('');
+    try {
+      const report = await generateAndUploadWorkOrderPdf(activeTenantId, workOrder.id);
+      const url = await signedWorkOrderReportUrl(report);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = report.filename || 'informe-ot.pdf';
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setReports((current) => [report, ...current.filter((entry) => entry.id !== report.id)]);
+      setPdfOpen(false);
+      setMessage('PDF generado y descargado. El último paso es cerrar la intervención.');
+    } catch (err) {
+      try {
+        const { blob, filename } = await generateWorkOrderPdfBlob(activeTenantId, workOrder.id);
+        downloadBlob(blob, filename);
+        setError(`${err.message}. Se descargó una copia local, pero debes generar el informe guardado antes de cerrar.`);
+      } catch (fallbackError) {
+        setError(`${err.message}. No se pudo descargar: ${fallbackError.message}`);
+      }
+    } finally {
+      setPdfGenerating(false);
+    }
+  }
+
   if (loading || tenantLoading) {
     return (
       <section className="card workorder-loading">
@@ -318,6 +437,25 @@ export default function WorkOrderChecklist() {
               </div>
               <span className="badge">{progress.done}/{progress.total}</span>
             </div>
+            {items.length > 0 && (
+              <nav className="ot-checklist-jump" aria-label="Ir a un punto del checklist">
+                <strong>Ir al punto</strong>
+                <div>
+                  {items.map((item) => (
+                    <button
+                      className={item.resultado === 'pendiente' ? 'pending' : item.resultado === 'no_ok' ? 'danger' : 'done'}
+                      type="button"
+                      key={item.id}
+                      title={`${item.punto}. ${item.descripcion}`}
+                      aria-label={`Ir al punto ${item.punto}: ${item.descripcion}`}
+                      onClick={() => document.getElementById(`checklist-point-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    >
+                      {item.punto}
+                    </button>
+                  ))}
+                </div>
+              </nav>
+            )}
             {items.length === 0 && (
               <section className="empty-state ot-checklist-empty">
                 <strong>Esta OT todavia no tiene checklist.</strong>
@@ -384,16 +522,26 @@ export default function WorkOrderChecklist() {
           <div className="ot-subscreen-panel">
             <div className="ot-panel-heading">
               <div>
-                <h3>Siguiente bloque</h3>
-                <p>Cuando los puntos esten revisados, pasa a firma del cliente y genera el PDF final.</p>
+                <h3>{!checklistComplete ? 'Siguiente paso: completar checklist' : !signaturesComplete ? `Siguiente paso: firma del ${nextSignatureType}` : !reportReady ? 'Siguiente paso: descargar PDF' : !visitClosed ? 'Último paso: cerrar intervención' : 'Trabajo completado'}</h3>
+                <p>La aplicación ilumina en rojo la acción que corresponde realizar ahora.</p>
               </div>
               <WorkOrderStatusBadge status={workOrder.estado} />
             </div>
-            <div className="ot-close-actions">
-              <Link className="secondary-button" to={`/ots/${workOrder.id}/visita`}>Registrar intervención</Link>
-              <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}>Firma cliente</Link>
-              <Link className="primary-button" to={`/ots/${workOrder.id}/informe`}>Generar PDF</Link>
+            <div className="ot-guided-actions" aria-label="Pasos de cierre">
+              <button className={!checklistComplete ? 'primary-button current' : 'secondary-button done'} type="button" onClick={() => setActivePanel('checklist')}>
+                <span>1</span><strong>Checklist</strong><small>{checklistComplete ? 'Completado' : `${progress.done}/${progress.total} puntos`}</small>
+              </button>
+              <button className={checklistComplete && !signaturesComplete ? 'primary-button current' : signaturesComplete ? 'secondary-button done' : 'secondary-button'} type="button" disabled={!checklistComplete || signaturesComplete} onClick={() => setSignatureOpen(true)}>
+                <span>2</span><strong>{nextSignatureType === 'tecnico' ? 'Firma técnico' : 'Firma cliente'}</strong><small>{signaturesComplete ? 'Firmas completas' : checklistComplete ? 'Hazlo ahora' : 'Bloqueado'}</small>
+              </button>
+              <button className={signaturesComplete && !reportReady ? 'primary-button current' : reportReady ? 'secondary-button done' : 'secondary-button'} type="button" disabled={!signaturesComplete || reportReady} onClick={() => setPdfOpen(true)}>
+                <span>3</span><strong>Descargar PDF</strong><small>{reportReady ? 'Descargado' : signaturesComplete ? 'Hazlo ahora' : 'Requiere firma'}</small>
+              </button>
+              <button className={reportReady && !visitClosed ? 'primary-button current' : visitClosed ? 'secondary-button done' : 'secondary-button'} type="button" disabled={!reportReady || visitClosed} onClick={() => setCloseOpen(true)}>
+                <span>4</span><strong>Cerrar</strong><small>{visitClosed ? 'Completado' : reportReady ? 'Último paso' : 'Requiere PDF'}</small>
+              </button>
             </div>
+            <Link className="ghost-button ot-return-visit" to={`/ots/${workOrder.id}/visita`}>Volver a la intervención</Link>
           </div>
         )}
       </section>
@@ -413,11 +561,77 @@ export default function WorkOrderChecklist() {
           </div>
         </form>
       </Modal>
+
+      <Modal title={nextSignatureType === 'tecnico' ? 'Firma del técnico' : 'Firma del cliente'} open={signatureOpen} onClose={() => setSignatureOpen(false)}>
+        <form className="form-grid ot-signature-overlay" onSubmit={saveSignature}>
+          <p className="muted">Firma asociada a esta intervención. Al guardarla volverás al cierre para confirmar el resultado del trabajo.</p>
+          <FormField label="Visita a firmar">
+            <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)} required>
+              <option value="">Selecciona visita</option>
+              {visits.map((visit) => <option key={visit.id} value={visit.id}>{formatDateTime(visit.fecha_inicio)} - {visit.estado}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Nombre del firmante">
+            <input value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder={nextSignatureType === 'tecnico' ? 'Nombre del técnico' : 'Cliente o responsable'} required />
+          </FormField>
+          {nextSignatureType === 'cliente' && <FormField label="DNI / identificación opcional">
+            <input value={signerId} onChange={(event) => setSignerId(event.target.value)} placeholder="Opcional" />
+          </FormField>}
+          <SignaturePad ref={signatureRef} />
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => signatureRef.current?.clear()}>Limpiar</button>
+            <button className="primary-button ot-important-action" type="submit" disabled={signatureSaving}>{signatureSaving ? 'Guardando...' : 'Guardar firma y continuar'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal title="Generar y descargar PDF" open={pdfOpen} onClose={() => setPdfOpen(false)}>
+        <div className="form-grid ot-pdf-overlay">
+          <FileText size={36} />
+          <div>
+            <h3>Informe de la intervención</h3>
+            <p className="muted">Se guardará una copia en la OT y se descargará otra en el dispositivo.</p>
+          </div>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setPdfOpen(false)}>Cancelar</button>
+            <button className="primary-button ot-important-action" type="button" disabled={pdfGenerating} onClick={generateAndDownloadPdf}>
+              <Download size={18} /> {pdfGenerating ? 'Generando...' : 'Generar y descargar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal title="Cerrar intervención" open={closeOpen} onClose={() => setCloseOpen(false)}>
+        <form className="form-grid" onSubmit={closeIntervention}>
+          <p className="muted">Confirma cómo termina la visita. Después podrás generar el informe PDF.</p>
+          <FormField label="Resultado del trabajo">
+            <select value={closeDraft.resultado_cierre} onChange={(event) => setCloseDraft((current) => ({ ...current, resultado_cierre: event.target.value }))}>
+              {VISIT_CLOSE_RESULTS.map((result) => <option key={result} value={result}>{result.replaceAll('_', ' ')}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Motivo / justificación">
+            <textarea rows="2" value={closeDraft.motivo_cierre} onChange={(event) => setCloseDraft((current) => ({ ...current, motivo_cierre: event.target.value }))} required={closeDraft.resultado_cierre !== 'trabajo_completado'} />
+          </FormField>
+          <FormField label="Próxima acción">
+            <textarea rows="2" value={closeDraft.proxima_accion} onChange={(event) => setCloseDraft((current) => ({ ...current, proxima_accion: event.target.value }))} />
+          </FormField>
+          <FormField label="Estado final del activo">
+            <select value={closeDraft.estado_final_activo} onChange={(event) => setCloseDraft((current) => ({ ...current, estado_final_activo: event.target.value }))}>
+              {ASSET_FINAL_STATUSES.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
+            </select>
+          </FormField>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setCloseOpen(false)}>Cancelar</button>
+            <button className="primary-button ot-important-action" type="submit" disabled={closeSaving}>{closeSaving ? 'Cerrando...' : 'Cerrar y continuar'}</button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }
 
 function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting, canEditDefinition, onUpdate, onDelete }) {
+  const [open, setOpen] = useState(item.resultado === 'pendiente');
   const [description, setDescription] = useState(item.descripcion || '');
   const [observation, setObservation] = useState(item.observacion || '');
   const [photos, setPhotos] = useState([]);
@@ -440,6 +654,10 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
     setDescription(item.descripcion || '');
     setObservation(item.observacion || '');
   }, [item.descripcion, item.observacion]);
+
+  useEffect(() => {
+    setOpen(item.resultado === 'pendiente');
+  }, [item.id]);
 
   useEffect(() => {
     setExtra({
@@ -530,14 +748,17 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
   const itemBadge = itemCompleted ? <span className="badge ok">Completado</span> : missingRequiredPhoto ? <span className="badge warn">Falta foto</span> : <span className="badge">Pendiente</span>;
 
   return (
-    <section className="card ot-checklist-card">
+    <section id={`checklist-point-${item.id}`} className={`card ot-checklist-card ${open ? 'open' : 'collapsed'}`}>
       <WorkOrderSectionHeader
-        title={`${item.punto}. ${item.descripcion}`}
+        title={<><span className="ot-checklist-point-number">{item.punto}</span><span>{item.descripcion}</span></>}
         subtitle={`${item.requiere_foto ? 'Foto requerida' : 'Foto opcional'} · ${photos.length} foto(s)`}
         icon={Camera}
         badge={itemBadge}
+        open={open}
+        onToggle={() => setOpen((current) => !current)}
       />
-      <div className="form-grid">
+      {open && <>
+      <div className="form-grid ot-checklist-fields">
         {canEditDefinition && (
           <FormField label="Pregunta o comprobación">
             <textarea rows="2" value={description} onChange={(event) => setDescription(event.target.value)} onBlur={() => onUpdate(item, { descripcion: description, observacion: observation })} />
@@ -555,7 +776,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           </label>
         )}
         <FormField label="Observacion">
-          <textarea rows="3" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
+          <textarea rows="2" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
         </FormField>
         {item.resultado === 'no_ok' && (
           <>
@@ -642,6 +863,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           </div>
         </form>
       </div>
+      </>}
     </section>
   );
 }

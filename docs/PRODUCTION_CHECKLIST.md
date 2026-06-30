@@ -30,6 +30,14 @@ Lista de comprobación antes de presentar la aplicación a clientes reales o usa
 
 ## Base de datos
 
+- [ ] Crear una copia de seguridad antes de aplicar cambios de seguridad.
+- [ ] Aplicar `src/sql/038_phase1_work_order_integrity.sql` en Supabase.
+- [ ] Ejecutar `docs/phase1-security-verification.sql` y confirmar resultado correcto.
+- [ ] Confirmar que PostgREST recarga el esquema sin errores.
+- [ ] Verificar que un técnico no puede editar una OT finalizada.
+- [ ] Verificar que un técnico no puede modificar la definición del checklist.
+- [ ] Verificar que checklist, firma y PDF son obligatorios cuando la configuración lo exige.
+- [ ] Verificar que el cierre transaccional no deja una visita finalizada con la OT en curso.
 - [ ] Revisar migraciones SQL.
 - [ ] Crear datos de prueba realistas.
 - [ ] Confirmar que los ejemplos demo cubren comunidad, clinica/residencia, activos criticos, documentos, incidencias, mantenimiento y OT.

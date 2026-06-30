@@ -141,10 +141,22 @@ export async function generateWorkOrderForScheduledMaintenance(row) {
       punto: item.punto,
       descripcion: item.descripcion,
       requiere_foto: item.requiere_foto,
+      obligatorio: item.obligatorio,
+      tipo_respuesta: item.tipo_respuesta,
+      unidad: item.unidad,
+      valor_minimo: item.valor_minimo,
+      valor_maximo: item.valor_maximo,
+      plantilla_item_id: item.plantilla_item_id,
       resultado: 'pendiente',
       created_by: workOrder.created_by || null
     })));
     if (checklistError) throw checklistError;
+    const { error: snapshotError } = await supabase.from('ordenes_trabajo').update({
+      checklist_snapshot: checklistItems.map((item, index) => ({ ...item, orden: index + 1 })),
+      checklist_snapshot_version: 1,
+      checklist_snapshot_at: new Date().toISOString()
+    }).eq('tenant_id', row.tenant_id).eq('id', workOrder.id);
+    if (snapshotError) throw snapshotError;
   }
 
   const { data, error } = await supabase

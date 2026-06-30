@@ -27,9 +27,11 @@ export default function WorkOrderSteps({ status }) {
       {FLOW_STEPS.map((step, index) => {
         const done = !cancelled && index < activeIndex;
         const active = !cancelled && index === activeIndex;
-        const Icon = cancelled ? AlertTriangle : done ? CheckCircle2 : active ? CircleDot : Clock3;
+        const completed = done || (active && ['finished', 'validated'].includes(step.key));
+        const inProgress = active && !completed;
+        const Icon = cancelled ? AlertTriangle : completed ? CheckCircle2 : inProgress ? CircleDot : Clock3;
         return (
-          <span className={`ot-flow-step ${done ? 'done' : ''} ${active ? 'active' : ''}`} key={step.key}>
+          <span className={`ot-flow-step ${completed ? 'done' : ''} ${inProgress ? 'active' : ''}`} aria-current={active ? 'step' : undefined} key={step.key}>
             <Icon size={16} />
             <b>{step.label}</b>
           </span>

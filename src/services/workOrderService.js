@@ -194,7 +194,7 @@ function withDefaultConfiguration(row, fallbackConfiguration = null) {
 }
 
 function assertEditable(workOrder) {
-  if (['CERRADA', 'VALIDADA', 'CANCELADA'].includes(workOrder?.estado)) throw new Error('La OT esta cerrada y no admite cambios.');
+  if (['FINALIZADA', 'FIRMADA', 'INFORME_GENERADO', 'CERRADA', 'VALIDADA', 'CANCELADA'].includes(workOrder?.estado)) throw new Error('La OT esta finalizada y es de solo lectura.');
 }
 
 async function assertWorkOrderOpen(tenantId, workOrderId) {
@@ -260,13 +260,32 @@ export async function createWorkOrder(tenantId, payload) {
   return created;
 }
 
-export async function seedChecklist(tenantId, workOrderId, type = 'mantenimiento', createdBy = null) {
+function checklistSnapshot(items = []) {
+  return items.map((item, index) => ({
+    id: item.plantilla_item_id || item.id || null,
+    orden: Number(item.orden || index + 1),
+    punto: String(item.punto || index + 1),
+    titulo: item.titulo || item.descripcion || `Punto ${index + 1}`,
+    descripcion: item.descripcion || item.titulo || '',
+    obligatorio: item.obligatorio !== false,
+    requiere_foto: Boolean(item.requiere_foto),
+    tipo_respuesta: item.tipo_respuesta || 'ok_no_ok',
+    unidad: item.unidad || null,
+    valor_minimo: item.valor_minimo === '' || item.valor_minimo == null ? null : Number(item.valor_minimo),
+    valor_maximo: item.valor_maximo === '' || item.valor_maximo == null ? null : Number(item.valor_maximo)
+  }));
+}
+
+export async function seedChecklist(tenantId, workOrderId, type = 'mantenimiento', createdBy = null, templateItems = null) {
   const existing = await supabase.from('ot_checklist_respuestas').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('ot_id', workOrderId);
   if (existing.error) throw existing.error;
   if ((existing.count || 0) > 0) return listWorkOrderChecklist(tenantId, workOrderId);
-  const items = checklistTemplateForType(type).map((item, index) => ({ tenant_id: tenantId, ot_id: workOrderId, orden: index + 1, punto: item.punto, descripcion: item.descripcion, requiere_foto: item.requiere_foto, created_by: createdBy }));
+  const snapshot = checklistSnapshot(templateItems?.length ? templateItems : checklistTemplateForType(type));
+  const items = snapshot.map((item) => ({ tenant_id: tenantId, ot_id: workOrderId, orden: item.orden, punto: item.punto, descripcion: item.descripcion, requiere_foto: item.requiere_foto, obligatorio: item.obligatorio, tipo_respuesta: item.tipo_respuesta, unidad: item.unidad, valor_minimo: item.valor_minimo, valor_maximo: item.valor_maximo, plantilla_item_id: item.id, created_by: createdBy }));
   const { data, error } = await supabase.from('ot_checklist_respuestas').insert(items).select();
   if (error) throw error;
+  const snapshotUpdate = await supabase.from('ordenes_trabajo').update({ checklist_snapshot: snapshot, checklist_snapshot_version: 1, checklist_snapshot_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('id', workOrderId);
+  if (snapshotUpdate.error) throw snapshotUpdate.error;
   return data || [];
 }
 
@@ -281,7 +300,7 @@ export async function createChecklistItem(workOrder, payload) {
   const existing = await supabase.from('ot_checklist_respuestas').select('orden').eq('tenant_id', workOrder.tenant_id).eq('ot_id', workOrder.id).order('orden', { ascending: false }).limit(1);
   if (existing.error) throw existing.error;
   const nextOrder = (existing.data?.[0]?.orden || 0) + 1;
-  const { data, error } = await supabase.from('ot_checklist_respuestas').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: payload.visita_id || null, orden: nextOrder, punto: String(nextOrder), descripcion: payload.descripcion, requiere_foto: Boolean(payload.requiere_foto), resultado: 'pendiente', created_by: userId }).select().single();
+  const { data, error } = await supabase.from('ot_checklist_respuestas').insert({ tenant_id: workOrder.tenant_id, ot_id: workOrder.id, visita_id: payload.visita_id || null, orden: nextOrder, punto: String(nextOrder), descripcion: payload.descripcion, requiere_foto: Boolean(payload.requiere_foto), obligatorio: payload.obligatorio !== false, tipo_respuesta: payload.tipo_respuesta || 'ok_no_ok', unidad: payload.unidad || null, valor_minimo: payload.valor_minimo || null, valor_maximo: payload.valor_maximo || null, resultado: 'pendiente', created_by: userId }).select().single();
   if (error) throw error;
   await logAudit({ tenantId: workOrder.tenant_id, action: 'create_work_order_checklist_item', entityType: 'ot_checklist_respuesta', entityId: data.id, metadata: { otId: workOrder.id } });
   return data;
@@ -322,12 +341,11 @@ export async function updateWorkOrderVisit(visit, payload = {}) {
 }
 
 export async function finishWorkOrderVisit(visit, payload = {}) {
-  const now = new Date().toISOString();
-  const { data, error } = await supabase.from('ot_visitas').update({ ...payload, estado: 'FINALIZADA', fecha_fin: now, resultado_cierre: payload.resultado_cierre || 'trabajo_completado', motivo_cierre: payload.motivo_cierre || null, proxima_accion: payload.proxima_accion || null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.id).select().single();
+  const { data, error } = await supabase.rpc('finalize_work_order_visit', {
+    visit_uuid: visit.id,
+    payload_json: payload
+  });
   if (error) throw error;
-  const nextStatus = payload.resultado_cierre === 'pendiente_material' ? 'PENDIENTE_MATERIAL' : payload.resultado_cierre === 'pendiente_cliente' ? 'PENDIENTE_CLIENTE' : payload.resultado_cierre === 'necesita_otra_visita' ? 'PAUSADA' : 'FINALIZADA';
-  const updateResult = await supabase.from('ordenes_trabajo').update({ estado: nextStatus, fecha_fin: nextStatus === 'FINALIZADA' ? now : null, updated_at: now }).eq('tenant_id', visit.tenant_id).eq('id', visit.ot_id).select('id,estado').single();
-  if (updateResult.error) throw updateResult.error;
   await logAudit({ tenantId: visit.tenant_id, action: 'finish_work_order_visit', entityType: 'ot_visita', entityId: visit.id, metadata: { otId: visit.ot_id, result: payload.resultado_cierre } });
   return data;
 }

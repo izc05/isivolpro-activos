@@ -11,9 +11,8 @@ import {
   MATERIAL_MOVEMENT_LABELS,
   signedChecklistPhotoUrl
 } from './workOrderService';
-import { updateWorkOrderLifecycleStatus } from './workOrderLifecycleService';
-import { signedVisitSignatureUrl } from './workOrderSignatureService';
-import { isWorkOrderClosed, priorityLabel, workOrderStatusLabel, workOrderTypeLabel } from '../utils/workOrderLifecycle';
+import { signedTechnicianSignatureUrl, signedVisitSignatureUrl } from './workOrderSignatureService';
+import { isWorkOrderReadOnly, priorityLabel, workOrderStatusLabel, workOrderTypeLabel } from '../utils/workOrderLifecycle';
 
 const PAGE = { width: 210, height: 297, margin: 14 };
 const COLORS = {
@@ -359,6 +358,7 @@ async function collectReportData(tenantId, workOrderId) {
   const visitsWithSignatures = [];
   for (const visit of visits) {
     let signatureUrl = '';
+    let technicianSignatureUrl = '';
     if (visit.firma_path) {
       try {
         signatureUrl = await signedVisitSignatureUrl(visit, 600);
@@ -366,7 +366,14 @@ async function collectReportData(tenantId, workOrderId) {
         console.error('No se pudo firmar la firma', error);
       }
     }
-    visitsWithSignatures.push({ ...visit, signatureUrl });
+    if (visit.firma_tecnico_path) {
+      try {
+        technicianSignatureUrl = await signedTechnicianSignatureUrl(visit, 600);
+      } catch (error) {
+        console.error('No se pudo preparar la firma del técnico', error);
+      }
+    }
+    visitsWithSignatures.push({ ...visit, signatureUrl, technicianSignatureUrl });
   }
 
   return { workOrder, visits: visitsWithSignatures, checklist, photosByChecklistId, materials, allPhotos: signedPhotos };
@@ -508,7 +515,25 @@ export async function generateWorkOrderPdfBlob(tenantId, workOrderId) {
     }
   }
 
-  y = addSection(doc, y, '8. Firma cliente / responsable');
+  y = addSection(doc, y, '8. Firmas de la intervención');
+  const technicianSignedVisits = visits.filter((visit) => visit.firma_tecnico_path);
+  y = addParagraph(doc, y, 'Firma del técnico');
+  if (technicianSignedVisits.length === 0) {
+    y = addParagraph(doc, y, 'No hay firma del técnico guardada.');
+  } else {
+    for (const visit of technicianSignedVisits) {
+      y = addKeyValue(doc, y, 'Técnico firmante', visit.firma_tecnico_nombre || workOrder.assigned?.nombre || '-');
+      y = addKeyValue(doc, y, 'Fecha de firma', formatDate(visit.firma_tecnico_at || visit.fecha_inicio));
+      try {
+        const dataUrl = await urlToDataUrl(visit.technicianSignatureUrl);
+        y = await addImageBlock(doc, y, dataUrl, 'Firma del técnico', 120, 45);
+      } catch (error) {
+        y = addParagraph(doc, y, 'No se pudo incluir la firma del técnico.');
+      }
+    }
+  }
+
+  y = addParagraph(doc, y, 'Firma del cliente / responsable');
   const signedVisits = visits.filter((visit) => visit.firma_path);
   if (signedVisits.length === 0) {
     y = addParagraph(doc, y, 'No hay firma guardada.');
@@ -572,7 +597,7 @@ export async function signedWorkOrderReportUrl(report, expiresIn = 600) {
 
 export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
   const { blob, filename, workOrder } = await generateWorkOrderPdfBlob(tenantId, workOrderId);
-  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevos informes. Descarga el acta final desde OT realizadas.');
+  if (isWorkOrderReadOnly(workOrder)) throw new Error('La OT esta finalizada y no admite nuevos informes. Descarga el acta final desde OT realizadas.');
   const file = new File([blob], filename, { type: 'application/pdf' });
   const path = buildStoragePath({ tenantId, scope: 'ordenes-trabajo', scopeId: workOrderId, folder: 'informes', file });
 
@@ -591,7 +616,6 @@ export async function generateAndUploadWorkOrderPdf(tenantId, workOrderId) {
     .single();
 
   if (error) throw error;
-  if (!['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(workOrder.estado)) await updateWorkOrderLifecycleStatus(workOrder, 'FINALIZADA');
   await logAudit({ tenantId, action: 'generate_work_order_pdf_report', entityType: 'ot_informe', entityId: data.id, metadata: { otId: workOrderId, filename } });
   return data;
 }

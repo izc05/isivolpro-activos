@@ -34,6 +34,18 @@ Este documento resume las medidas de seguridad previstas para la aplicación y l
 - Verificar que el modo demo está desactivado.
 - Hacer copia de seguridad periódica de la base de datos.
 
+## Protección del flujo de órdenes de trabajo
+
+La migración `src/sql/038_phase1_work_order_integrity.sql` es obligatoria antes de publicar el flujo OT endurecido. Esta migración:
+
+- limita al técnico a su OT asignada y a transiciones operativas válidas;
+- bloquea cambios en OT finalizadas, validadas o canceladas;
+- separa las políticas RLS de lectura, inserción, actualización y borrado;
+- valida checklist, fotos obligatorias, firma e informe antes de finalizar;
+- finaliza visita y OT dentro de una única transacción PostgreSQL.
+
+Después de aplicarla se deben ejecutar las pruebas de aislamiento con dos empresas y usuarios de roles distintos. La compilación del frontend no aplica migraciones automáticamente.
+
 ## Reporte de incidencias
 
 Para comunicar una incidencia de seguridad:

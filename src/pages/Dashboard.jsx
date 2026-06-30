@@ -28,7 +28,22 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
 
   useEffect(() => {
-    if (activeTenantId) dashboardMetrics(activeTenantId, activeInstallationId).then(setMetrics).catch(console.error);
+    if (!activeTenantId) return undefined;
+    let mounted = true;
+    const refreshMetrics = () => dashboardMetrics(activeTenantId, activeInstallationId)
+      .then((data) => { if (mounted) setMetrics(data); })
+      .catch(console.error);
+    refreshMetrics();
+    const interval = window.setInterval(refreshMetrics, 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshMetrics();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [activeTenantId, activeInstallationId]);
 
   const data = metrics || { totalInstalaciones: 0, totalActivos: 0, pendientesRevision: 0, incidenciasAbiertas: 0, documentosRecientes: [] };

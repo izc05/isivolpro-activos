@@ -47,6 +47,17 @@ export async function resolveQr(rawValue) {
   return resolved;
 }
 
+export async function verifyWorkOrderQr(workOrderId, rawValue) {
+  const token = tokenFromQrValue(rawValue);
+  if (!workOrderId || !token) throw new Error('No se ha podido identificar la OT o el QR.');
+  const { data, error } = await supabase.rpc('verify_work_order_qr', {
+    work_order_uuid: workOrderId,
+    qr_token_text: token
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
 export async function qrDataUrl(token, baseUrl = appBaseUrl(), kind = 'internal') {
   const path = kind === 'public-incident' ? publicIncidentPathFromToken(token) : qrPathFromToken(token);
   return QRCode.toDataURL(`${baseUrl}${path}`, {

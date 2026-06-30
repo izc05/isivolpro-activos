@@ -7,6 +7,7 @@
     "prebuild": "node scripts/restore-source-html.mjs",
     "predev": "node scripts/restore-source-html.mjs",
     "dev": "vite",
+    "test": "node --test tests/*.test.js",
     "build": "vite build",
     "preview": "vite preview",
     "android:add": "npx cap add android",

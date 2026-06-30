@@ -234,6 +234,7 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
         const status = normalizedStatus(row.estado);
         const needsAcceptance = status === 'ASIGNADA';
         const isAccepted = status === 'ACEPTADA';
+        const isReadOnly = ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(status);
         return (
           <article className="assigned-ot-card" key={row.id}>
             <WorkOrderThumbnail row={row} compact />
@@ -268,6 +269,9 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
               <strong>{row.instalaciones?.contacto_nombre || 'Sin contacto indicado'}</strong>
               <span>{phone || 'Sin telefono indicado'}</span>
               <div className="quick-actions">
+                {isReadOnly ? (
+                  <span className="badge ok">Solo lectura · pulsa el número de OT para consultar</span>
+                ) : <>
                 {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Ruta</a>}
                 {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
                 {needsAcceptance ? (
@@ -277,6 +281,7 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
                 ) : (
                   <Link className="primary-button" to={`/ots/${row.id}/visita`}>{isAccepted ? 'Iniciar intervención' : 'Continuar intervención'}</Link>
                 )}
+                </>}
               </div>
             </div>
           </article>

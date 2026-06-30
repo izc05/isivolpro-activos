@@ -17,9 +17,9 @@ export default function WorkOrderDashboard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  async function refresh() {
+  async function refresh({ silent = false } = {}) {
     if (!activeTenantId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError('');
     try {
       const [orderData, visitData] = await Promise.all([
@@ -31,12 +31,22 @@ export default function WorkOrderDashboard() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
   useEffect(() => {
     refresh();
+    if (!activeTenantId) return undefined;
+    const interval = window.setInterval(() => refresh({ silent: true }), 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [activeTenantId]);
 
   const metrics = useMemo(() => {

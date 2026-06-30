@@ -75,6 +75,7 @@ export const WORK_ORDER_STATUS_TONES = {
 export const ACTIVE_WORK_ORDER_STATUSES = ['NUEVA', 'ASIGNADA', 'ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
 export const FINISHED_WORK_ORDER_STATUSES = ['FINALIZADA'];
 export const CLOSED_WORK_ORDER_STATUSES = ['VALIDADA', 'CANCELADA'];
+export const READ_ONLY_WORK_ORDER_STATUSES = ['FINALIZADA', 'VALIDADA', 'CANCELADA'];
 
 export const OFFICIAL_WORK_ORDER_PRIORITIES = ['baja', 'normal', 'alta', 'urgente', 'critica'];
 export const WORK_ORDER_PRIORITY_LABELS = {
@@ -164,6 +165,11 @@ export function workOrderTypeLabel(type = '') {
 export function isWorkOrderClosed(rowOrStatus) {
   const status = typeof rowOrStatus === 'string' ? rowOrStatus : rowOrStatus?.estado;
   return CLOSED_WORK_ORDER_STATUSES.includes(normalizedStatus(status));
+}
+
+export function isWorkOrderReadOnly(rowOrStatus) {
+  const status = typeof rowOrStatus === 'string' ? rowOrStatus : rowOrStatus?.estado;
+  return READ_ONLY_WORK_ORDER_STATUSES.includes(normalizedStatus(status));
 }
 
 export function validNextActions(row = {}) {

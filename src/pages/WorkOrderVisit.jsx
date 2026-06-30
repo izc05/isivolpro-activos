@@ -15,6 +15,7 @@ import {
   createVisitMaterial,
   finishWorkOrderVisit,
   getWorkOrder,
+  listWorkOrderChecklist,
   listVisitMaterials,
   listWorkOrderVisits,
   MATERIAL_MOVEMENT_TYPES,
@@ -53,6 +54,7 @@ export default function WorkOrderVisit() {
   const { activeTenantId, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [visits, setVisits] = useState([]);
+  const [checklistItems, setChecklistItems] = useState([]);
   const [activeVisit, setActiveVisit] = useState(null);
   const [observations, setObservations] = useState('');
   const [visitDraft, setVisitDraft] = useState({
@@ -100,13 +102,16 @@ export default function WorkOrderVisit() {
     }
     setLoading(true);
     try {
-      const [orderData, visitData] = await Promise.all([
+      const [orderData, visitData, checklistData] = await Promise.all([
         getWorkOrder(activeTenantId, id),
-        listWorkOrderVisits(activeTenantId, id)
+        listWorkOrderVisits(activeTenantId, id),
+        listWorkOrderChecklist(activeTenantId, id)
       ]);
       setWorkOrder(orderData);
       setVisits(visitData);
-      const currentVisit = visitData.find((visit) => visit.estado === 'EN_CURSO') || null;
+      setChecklistItems(checklistData);
+      const orderIsReadOnly = ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(normalizedStatus(orderData.estado));
+      const currentVisit = orderIsReadOnly ? null : visitData.find((visit) => visit.estado === 'EN_CURSO') || null;
       setActiveVisit(currentVisit);
       setObservations(currentVisit?.observaciones || '');
       setVisitDraft((current) => ({
@@ -137,10 +142,13 @@ export default function WorkOrderVisit() {
   }, [activeTenantId, tenantLoading, id]);
 
   const status = normalizedStatus(workOrder?.estado);
+  const isReadOnly = ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(status);
   const needsAcceptance = status === 'ASIGNADA';
   const canAcceptWorkOrder = Boolean(workOrder && needsAcceptance && !activeVisit);
   const canStartVisit = useMemo(() => !activeVisit && workOrder && ['ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(status), [activeVisit, workOrder, status]);
   const hasPreviousVisits = visits.some((visit) => visit.estado === 'FINALIZADA');
+  const checklistComplete = checklistItems.length > 0 && checklistItems.every((item) => item.resultado && item.resultado !== 'pendiente');
+  const checklistDone = checklistItems.filter((item) => item.resultado && item.resultado !== 'pendiente').length;
 
   async function acceptWorkOrder() {
     if (!workOrder) return;
@@ -167,16 +175,11 @@ export default function WorkOrderVisit() {
     setSaving(true);
     try {
       const location = await getBrowserLocation();
-      if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
-        setError('No se ha podido recoger la ubicación. Activa el permiso de ubicación del navegador antes de iniciar la OT.');
-        return;
-      }
       const visit = await startWorkOrderVisit(workOrder, location, visitDraft);
       setActiveVisit(visit);
       setObservations('');
       setMessage('Intervención iniciada correctamente.');
       await refresh();
-      navigate(`/ots/${workOrder.id}/checklist`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -202,10 +205,15 @@ export default function WorkOrderVisit() {
   async function finishVisit(event) {
     event.preventDefault();
     if (!activeVisit) return;
+    if (!checklistComplete) {
+      setFinishOpen(false);
+      setError('Debes completar todos los puntos del checklist antes de finalizar la intervención.');
+      return;
+    }
     setError('');
     setSaving(true);
     try {
-      await finishWorkOrderVisit(activeVisit, { ...visitDraft, ...finishDraft, observaciones });
+      await finishWorkOrderVisit(activeVisit, { ...visitDraft, ...finishDraft, observaciones: observations });
       setActiveVisit(null);
       setObservations('');
       setFinishOpen(false);
@@ -263,7 +271,7 @@ export default function WorkOrderVisit() {
       {message && <p className="success-text">{message}</p>}
 
       <div className="grid two">
-        <WorkOrderSection title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen>
+        <WorkOrderSection key={`assigned-${activeVisit?.id || 'pending'}`} title="Trabajo asignado" subtitle="Contexto operativo de la intervención" icon={WrenchIcon} badge={<WorkOrderStatusBadge status={workOrder.estado} />} defaultOpen={false}>
           <WorkOrderInfoGrid columns={2}>
             <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
             <WorkOrderInfoItem label="Prioridad" value={<WorkOrderPriorityBadge priority={workOrder.prioridad} />} important />
@@ -277,14 +285,20 @@ export default function WorkOrderVisit() {
           {workOrder.riesgos_precauciones && <p className="warning-text">{workOrder.riesgos_precauciones}</p>}
         </WorkOrderSection>
 
-        <InstallationFieldCard installation={workOrder.instalaciones} />
+        <InstallationFieldCard key={`installation-${activeVisit?.id || 'pending'}`} installation={workOrder.instalaciones} readOnly={isReadOnly} />
 
-        <WorkOrderSection title="Intervención en campo" subtitle="1. Acepta la OT · 2. Inicia al llegar · 3. Registra y finaliza" icon={PlayCircle} defaultOpen>
-          <ol className="field-flow-steps" aria-label="Pasos de intervención">
+        <WorkOrderSection className="ot-field-intervention" key={`field-${activeVisit?.id || 'pending'}`} title="Intervención en campo" subtitle="1. Acepta la OT · 2. Inicia al llegar · 3. Registra y finaliza" icon={PlayCircle} defaultOpen={!isReadOnly && !activeVisit}>
+          {!isReadOnly && <ol className="field-flow-steps" aria-label="Pasos de intervención">
             <li className={needsAcceptance ? 'active' : 'done'}>Aceptar OT</li>
             <li className={!needsAcceptance && !activeVisit ? 'active' : activeVisit ? 'done' : ''}>Iniciar intervención</li>
             <li className={activeVisit ? 'active' : ''}>Completar datos</li>
-          </ol>
+          </ol>}
+          {isReadOnly && (
+            <div className="workorder-alert success ot-readonly-notice">
+              <CheckCircle2 size={20} />
+              <p><strong>OT finalizada.</strong> Esta pantalla es únicamente de consulta y no permite realizar cambios.</p>
+            </div>
+          )}
           {canAcceptWorkOrder && (
             <div className="workorder-alert info">
               <CheckCircle2 size={20} />
@@ -294,7 +308,7 @@ export default function WorkOrderVisit() {
               </button>
             </div>
           )}
-          {!activeVisit && (
+          {!activeVisit && !isReadOnly && (
             <>
               <p className="muted">
                 {needsAcceptance
@@ -353,16 +367,23 @@ export default function WorkOrderVisit() {
               </FormField>
               <div className="form-actions">
                 <button className="secondary-button" type="button" disabled={saving} onClick={saveVisit}><Save size={18} /> Guardar visita</button>
-                <Link className="secondary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
-                <button className="primary-button" type="button" disabled={saving} onClick={() => setFinishOpen(true)}><StopCircle size={18} /> Finalizar intervencion</button>
+                <Link className="primary-button ot-important-action" to={`/ots/${workOrder.id}/checklist`}><CheckCircle2 size={18} /> Continuar checklist</Link>
+                <button className="primary-button ot-finish-action" type="button" disabled={saving || !checklistComplete} onClick={() => setFinishOpen(true)}><StopCircle size={18} /> Finalizar intervención</button>
               </div>
+              {!checklistComplete && (
+                <div className="workorder-alert info ot-checklist-required" role="status">
+                  <CheckCircle2 size={20} />
+                  <p>Completa el checklist antes de finalizar la intervención ({checklistDone}/{checklistItems.length} puntos).</p>
+                  <Link className="primary-button" to={`/ots/${workOrder.id}/checklist`}>Ir al checklist</Link>
+                </div>
+              )}
             </div>
           )}
         </WorkOrderSection>
       </div>
 
       {activeVisit && (
-        <WorkOrderSection title="Materiales de la visita" subtitle="Material usado, retirado o pendiente" icon={PlusCircle} defaultOpen>
+        <WorkOrderSection key={`materials-${activeVisit.id}`} title="Materiales de la visita" subtitle="Material usado, retirado o pendiente" icon={PlusCircle} defaultOpen={false}>
           <form className="form-grid" onSubmit={addMaterial}>
             <div className="grid two">
               <FormField label="Descripcion libre">
@@ -406,13 +427,13 @@ export default function WorkOrderVisit() {
         </WorkOrderSection>
       )}
 
-      <WorkOrderSection title="Historial de intervenciones" subtitle="Visitas realizadas y estado de cada intervención" icon={Clock} defaultOpen>
+      <WorkOrderSection key={`history-${activeVisit?.id || 'pending'}`} title="Historial de intervenciones" subtitle="Visitas realizadas y estado de cada intervención" icon={Clock} defaultOpen={false}>
         <DataTable
           columns={[
             { key: 'fecha_inicio', label: 'Inicio', render: (row) => formatDateTime(row.fecha_inicio) },
-            { key: 'fecha_fin', label: 'Fin', render: (row) => row.fecha_fin ? formatDateTime(row.fecha_fin) : '-' },
+            { key: 'fecha_fin', label: 'Fin', render: (row) => row.fecha_fin ? formatDateTime(row.fecha_fin) : isReadOnly && workOrder.fecha_fin ? formatDateTime(workOrder.fecha_fin) : '-' },
             { key: 'tecnico', label: 'Tecnico', render: (row) => row.tecnico?.nombre || row.tecnico?.email || '-' },
-            { key: 'estado', label: 'Estado', render: (row) => <span className="badge">{row.estado}</span> },
+            { key: 'estado', label: 'Estado', render: (row) => <span className="badge ok">{isReadOnly && row.estado === 'EN_CURSO' ? 'FINALIZADA' : row.estado}</span> },
             { key: 'observaciones', label: 'Observaciones', render: (row) => row.observaciones || '-' }
           ]}
           rows={visits}
@@ -420,13 +441,13 @@ export default function WorkOrderVisit() {
         />
       </WorkOrderSection>
 
-      <WorkOrderSection title="Checklist de visita" subtitle="Continuación natural de la intervención" icon={Save} defaultOpen={false}>
+      {!isReadOnly && <WorkOrderSection title="Checklist de visita" subtitle="Continuación natural de la intervención" icon={Save} defaultOpen={false}>
         <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. Puedes adjuntar fotos por punto y continuar con firma/PDF cuando corresponda.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}`}>Ver detalle OT</Link>
           <Link className="primary-button" to={`/ots/${workOrder.id}/checklist`}>Abrir checklist</Link>
         </div>
-      </WorkOrderSection>
+      </WorkOrderSection>}
 
       <Modal title="Finalizar intervencion" open={finishOpen} onClose={() => setFinishOpen(false)}>
         <form className="form-grid" onSubmit={finishVisit}>
@@ -477,14 +498,14 @@ function WrenchIcon(props) {
   return <PlayCircle {...props} />;
 }
 
-function InstallationFieldCard({ installation }) {
+function InstallationFieldCard({ installation, readOnly = false }) {
   const mapsUrl = buildMapsUrl(installation);
   const embedUrl = buildMapsEmbedUrl(installation);
   const phone = installation?.contacto_telefono;
   const email = installation?.contacto_email;
 
   return (
-    <WorkOrderSection title="Instalación y contacto" subtitle="Datos de acceso y comunicación" icon={MapPin} defaultOpen>
+    <WorkOrderSection title="Instalación y contacto" subtitle="Datos de acceso y comunicación" icon={MapPin} defaultOpen={false}>
       <WorkOrderInfoGrid columns={2}>
         <WorkOrderInfoItem label="Instalación" value={installation?.nombre || '-'} important />
         <WorkOrderInfoItem label="Dirección" value={installation?.direccion || '-'} wide />
@@ -492,7 +513,7 @@ function InstallationFieldCard({ installation }) {
         <WorkOrderInfoItem label="Teléfono" value={phone || '-'} />
         <WorkOrderInfoItem label="Email" value={email || '-'} />
       </WorkOrderInfoGrid>
-      <div className="quick-actions">
+      {!readOnly && <div className="quick-actions">
         {mapsUrl && (
           <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer">
             <Navigation size={18} /> Como llegar
@@ -508,7 +529,7 @@ function InstallationFieldCard({ installation }) {
             <Mail size={18} /> Email
           </a>
         )}
-      </div>
+      </div>}
       {embedUrl ? (
         <div className="ot-map-frame compact">
           <iframe title={`Mapa de ${installation?.nombre || 'instalacion'}`} src={embedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />

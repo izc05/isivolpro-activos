@@ -85,7 +85,7 @@ export default function WorkOrderSignature() {
         nombreFirmante,
         dniFirmante
       });
-      setMessage('Firma guardada correctamente. La OT queda finalizada y lista para informe/validacion.');
+      setMessage('Firma guardada correctamente. El siguiente paso es generar y descargar el PDF.');
       signatureRef.current.clear();
       setNombreFirmante('');
       setDniFirmante('');

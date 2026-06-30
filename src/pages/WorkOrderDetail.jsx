@@ -18,7 +18,7 @@ import {
   REQUIREMENT_FIELDS
 } from '../services/workOrderService';
 import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
-import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
+import { buildFinalReviewItems, finalReviewCanValidate, loadWorkOrderFinalReview, requestWorkOrderCorrections, validateWorkOrderAsAdmin } from '../services/workOrderReviewService';
 import {
   isWorkOrderClosed,
   normalizedStatus,
@@ -57,6 +57,7 @@ export default function WorkOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [savingMaterial, setSavingMaterial] = useState(false);
   const [validating, setValidating] = useState(false);
+  const [requestingCorrection, setRequestingCorrection] = useState(false);
 
   async function refresh() {
     if (tenantLoading) return;
@@ -94,6 +95,7 @@ export default function WorkOrderDetail() {
 
   const isClosed = row ? isWorkOrderClosed(row) : false;
   const currentStatus = normalizedStatus(row?.estado);
+  const technicianReadOnly = !canManageWorkOrders && ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(currentStatus);
   const materials = reviewData.materials || [];
   const reviewItems = useMemo(() => (row ? buildFinalReviewItems(row, reviewData) : []), [row, reviewData]);
   const canValidateReview = finalReviewCanValidate(reviewItems);
@@ -136,6 +138,23 @@ export default function WorkOrderDetail() {
       await refresh();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function requestCorrections() {
+    if (!row) return;
+    setRequestingCorrection(true);
+    setError('');
+    setMessage('');
+    try {
+      const updated = await requestWorkOrderCorrections(row, reviewNotes);
+      setRow((current) => ({ ...current, ...updated }));
+      setMessage('Correcciones enviadas al técnico. La OT vuelve a estar en curso.');
+      await refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRequestingCorrection(false);
     }
   }
 
@@ -186,6 +205,13 @@ export default function WorkOrderDetail() {
       />
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
+
+      {row.revision_admin_estado === 'correccion_solicitada' && (
+        <div className="workorder-alert warning" role="alert">
+          <AlertTriangle size={20} />
+          <p><strong>Corrección solicitada por administración.</strong> {row.revision_admin_notas || 'Revisa la intervención y vuelve a finalizarla cuando esté corregida.'}</p>
+        </div>
+      )}
 
       {canManageWorkOrders && (
         <WorkOrderSection title="Estado y ciclo de vida" subtitle="Gestiona el avance de la OT hasta su validación final" icon={ClipboardCheck} badge={<WorkOrderStatusBadge status={row.estado} />} defaultOpen={false}>
@@ -250,9 +276,18 @@ export default function WorkOrderDetail() {
                 <button className="primary-button" type="button" disabled={!canValidateReview || validating} onClick={validateFinalReview}>
                   {validating ? 'Validando...' : 'Validar OT'}
                 </button>
+                <button className="danger-button" type="button" disabled={requestingCorrection || row.estado !== 'FINALIZADA'} onClick={requestCorrections}>
+                  {requestingCorrection ? 'Enviando...' : 'Solicitar correcciones'}
+                </button>
                 <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Revisar informe</Link>
                 <Link className="ghost-button" to={`/ots/${row.id}/checklist`}>Revisar checklist</Link>
               </div>
+            </div>
+          )}
+          {(reviewData.reviews || []).length > 0 && (
+            <div className="ot-info-group">
+              <h3>Historial de revisión</h3>
+              {(reviewData.reviews || []).map((review) => <p className="ot-context-note" key={review.id}><strong>{review.decision === 'validada' ? 'Validada' : 'Corrección solicitada'}</strong> · {formatDateTime(review.created_at)}<br />{review.notas}</p>)}
             </div>
           )}
         </WorkOrderSection>
@@ -289,7 +324,7 @@ export default function WorkOrderDetail() {
         icon={PackagePlus}
         badge={`${materials.length}`}
         defaultOpen={materials.length > 0 || row.configuracion?.requiere_materiales}
-        actions={!isClosed && <button className="secondary-button" type="button" onClick={() => setMaterialOpen(true)}><PackagePlus size={18} /> Añadir material</button>}
+        actions={!isClosed && !technicianReadOnly && <button className="secondary-button" type="button" onClick={() => setMaterialOpen(true)}><PackagePlus size={18} /> Añadir material</button>}
       >
         <DataTable
           columns={[
@@ -311,6 +346,12 @@ export default function WorkOrderDetail() {
       </WorkOrderSection>
 
       <WorkOrderSection title={canManageWorkOrders ? 'Accesos de intervención' : 'Mi intervención'} subtitle={canManageWorkOrders ? 'Visita, checklist, firma e informe' : 'Acepta, inicia la visita y completa el trabajo'} icon={ClipboardCheck} defaultOpen>
+        {technicianReadOnly ? (
+          <div className="workorder-alert success ot-readonly-notice">
+            <CheckCircle2 size={20} />
+            <p><strong>OT finalizada.</strong> Disponible únicamente para consulta; no quedan acciones pendientes.</p>
+          </div>
+        ) : <>
         <p className="ot-field-work-note">
           {canManageWorkOrders
             ? 'Accesos rápidos para revisar o continuar el trabajo de campo asociado a esta OT.'
@@ -319,12 +360,13 @@ export default function WorkOrderDetail() {
             : 'Continúa la visita, registra observaciones, materiales, fotos y resultado antes de cerrar.'}
         </p>
         <div className="ot-next-actions">
-          <Link className="secondary-button" to="/scanner">Escanear QR</Link>
+          <Link className={row.configuracion?.requiere_verificacion_qr ? 'primary-button' : 'secondary-button'} to={`/scanner?ot=${row.id}&return=${encodeURIComponent(`/ots/${row.id}`)}`}>{row.configuracion?.requiere_verificacion_qr ? 'Verificar QR obligatorio' : 'Escanear QR'}</Link>
           {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
           {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
           {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
           {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
         </div>
+        </>}
       </WorkOrderSection>
 
       <Modal title="Añadir material a la OT" open={materialOpen} onClose={() => setMaterialOpen(false)}>

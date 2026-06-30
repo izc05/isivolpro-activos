@@ -1,21 +1,21 @@
 import { supabase } from './supabaseClient';
 import { buildStoragePath, createSignedUrl, uploadPrivateFile } from './fileService';
 import { logAudit } from './auditService';
-import { updateWorkOrderLifecycleStatus } from './workOrderLifecycleService';
-import { isWorkOrderClosed } from '../utils/workOrderLifecycle';
+import { isWorkOrderReadOnly } from '../utils/workOrderLifecycle';
 
-export async function uploadVisitSignature({ workOrder, visit, file, nombreFirmante, dniFirmante = '' }) {
+export async function uploadVisitSignature({ workOrder, visit, file, nombreFirmante, dniFirmante = '', signatureType = 'cliente' }) {
   if (!workOrder?.id) throw new Error('No se ha encontrado la OT.');
-  if (isWorkOrderClosed(workOrder)) throw new Error('La OT esta cerrada y no admite nuevas firmas.');
+  if (isWorkOrderReadOnly(workOrder)) throw new Error('La OT esta finalizada y no admite nuevas firmas.');
   if (!visit?.id) throw new Error('Selecciona una visita para firmar.');
   if (!file) throw new Error('No hay firma para guardar.');
   if (!nombreFirmante?.trim()) throw new Error('Introduce el nombre del firmante.');
+  if (!['cliente', 'tecnico'].includes(signatureType)) throw new Error('Tipo de firma no válido.');
 
   const path = buildStoragePath({
     tenantId: workOrder.tenant_id,
     scope: 'ordenes-trabajo',
     scopeId: workOrder.id,
-    folder: `firmas/${visit.id}`,
+    folder: `firmas/${visit.id}/${signatureType}`,
     file
   });
 
@@ -25,22 +25,18 @@ export async function uploadVisitSignature({ workOrder, visit, file, nombreFirma
     path,
     file,
     metadata: {
-      auditAction: 'upload_work_order_customer_signature',
+      auditAction: signatureType === 'tecnico' ? 'upload_work_order_technician_signature' : 'upload_work_order_customer_signature',
       entityType: 'ot_visita',
       entityId: visit.id
     }
   });
 
+  const signaturePatch = signatureType === 'tecnico'
+    ? { firma_tecnico_nombre: nombreFirmante.trim(), firma_tecnico_bucket: 'photos-private', firma_tecnico_path: path, firma_tecnico_at: new Date().toISOString() }
+    : { nombre_firmante: nombreFirmante.trim(), dni_firmante: dniFirmante?.trim() || null, firma_bucket: 'photos-private', firma_path: path };
   const { data, error } = await supabase
     .from('ot_visitas')
-    .update({
-      nombre_firmante: nombreFirmante.trim(),
-      dni_firmante: dniFirmante?.trim() || null,
-      firma_bucket: 'photos-private',
-      firma_path: path,
-      fecha_fin: visit.fecha_fin || new Date().toISOString(),
-      estado: visit.estado === 'EN_CURSO' ? 'FINALIZADA' : visit.estado
-    })
+    .update(signaturePatch)
     .eq('id', visit.id)
     .eq('tenant_id', workOrder.tenant_id)
     .select()
@@ -48,16 +44,12 @@ export async function uploadVisitSignature({ workOrder, visit, file, nombreFirma
 
   if (error) throw error;
 
-  if (!['FINALIZADA', 'VALIDADA', 'CERRADA'].includes(workOrder.estado)) {
-    await updateWorkOrderLifecycleStatus(workOrder, 'FINALIZADA');
-  }
-
   await logAudit({
     tenantId: workOrder.tenant_id,
-    action: 'sign_work_order_visit',
+    action: signatureType === 'tecnico' ? 'sign_work_order_visit_technician' : 'sign_work_order_visit_customer',
     entityType: 'ot_visita',
     entityId: visit.id,
-    metadata: { otId: workOrder.id, nombreFirmante: nombreFirmante.trim() }
+    metadata: { otId: workOrder.id, nombreFirmante: nombreFirmante.trim(), signatureType }
   });
 
   return data;
@@ -73,4 +65,9 @@ export async function signedVisitSignatureUrl(visit, expiresIn = 600) {
     entityId: visit.id,
     expiresIn
   });
+}
+
+export async function signedTechnicianSignatureUrl(visit, expiresIn = 600) {
+  if (!visit?.firma_tecnico_bucket || !visit?.firma_tecnico_path) return '';
+  return createSignedUrl({ tenantId: visit.tenant_id, bucket: visit.firma_tecnico_bucket, path: visit.firma_tecnico_path, entityType: 'ot_visita_firma_tecnico', entityId: visit.id, expiresIn });
 }

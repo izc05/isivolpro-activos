@@ -1,12 +1,15 @@
 import { Html5Qrcode } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Camera, FileImage, ImagePlus, Keyboard, LockKeyhole, QrCode, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
-import { tokenFromQrValue } from '../services/qrService';
+import { tokenFromQrValue, verifyWorkOrderQr } from '../services/qrService';
 
 export default function QRScanner() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const workOrderId = searchParams.get('ot');
+  const returnPath = searchParams.get('return') || (workOrderId ? `/ots/${workOrderId}` : '');
   const liveScannerRef = useRef(null);
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -26,10 +29,25 @@ export default function QRScanner() {
     };
   }, []);
 
-  function submitManual(event) {
+  async function handleToken(token) {
+    if (!token) return;
+    if (!workOrderId) {
+      navigate(`/qr/${token}`);
+      return;
+    }
+    setScanError('');
+    try {
+      await verifyWorkOrderQr(workOrderId, token);
+      navigate(returnPath, { state: { message: 'QR verificado correctamente. Ya puedes continuar con la intervención.' } });
+    } catch (error) {
+      setScanError(error.message || 'El QR no corresponde con esta OT.');
+    }
+  }
+
+  async function submitManual(event) {
     event.preventDefault();
     const token = tokenFromQrValue(manualToken);
-    if (token) navigate(`/qr/${token}`);
+    await handleToken(token);
   }
 
   async function openLiveCamera() {
@@ -52,7 +70,7 @@ export default function QRScanner() {
           await scanner.clear().catch(() => {});
           liveScannerRef.current = null;
           setCameraStatus('idle');
-          if (token) navigate(`/qr/${token}`);
+          await handleToken(token);
         },
         () => {}
       );
@@ -74,7 +92,7 @@ export default function QRScanner() {
       const decodedText = await scanner.scanFile(file, true);
       const token = tokenFromQrValue(decodedText);
       await scanner.clear().catch(() => {});
-      if (token) navigate(`/qr/${token}`);
+      await handleToken(token);
     } catch (err) {
       setScanError('No he podido leer un QR en esa imagen. Prueba con una foto mas enfocada o introduce el codigo manualmente.');
     } finally {
@@ -84,7 +102,7 @@ export default function QRScanner() {
 
   return (
     <>
-      <PageHeader title="Escáner QR" subtitle="Escanea un activo, ubicación o instalación. El acceso se valida antes de mostrar información." />
+      <PageHeader title={workOrderId ? 'Verificar QR de la OT' : 'Escáner QR'} subtitle={workOrderId ? 'Escanea el QR asignado a esta intervención para confirmar que estás en el lugar o activo correcto.' : 'Escanea un activo, ubicación o instalación. El acceso se valida antes de mostrar información.'} />
       <section className="scanner-hero">
         <div>
           <span className="section-eyebrow">Lectura segura</span>

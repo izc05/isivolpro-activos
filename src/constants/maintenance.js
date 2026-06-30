@@ -140,9 +140,15 @@ export function nextDateFrom(date, value, unit) {
 
 export function planChecklistToOtItems(checklist = []) {
   return (Array.isArray(checklist) ? checklist : []).map((item, index) => ({
+    plantilla_item_id: item.id || null,
     punto: String(item.orden || index + 1),
     descripcion: item.titulo || item.descripcion || `Punto ${index + 1}`,
-    requiere_foto: Boolean(item.requiere_foto)
+    requiere_foto: Boolean(item.requiere_foto),
+    obligatorio: item.obligatorio !== false,
+    tipo_respuesta: item.tipo_respuesta || 'ok_no_ok',
+    unidad: item.unidad || null,
+    valor_minimo: item.valor_minimo === '' || item.valor_minimo == null ? null : Number(item.valor_minimo),
+    valor_maximo: item.valor_maximo === '' || item.valor_maximo == null ? null : Number(item.valor_maximo)
   }));
 }
 
