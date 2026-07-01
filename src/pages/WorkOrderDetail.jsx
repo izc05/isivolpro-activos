@@ -254,7 +254,7 @@ export default function WorkOrderDetail() {
           subtitle="Comprobacion previa antes de cerrar definitivamente la OT"
           icon={ShieldCheck}
           badge={canValidateReview ? 'lista' : `${pendingReviewItems.length} pendiente(s)`}
-          defaultOpen={row.estado === 'FINALIZADA' || pendingReviewItems.length > 0}
+          defaultOpen={false}
         >
           <div className="final-review-list">
             {reviewItems.map((item) => (
@@ -325,7 +325,7 @@ export default function WorkOrderDetail() {
         subtitle="Material usado, retirado, devuelto o pendiente de pedir"
         icon={PackagePlus}
         badge={`${materials.length}`}
-        defaultOpen={materials.length > 0 || row.configuracion?.requiere_materiales}
+        defaultOpen={false}
         actions={!isClosed && !technicianReadOnly && <button className="secondary-button" type="button" onClick={() => setMaterialOpen(true)}><PackagePlus size={18} /> Añadir material</button>}
       >
         <DataTable
@@ -347,7 +347,7 @@ export default function WorkOrderDetail() {
         {requirements.length === 0 ? <p className="muted">Esta OT no tiene bloques obligatorios configurados.</p> : <div className="requirement-grid">{requirements.map(([field, label]) => <span className="badge ok" key={field}>{label}</span>)}</div>}
       </WorkOrderSection>
 
-      <WorkOrderSection title={canManageWorkOrders ? 'Accesos de intervención' : 'Mi intervención'} subtitle={canManageWorkOrders ? 'Visita, checklist, firma e informe' : 'Acepta, inicia la visita y completa el trabajo'} icon={ClipboardCheck} defaultOpen>
+      <WorkOrderSection title={canManageWorkOrders ? 'Accesos de intervención' : 'Mi intervención'} subtitle={canManageWorkOrders ? 'Visita, checklist, firma e informe' : 'Acepta, inicia la visita y completa el trabajo'} icon={ClipboardCheck} defaultOpen={false}>
         {technicianReadOnly ? (
           <div className="workorder-alert success ot-readonly-notice">
             <CheckCircle2 size={20} />
