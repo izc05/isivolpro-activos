@@ -28,11 +28,14 @@ export default function WorkOrderStatusOverview({ orders = [], activeStatus = ''
               key={status}
               type={onSelectStatus ? 'button' : undefined}
               className={`ot-status-tile ${isActive ? 'active' : ''}`}
+              disabled={Boolean(onSelectStatus && count === 0)}
+              title={count === 1 ? 'Abrir esta OT' : count > 1 ? `Ver las ${count} OT` : 'No hay OT en este estado'}
               onClick={onSelectStatus ? () => onSelectStatus(isActive ? 'todos' : status) : undefined}
             >
               <WorkOrderStatusBadge status={status} />
               <strong>{count}</strong>
               <span>{statusTransitionHelp(status)}</span>
+              {count > 0 && <small>{count === 1 ? 'Abrir OT' : `Ver ${count} OT`}</small>}
             </Component>
           );
         })}

@@ -17,6 +17,7 @@ import { formatDateTime } from '../utils/dateUtils';
 import {
   OFFICIAL_WORK_ORDER_PRIORITIES,
   OFFICIAL_WORK_ORDER_TYPES,
+  normalizedStatus,
   priorityLabel,
   priorityTone,
   workOrderTypeLabel
@@ -240,6 +241,20 @@ export default function WorkOrders() {
     }
   }
 
+  function openStatusOrders(status) {
+    if (status === 'todos') {
+      setFilters((current) => ({ ...current, status: 'todos' }));
+      return;
+    }
+    const matches = visibleRows.filter((row) => normalizedStatus(row.estado) === status);
+    if (matches.length === 1) {
+      navigate(`/ots/${matches[0].id}`);
+      return;
+    }
+    setFilters((current) => ({ ...current, status }));
+    window.setTimeout(() => document.getElementById('work-order-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  }
+
   return (
     <>
       <PageHeader
@@ -263,7 +278,7 @@ export default function WorkOrders() {
       <WorkOrderStatusOverview
         orders={visibleRows}
         activeStatus={filters.status === 'todos' ? '' : filters.status}
-        onSelectStatus={(status) => setFilters((current) => ({ ...current, status }))}
+        onSelectStatus={openStatusOrders}
       />
 
       <WorkOrderSection title="Filtros OT" subtitle="Busca por OT, trabajo, instalación o técnico" icon={Filter} badge={`${filteredRows.length}/${visibleRows.length}`} defaultOpen>
@@ -276,6 +291,7 @@ export default function WorkOrders() {
         <div className="quick-actions user-filter-actions"><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, status: 'EN_CURSO' }))}>En curso</button><button className="secondary-button" type="button" onClick={() => setFilters((current) => ({ ...current, priority: 'urgente' }))}>Urgentes</button><button className="ghost-button" type="button" onClick={() => setFilters({ search: '', status: 'todos', priority: 'todas', type: 'todos' })}>Limpiar</button></div>
       </WorkOrderSection>
 
+      <div id="work-order-results">
       <DataTable
         columns={[
           { key: 'foto', label: 'Foto', render: (row) => <WorkOrderThumbnail row={row} /> },
@@ -292,6 +308,7 @@ export default function WorkOrders() {
         rows={filteredRows}
         empty="Sin ordenes de trabajo para la instalación activa"
       />
+      </div>
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid workorder-form" onSubmit={(event) => submit(event, 'BORRADOR', { destination: 'checklist' })}>
