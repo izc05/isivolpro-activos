@@ -5,6 +5,10 @@ import { closeMaintenanceFromWorkOrder } from './maintenanceOtBridgeService';
 
 function assertCanMove(row, status) {
   const current = normalizedStatus(row?.estado);
+  const target = normalizedStatus(status);
+  if (target === 'FINALIZADA') {
+    throw new Error('La OT solo puede finalizarse desde el cierre guiado, después de completar las firmas, el PDF y los demás requisitos obligatorios.');
+  }
   if (isWorkOrderClosed(current) && status !== 'REABRIR') {
     throw new Error('La OT esta cerrada y es de solo lectura. Para modificarla debe reabrirse con motivo y permisos.');
   }
