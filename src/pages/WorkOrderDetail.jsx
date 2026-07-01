@@ -184,7 +184,9 @@ export default function WorkOrderDetail() {
   if (loading) return <p className="muted">Cargando orden de trabajo...</p>;
   if (!row) return <p className="error-text">No se ha encontrado la orden de trabajo.</p>;
 
-  const nextActions = validNextActions(row).filter((status) => status !== 'VALIDADA' || canManageWorkOrders);
+  const nextActions = validNextActions(row).filter((status) => canManageWorkOrders
+    ? ['ASIGNADA', 'CANCELADA', 'VALIDADA', 'REABRIR'].includes(status)
+    : status !== 'VALIDADA');
   const requirements = REQUIREMENT_FIELDS.filter(([field]) => row.configuracion?.[field]);
   const pendingReviewItems = reviewItems.filter((item) => item.blocking);
 
@@ -360,11 +362,17 @@ export default function WorkOrderDetail() {
             : 'Continúa la visita, registra observaciones, materiales, fotos y resultado antes de cerrar.'}
         </p>
         <div className="ot-next-actions">
-          <Link className={row.configuracion?.requiere_verificacion_qr ? 'primary-button' : 'secondary-button'} to={`/scanner?ot=${row.id}&return=${encodeURIComponent(`/ots/${row.id}`)}`}>{row.configuracion?.requiere_verificacion_qr ? 'Verificar QR obligatorio' : 'Escanear QR'}</Link>
-          {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
-          {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
-          {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
-          {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
+          {canManageWorkOrders ? <>
+            {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Consultar checklist</Link>}
+            {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Consultar firmas</Link>}
+            {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Consultar informe</Link>}
+          </> : <>
+            <Link className={row.configuracion?.requiere_verificacion_qr ? 'primary-button' : 'secondary-button'} to={`/scanner?ot=${row.id}&return=${encodeURIComponent(`/ots/${row.id}`)}`}>{row.configuracion?.requiere_verificacion_qr ? 'Verificar QR obligatorio' : 'Escanear QR'}</Link>
+            {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
+            {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
+            {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
+            {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
+          </>}
         </div>
         </>}
       </WorkOrderSection>

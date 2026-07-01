@@ -40,6 +40,10 @@ export function TechnicianRoute({ children }) {
   return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico']} fallback="/denegado">{children}</PermissionRoute>;
 }
 
+export function TechnicianExecutionRoute({ children }) {
+  return <PermissionRoute allowedRoles={['tecnico']} fallback="/denegado">{children}</PermissionRoute>;
+}
+
 export function IncidentRoute({ children }) {
   return <PermissionRoute allowedRoles={['administrador', 'coordinador', 'tecnico']} fallback="/denegado">{children}</PermissionRoute>;
 }

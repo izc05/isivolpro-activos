@@ -16,7 +16,7 @@ export default function WorkOrderSignature() {
   const { id } = useParams();
   const navigate = useNavigate();
   const signatureRef = useRef(null);
-  const { activeTenantId, loading: tenantLoading } = useTenant();
+  const { activeTenantId, canManageWorkOrders, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [visits, setVisits] = useState([]);
   const [selectedVisitId, setSelectedVisitId] = useState('');
@@ -118,7 +118,7 @@ export default function WorkOrderSignature() {
           <p className="muted">La firma se guarda como imagen privada y queda asociada a la visita seleccionada.</p>
         </WorkOrderSection>
 
-        <WorkOrderSection title="Firmar visita" subtitle="Captura de firma del cliente o responsable" icon={PenLine} defaultOpen>
+        {!canManageWorkOrders && <WorkOrderSection title="Firmar visita" subtitle="Captura de firma del cliente o responsable" icon={PenLine} defaultOpen>
           <form className="form-grid" onSubmit={submit}>
             <FormField label="Visita a firmar">
               <select value={selectedVisitId} onChange={(event) => setSelectedVisitId(event.target.value)} required>
@@ -142,7 +142,7 @@ export default function WorkOrderSignature() {
               <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Guardar firma'}</button>
             </div>
           </form>
-        </WorkOrderSection>
+        </WorkOrderSection>}
       </div>
 
       <WorkOrderSection title="Firmas guardadas" subtitle="Firmas asociadas a visitas de esta OT" icon={PenLine} defaultOpen={visits.filter((visit) => visit.firma_path).length > 0}>

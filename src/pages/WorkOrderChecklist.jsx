@@ -123,7 +123,8 @@ export default function WorkOrderChecklist() {
 
   const status = normalizedStatus(workOrder?.estado);
   const isPreparation = ['BORRADOR', 'NUEVA'].includes(status);
-  const canEditDefinition = Boolean(canManageWorkOrders && !['VALIDADA', 'CANCELADA'].includes(status));
+  const canPrepareDefinition = Boolean(canManageWorkOrders && isPreparation);
+  const canRecordResults = !canManageWorkOrders;
   const activeVisit = visits.find((visit) => visit.estado === 'EN_CURSO') || null;
   const checklistComplete = progress.total > 0 && progress.done === progress.total;
   const customerSignatureRequired = Boolean(workOrder?.configuracion?.requiere_firma_cliente);
@@ -376,7 +377,7 @@ export default function WorkOrderChecklist() {
             <h2>{workOrder.titulo || workOrder.codigo_ot}</h2>
             <p>{workOrder.instalaciones?.nombre || 'Sin instalacion'} - {workOrder.activos?.nombre || 'Sin activo'} - {progress.done}/{progress.total} completados</p>
           </div>
-          {canManageWorkOrders && (
+          {canPrepareDefinition && (
             <div className="ot-checklist-toolbar-actions">
               <button className="secondary-button" type="button" onClick={generateDefaultChecklist}><RefreshCw size={18} /> Base</button>
               <button className="primary-button" type="button" onClick={() => setOpen(true)}><Plus size={18} /> Punto</button>
@@ -394,6 +395,13 @@ export default function WorkOrderChecklist() {
           </div>
         )}
 
+        {canManageWorkOrders && !isPreparation && (
+          <div className="workorder-alert info">
+            <ClipboardCheck size={20} />
+            <p><strong>Vista administrativa.</strong> Puedes consultar el checklist, pero solo el técnico asignado puede rellenar respuestas, subir fotos y cerrar la intervención.</p>
+          </div>
+        )}
+
         {technicianMustStartVisit && (
           <div className="workorder-alert info">
             <PlayCircle size={20} />
@@ -407,7 +415,7 @@ export default function WorkOrderChecklist() {
         </div>
 
         <div className="ot-subscreen-tabs" role="tablist" aria-label="Bloques del checklist">
-          {CHECKLIST_PANELS.map((panel) => {
+          {CHECKLIST_PANELS.filter((panel) => !canManageWorkOrders || panel.key !== 'cierre').map((panel) => {
             const Icon = panel.icon;
             return (
               <button
@@ -460,7 +468,7 @@ export default function WorkOrderChecklist() {
               <section className="empty-state ot-checklist-empty">
                 <strong>Esta OT todavia no tiene checklist.</strong>
                 <span>{canManageWorkOrders ? 'Genera una plantilla base o añade puntos manualmente para empezar la visita.' : 'Todavia no hay puntos preparados para esta OT. Revisa la intervención o avisa al responsable.'}</span>
-                {canManageWorkOrders && <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>}
+                {canPrepareDefinition && <button className="primary-button" type="button" onClick={generateDefaultChecklist}><Plus size={18} /> Generar checklist base</button>}
               </section>
             )}
             <div className="checklist-stack">
@@ -472,13 +480,14 @@ export default function WorkOrderChecklist() {
                   selectedVisitId={selectedVisitId}
                   saving={savingId === item.id}
                   deleting={deletingId === item.id}
-                  canEditDefinition={canEditDefinition}
+                  canEditDefinition={canPrepareDefinition}
+                  canRecordResults={canRecordResults}
                   onUpdate={updateItem}
                   onDelete={deleteItem}
                 />
               ))}
             </div>
-            {!technicianMustStartVisit && items.length > 0 && (
+            {canRecordResults && !technicianMustStartVisit && items.length > 0 && (
               <div className="form-actions ot-checklist-complete-actions">
                 <button className="primary-button" type="button" disabled={completing} onClick={completeChecklist}>
                   <CheckCircle2 size={18} /> {completing ? 'Comprobando...' : 'Checklist completado'}
@@ -630,7 +639,7 @@ export default function WorkOrderChecklist() {
   );
 }
 
-function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting, canEditDefinition, onUpdate, onDelete }) {
+function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting, canEditDefinition, canRecordResults, onUpdate, onDelete }) {
   const [open, setOpen] = useState(item.resultado === 'pendiente');
   const [description, setDescription] = useState(item.descripcion || '');
   const [observation, setObservation] = useState(item.observacion || '');
@@ -765,7 +774,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           </FormField>
         )}
         <FormField label="Resultado">
-          <select value={item.resultado} disabled={saving} onChange={(event) => changeResult(event.target.value)}>
+          <select value={item.resultado} disabled={saving || !canRecordResults} onChange={(event) => changeResult(event.target.value)}>
             {CHECKLIST_RESULTS.map((result) => <option key={result} value={result}>{RESULT_LABELS[result]}</option>)}
           </select>
         </FormField>
@@ -776,7 +785,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           </label>
         )}
         <FormField label="Observacion">
-          <textarea rows="2" value={observation} onChange={(event) => setObservation(event.target.value)} onBlur={() => onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
+          <textarea rows="2" value={observation} disabled={!canRecordResults} onChange={(event) => setObservation(event.target.value)} onBlur={() => canRecordResults && onUpdate(item, { observacion: observation })} placeholder="Anota pruebas, defectos, material pendiente o aclaraciones" />
         </FormField>
         {item.resultado === 'no_ok' && (
           <>
@@ -801,7 +810,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
         )}
         <div className="form-actions">
           {canEditDefinition && <button className="danger-button" type="button" disabled={deleting} onClick={() => onDelete(item)}><Trash2 size={18} /> {deleting ? 'Eliminando...' : 'Eliminar punto'}</button>}
-          <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation, ...extra })}><Save size={18} /> Guardar punto</button>
+          {canRecordResults && <button className="secondary-button" type="button" disabled={saving} onClick={() => onUpdate(item, { observacion: observation, ...extra })}><Save size={18} /> Guardar punto</button>}
         </div>
       </div>
 
@@ -825,7 +834,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
             ))}
           </div>
         )}
-        <form className="form-grid" onSubmit={submitPhoto}>
+        {canRecordResults && <form className="form-grid" onSubmit={submitPhoto}>
           <label className={`photo-uploader ${file ? 'has-file' : ''}`} htmlFor={`photo-input-${item.id}`}>
             <input
               id={`photo-input-${item.id}`}
@@ -861,7 +870,7 @@ function ChecklistItemCard({ item, workOrder, selectedVisitId, saving, deleting,
           <div className="form-actions">
             <button className="primary-button" type="submit" disabled={uploading}><Camera size={18} /> {uploading ? 'Subiendo...' : 'Subir foto'}</button>
           </div>
-        </form>
+        </form>}
       </div>
       </>}
     </section>

@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import AppLayout from './components/Layout/AppLayout';
 import ProtectedRoute from './components/Security/ProtectedRoute';
-import { AdminRoute, CoordinatorRoute, HomeRedirect, IncidentRoute, InventoryRoute, MaintenanceRoute, OcaRoute, TechnicianRoute, WorkOrderManagerRoute } from './components/Security/RoleRoute';
+import { AdminRoute, CoordinatorRoute, HomeRedirect, IncidentRoute, InventoryRoute, MaintenanceRoute, OcaRoute, TechnicianExecutionRoute, TechnicianRoute, WorkOrderManagerRoute } from './components/Security/RoleRoute';
 import Login from './pages/Login';
 import InvitationRegister from './pages/InvitationRegister';
 import AuthCallback from './pages/AuthCallback';
@@ -100,7 +100,7 @@ export default function App() {
         <Route path="mis-ots" element={<TechnicianRoute><MyWorkOrders /></TechnicianRoute>} />
         <Route path="ots-creadas" element={<WorkOrderManagerRoute><MyWorkOrders mode="created" /></WorkOrderManagerRoute>} />
         <Route path="ots/:id" element={<TechnicianRoute><WorkOrderDetail /></TechnicianRoute>} />
-        <Route path="ots/:id/visita" element={<TechnicianRoute><WorkOrderVisit /></TechnicianRoute>} />
+        <Route path="ots/:id/visita" element={<TechnicianExecutionRoute><WorkOrderVisit /></TechnicianExecutionRoute>} />
         <Route path="ots/:id/checklist" element={<TechnicianRoute><WorkOrderChecklist /></TechnicianRoute>} />
         <Route path="ots/:id/firma" element={<TechnicianRoute><WorkOrderSignature /></TechnicianRoute>} />
         <Route path="ots/:id/informe" element={<TechnicianRoute><WorkOrderReport /></TechnicianRoute>} />

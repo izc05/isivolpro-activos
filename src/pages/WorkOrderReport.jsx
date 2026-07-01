@@ -14,7 +14,7 @@ import { formatDateTime } from '../utils/dateUtils';
 export default function WorkOrderReport() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeTenantId, loading: tenantLoading } = useTenant();
+  const { activeTenantId, canManageWorkOrders, loading: tenantLoading } = useTenant();
   const [workOrder, setWorkOrder] = useState(null);
   const [reports, setReports] = useState([]);
   const [reportUrls, setReportUrls] = useState({});
@@ -140,9 +140,9 @@ export default function WorkOrderReport() {
           <WorkOrderInfoItem label="Estado" value={<WorkOrderStatusBadge status={workOrder.estado} />} important />
           <WorkOrderInfoItem label="Técnico" value={workOrder.assigned?.nombre || workOrder.assigned?.email || 'Sin asignar'} important />
         </WorkOrderInfoGrid>
-        <p className="ot-context-note">Usa primero “Generar y guardar PDF”. La descarga local tomará la última copia guardada para que el histórico de la OT no quede vacío.</p>
+        <p className="ot-context-note">{canManageWorkOrders ? 'Vista administrativa: puedes consultar y descargar informes ya generados por el técnico.' : 'Usa primero “Generar y guardar PDF”. La descarga local tomará la última copia guardada para que el histórico de la OT no quede vacío.'}</p>
         <div className="ot-next-actions">
-          <button className="primary-button" type="button" disabled={generating} onClick={generateReport}>{generating ? <Loader2 size={18} /> : <FileText size={18} />} Generar y guardar PDF</button>
+          {!canManageWorkOrders && <button className="primary-button" type="button" disabled={generating} onClick={generateReport}>{generating ? <Loader2 size={18} /> : <FileText size={18} />} Generar y guardar PDF</button>}
           <button className="secondary-button" type="button" disabled={generating} onClick={downloadLocal}><Download size={18} /> Descargar copia local</button>
           <Link className="secondary-button" to={`/ots/${workOrder.id}/firma`}><ShieldCheck size={18} /> Firma cliente</Link>
           <Link className="ghost-button" to={`/ots/${workOrder.id}/checklist`}><RefreshCw size={18} /> Revisar checklist</Link>

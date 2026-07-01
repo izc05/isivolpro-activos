@@ -89,3 +89,11 @@ test('una OT finalizada no puede conservar visitas en curso', async () => {
   assert.match(sql, /enforce_no_active_visit_on_finished_order/i);
   assert.match(sql, /visita en curso/i);
 });
+
+test('administración y ejecución técnica de OT están separadas', async () => {
+  const sql = await readFile(new URL('../src/sql/045_separate_work_order_management_execution.sql', import.meta.url), 'utf8');
+  assert.match(sql, /can_execute_work_order/i);
+  assert.match(sql, /tm\.role in \('tecnico','tecnico_externo'\)/i);
+  assert.match(sql, /El administrador no puede rellenar respuestas del checklist/i);
+  assert.match(sql, /solo puede asignarse a un técnico activo/i);
+});
