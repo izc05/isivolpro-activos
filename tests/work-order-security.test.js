@@ -35,6 +35,18 @@ test('una OT finalizada solo permite validar o reabrir', () => {
   assert.deepEqual(validNextActions({ estado: 'VALIDADA' }), ['REABRIR']);
 });
 
+test('una OT no ofrece finalizacion directa fuera del cierre guiado', () => {
+  assert.equal(validNextActions({ estado: 'EN_CURSO' }).includes('FINALIZADA'), false);
+  assert.equal(validNextActions({ estado: 'PENDIENTE_MATERIAL' }).includes('FINALIZADA'), false);
+  assert.equal(validNextActions({ estado: 'PENDIENTE_CLIENTE' }).includes('FINALIZADA'), false);
+});
+
+test('el servicio generico de estados rechaza finalizar una OT', async () => {
+  const source = await readFile(path.join(root, 'src/services/workOrderLifecycleService.js'), 'utf8');
+  assert.match(source, /target === 'FINALIZADA'/);
+  assert.match(source, /solo puede finalizarse desde el cierre guiado/i);
+});
+
 test('la migracion de fase 1 protege estados finales y requisitos de cierre', async () => {
   const sql = await readFile(path.join(root, 'src/sql/038_phase1_work_order_integrity.sql'), 'utf8');
   assert.match(sql, /estado not in \('FINALIZADA','VALIDADA','CERRADA','CANCELADA'\)/);
