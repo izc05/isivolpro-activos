@@ -61,6 +61,21 @@ const userNavItems = [
   { to: '/ajustes', label: 'Ajustes', mobileLabel: 'Cuenta', icon: Settings, permission: 'all' }
 ];
 
+const technicianClientSelectStyle = {
+  width: '100%',
+  maxWidth: '100%',
+  minHeight: 24,
+  height: 24,
+  padding: '0 24px 0 0',
+  border: 0,
+  borderRadius: 0,
+  backgroundColor: 'transparent',
+  color: 'var(--muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  boxShadow: 'none'
+};
+
 function UserIcon(props) {
   return <Users {...props} />;
 }
@@ -209,7 +224,21 @@ export default function AppLayout() {
           {useTechnicianMobileShell && !isGlobalWorkOrderView && (
             <div className="technician-topbar-summary">
               <strong>Mis trabajos asignados</strong>
-              <span>{activeTenant?.nombre || 'Cliente activo'}</span>
+              {tenants.length > 1 ? (
+                <select
+                  aria-label="Seleccionar cliente activo"
+                  title="Cambiar cliente"
+                  value={activeTenantId || ''}
+                  onChange={(event) => setActiveTenantId(event.target.value)}
+                  style={technicianClientSelectStyle}
+                >
+                  {tenants.map((tenantItem) => (
+                    <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>
+                  ))}
+                </select>
+              ) : (
+                <span>{activeTenant?.nombre || 'Cliente activo'}</span>
+              )}
             </div>
           )}
           {isGlobalWorkOrderView && <div className="topbar-global-context">Vista global OT · Sin filtro de cliente o instalacion</div>}
@@ -257,4 +286,3 @@ function NavItem({ item, compact = false }) {
     </NavLink>
   );
 }
-
