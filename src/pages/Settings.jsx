@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Building2, CheckCircle2, FileText, HelpCircle, KeyRound, LifeBuoy, LockKeyhole, QrCode, ShieldCheck, UserRound, Wrench } from 'lucide-react';
+import { BookOpen, Building2, CheckCircle2, FileText, HelpCircle, KeyRound, LifeBuoy, LockKeyhole, LogOut, QrCode, ShieldCheck, UserRound, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
+import { signOut } from '../services/authService';
 
 const ROLE_LABELS = {
   admin_cliente: 'Administrador',
@@ -79,6 +80,14 @@ function DocumentationSection({ section }) {
   );
 }
 
+function LogoutButton() {
+  return (
+    <button className="secondary-button" type="button" onClick={signOut}>
+      <LogOut size={18} /> Cerrar sesion
+    </button>
+  );
+}
+
 export default function Settings() {
   const { profile } = useAuth();
   const { activeTenant, activeRole, isTechnician } = useTenant();
@@ -101,7 +110,7 @@ export default function Settings() {
           </div>
           <div className="quick-actions">
             <Link className="primary-button" to="/registro">Aceptar invitacion</Link>
-            <Link className="secondary-button" to="/login">Volver al login</Link>
+            <LogoutButton />
           </div>
         </section>
       </>
@@ -119,6 +128,9 @@ export default function Settings() {
             <InfoRow label="Email" value={profile?.email} />
             <InfoRow label="Cliente" value={activeTenant?.nombre} />
             <InfoRow label="Rol" value={ROLE_LABELS[activeRole] || activeRole || 'Tecnico'} />
+            <div className="quick-actions">
+              <LogoutButton />
+            </div>
           </section>
           <section className="card">
             <h2>Guia de trabajo</h2>
@@ -162,6 +174,9 @@ export default function Settings() {
             <InfoRow label="Email" value={profile?.email} />
             <InfoRow label="Rol global" value={profile?.global_role || 'usuario'} />
             <InfoRow label="MFA admin" value={profile?.mfa_required ? 'Requerido' : 'Preparado para activar'} />
+            <div className="quick-actions">
+              <LogoutButton />
+            </div>
           </section>
           <section className="card settings-panel">
             <span className="settings-card-icon"><Building2 size={20} /></span>
