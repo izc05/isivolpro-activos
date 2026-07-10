@@ -71,7 +71,7 @@ function friendlyCreateError(error) {
 }
 
 export default function WorkOrders() {
-  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
+  const { activeTenantId, activeInstallationId } = useTenant();
   const navigate = useNavigate();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
@@ -259,10 +259,9 @@ export default function WorkOrders() {
     <>
       <PageHeader
         title="Ordenes de trabajo"
-        subtitle={activeInstallation ? `Mostrando OT de ${activeInstallation.nombre}.` : 'Crea OT con ciclo profesional: nueva, asignada, en curso, pendientes, finalizada y validada.'}
+        subtitle="Crea y gestiona OT con ciclo profesional: nueva, asignada, en curso, pendientes, finalizada y validada."
         action={<div className="quick-actions"><Link className="secondary-button" to="/ots-dashboard">Dashboard OT</Link><button className="primary-button" onClick={openCreate}>Nueva OT</button></div>}
       />
-      {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       <div className="tabs workorder-tabs">
         <Link to="/ots-dashboard">Dashboard</Link>
         <Link to="/ots-control">Control OT</Link>
@@ -306,7 +305,7 @@ export default function WorkOrders() {
           { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><Link className="secondary-button" to={`/ots/${row.id}`}>Ver</Link><button className="danger-button" type="button" disabled={deletingId === row.id} onClick={() => deleteOrder(row)}>{deletingId === row.id ? 'Borrando...' : 'Cancelar'}</button></div> }
         ]}
         rows={filteredRows}
-        empty="Sin ordenes de trabajo para la instalación activa"
+        empty="Sin ordenes de trabajo en el contexto seleccionado"
       />
       </div>
 

@@ -10,7 +10,7 @@ import { formatDate } from '../utils/dateUtils';
 import { maintenanceStatusClass, maintenanceStatusLabel, maintenanceTypeLabel } from '../constants/maintenance';
 
 export default function PendingMaintenance() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId } = useTenant();
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
   const [schemaPending, setSchemaPending] = useState(false);
@@ -20,7 +20,7 @@ export default function PendingMaintenance() {
     setError('');
     setSchemaPending(false);
     try {
-      setRows(await listScheduledMaintenances(activeTenantId));
+      setRows(await listScheduledMaintenances(activeTenantId, { instalacion_id: activeInstallationId || undefined }));
     } catch (err) {
       if (isMaintenanceSchemaMissing(err)) {
         setRows([]);
@@ -31,7 +31,7 @@ export default function PendingMaintenance() {
     }
   }
 
-  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId]);
+  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId, activeInstallationId]);
 
   const pending = useMemo(() => rows.filter((row) => !['completado', 'cancelado', 'no_aplica'].includes(row.estado)).sort((a, b) => new Date(a.fecha_programada || 0) - new Date(b.fecha_programada || 0)), [rows]);
 
@@ -58,7 +58,7 @@ export default function PendingMaintenance() {
         { key: 'prioridad', label: 'Prioridad' },
         { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${maintenanceStatusClass(row.estado_visual || row.estado)}`}>{maintenanceStatusLabel(row.estado_visual || row.estado)}</span> },
         { key: 'ot', label: 'OT', render: (row) => row.ot_id ? <Link className="table-link" to={`/ots/${row.ot_id}`}>Abrir OT</Link> : <button className="secondary-button table-action" onClick={() => generate(row)}>Generar OT</button> }
-      ]} rows={pending} empty="No hay trabajos pendientes." />
+      ]} rows={pending} empty="No hay trabajos pendientes en el contexto seleccionado." />
     </>
   );
 }

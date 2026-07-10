@@ -41,14 +41,15 @@ function normalizePlanPayload(payload) {
   };
 }
 
-export async function listMaintenancePlans(tenantId) {
+export async function listMaintenancePlans(tenantId, installationId = null) {
   if (!tenantId) return [];
-  const { data, error } = await supabase
+  let query = supabase
     .from('planes_mantenimiento')
     .select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre,tipo,criticidad), responsable:profiles!planes_mantenimiento_responsable_id_fkey(nombre,email)')
     .eq('tenant_id', tenantId)
-    .is('deleted_at', null)
-    .order('fecha_proxima_realizacion', { ascending: true });
+    .is('deleted_at', null);
+  if (installationId) query = query.eq('instalacion_id', installationId);
+  const { data, error } = await query.order('fecha_proxima_realizacion', { ascending: true });
   if (error) throw error;
   return data || [];
 }
@@ -187,11 +188,7 @@ export async function generateScheduledFromPlan(plan) {
     origen: 'plan',
     created_by: userId
   };
-  const { data, error } = await supabase
-    .from('mantenimientos_programados')
-    .upsert(payload, { onConflict: 'plan_id,fecha_programada', ignoreDuplicates: false })
-    .select()
-    .single();
+  const { data, error } = await supabase.from('mantenimientos_programados').insert(payload).select().single();
   if (error) throw error;
   await logAudit({ tenantId: plan.tenant_id, action: 'generate_scheduled_maintenance', entityType: 'mantenimiento_programado', entityId: data.id, metadata: { planId: plan.id } });
   return data;

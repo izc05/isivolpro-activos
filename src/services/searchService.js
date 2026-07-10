@@ -77,11 +77,13 @@ function normalizeWorkOrder(row) {
   };
 }
 
-export async function globalSearch(tenantId, value, limit = SEARCH_LIMIT_PER_TYPE) {
+export async function globalSearch(tenantId, value, options = {}) {
   const term = cleanSearchTerm(value);
+  const limit = Number(options.limit || SEARCH_LIMIT_PER_TYPE);
+  const installationId = options.installationId || null;
   if (!tenantId || term.length < 2) return [];
 
-  const assetsQuery = supabase
+  let assetsQuery = supabase
     .from('activos')
     .select('id,nombre,tipo,marca,modelo,numero_serie,referencia,estado,instalaciones(nombre),ubicaciones(nombre)')
     .eq('tenant_id', tenantId)
@@ -90,7 +92,7 @@ export async function globalSearch(tenantId, value, limit = SEARCH_LIMIT_PER_TYP
     .order('nombre', { ascending: true })
     .limit(limit);
 
-  const installationsQuery = supabase
+  let installationsQuery = supabase
     .from('instalaciones')
     .select('id,nombre,codigo,direccion,tipo,estado')
     .eq('tenant_id', tenantId)
@@ -99,7 +101,7 @@ export async function globalSearch(tenantId, value, limit = SEARCH_LIMIT_PER_TYP
     .order('nombre', { ascending: true })
     .limit(limit);
 
-  const locationsQuery = supabase
+  let locationsQuery = supabase
     .from('ubicaciones')
     .select('id,nombre,tipo,planta,zona,instalaciones(nombre)')
     .eq('tenant_id', tenantId)
@@ -108,13 +110,20 @@ export async function globalSearch(tenantId, value, limit = SEARCH_LIMIT_PER_TYP
     .order('nombre', { ascending: true })
     .limit(limit);
 
-  const workOrdersQuery = supabase
+  let workOrdersQuery = supabase
     .from('ordenes_trabajo')
     .select('id,codigo_ot,titulo,descripcion,estado,instalaciones(nombre),activos(nombre)')
     .eq('tenant_id', tenantId)
     .or(ilikeOr(['codigo_ot', 'titulo', 'descripcion', 'estado'], term))
     .order('updated_at', { ascending: false })
     .limit(limit);
+
+  if (installationId) {
+    assetsQuery = assetsQuery.eq('instalacion_id', installationId);
+    installationsQuery = installationsQuery.eq('id', installationId);
+    locationsQuery = locationsQuery.eq('instalacion_id', installationId);
+    workOrdersQuery = workOrdersQuery.eq('instalacion_id', installationId);
+  }
 
   const [assets, installations, locations, workOrders] = await Promise.all([assetsQuery, installationsQuery, locationsQuery, workOrdersQuery]);
   const firstError = [assets.error, installations.error, locations.error, workOrders.error].find(Boolean);

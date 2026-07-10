@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
@@ -14,7 +14,7 @@ import { formatDate } from '../utils/dateUtils';
 import { maintenanceTypeLabel } from '../constants/maintenance';
 
 export default function MaintenancePlans() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId } = useTenant();
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
   const { rows: assets } = useTenantRows('activos', 'id,nombre,instalacion_id,ubicacion_id', { order: 'nombre', ascending: true });
@@ -25,12 +25,25 @@ export default function MaintenancePlans() {
   const [schemaPending, setSchemaPending] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const contextInstallations = useMemo(
+    () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
+    [installations, activeInstallationId]
+  );
+  const contextLocations = useMemo(
+    () => activeInstallationId ? locations.filter((item) => item.instalacion_id === activeInstallationId) : locations,
+    [locations, activeInstallationId]
+  );
+  const contextAssets = useMemo(
+    () => activeInstallationId ? assets.filter((item) => item.instalacion_id === activeInstallationId) : assets,
+    [assets, activeInstallationId]
+  );
+
   async function refresh() {
     if (!activeTenantId) return;
     setError('');
     setSchemaPending(false);
     try {
-      setPlans(await listMaintenancePlans(activeTenantId));
+      setPlans(await listMaintenancePlans(activeTenantId, activeInstallationId));
     } catch (err) {
       if (isMaintenanceSchemaMissing(err)) {
         setPlans([]);
@@ -41,7 +54,7 @@ export default function MaintenancePlans() {
     }
   }
 
-  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId]);
+  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId, activeInstallationId]);
 
   async function submit(payload) {
     setSaving(true);
@@ -86,9 +99,9 @@ export default function MaintenancePlans() {
         { key: 'proxima', label: 'Próxima', render: (row) => formatDate(row.fecha_proxima_realizacion) },
         { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${row.activo ? 'ok' : ''}`}>{row.activo ? 'Activo' : 'Inactivo'}</span> },
         { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><button className="secondary-button table-action" onClick={() => generate(row)}>Generar actuación</button><button className="danger-button" onClick={() => remove(row)}>Baja</button></div> }
-      ]} rows={plans} empty="No hay planes de mantenimiento." />
+      ]} rows={plans} empty="No hay planes de mantenimiento en el contexto seleccionado." />
       <Modal title="Nuevo plan de mantenimiento" open={open} onClose={() => setOpen(false)}>
-        <MaintenancePlanForm installations={installations} locations={locations} assets={assets} users={users} onSubmit={submit} onCancel={() => setOpen(false)} saving={saving} />
+        <MaintenancePlanForm installations={contextInstallations} locations={contextLocations} assets={contextAssets} users={users} onSubmit={submit} onCancel={() => setOpen(false)} saving={saving} />
       </Modal>
     </>
   );

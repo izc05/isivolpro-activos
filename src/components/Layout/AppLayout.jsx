@@ -7,6 +7,7 @@ import { useTenant } from '../../hooks/useTenant';
 import OfflineBanner from './OfflineBanner';
 import InstallAppButton from './InstallAppButton';
 import NotificationBell from './NotificationBell';
+import WorkContextSelector from './WorkContextSelector';
 import homeserveLogo from '../../assets/homeserve/homeserve-logo-rojo-horizontal.png';
 import GlobalSearch from '../Search/GlobalSearch';
 
@@ -94,6 +95,7 @@ export default function AppLayout() {
     installations,
     activeInstallationId,
     activeInstallation,
+    installationsLoading,
     isTenantAdmin,
     canViewInventory,
     canManageWorkOrders,
@@ -111,7 +113,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [openGroups, setOpenGroups] = useState({ inventory: false, maintenance: false, oca: false, workorders: false, users: false });
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem('isivoltpro-sidebar-hidden') === 'true');
-  const isGlobalWorkOrderView = location.pathname.startsWith('/ots-dashboard') || location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
+  const isGlobalWorkOrderView = location.pathname.startsWith('/ots-control') || location.pathname.startsWith('/ots-agenda');
 
   useEffect(() => {
     localStorage.setItem('isivoltpro-sidebar-hidden', sidebarHidden ? 'true' : 'false');
@@ -196,30 +198,17 @@ export default function AppLayout() {
             </button>
           )}
           {!isGlobalWorkOrderView && !useTechnicianMobileShell && (
-            <div className="topbar-selectors">
-              {tenants.length > 0 && (
-                <label className="topbar-selector client-selector">
-                  <span>Cliente activo</span>
-                  <select value={activeTenantId || ''} onChange={(event) => setActiveTenantId(event.target.value)}>
-                    {tenants.map((tenantItem) => (
-                      <option key={tenantItem.id} value={tenantItem.id}>{tenantItem.nombre}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {installations.length > 0 && (
-                <label className="topbar-selector active-installation-selector">
-                  <span>Instalacion activa</span>
-                  <select value={activeInstallationId || ''} onChange={(event) => setActiveInstallationId(event.target.value)}>
-                    {installations.map((installation) => (
-                      <option key={installation.id} value={installation.id}>{installation.nombre}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {activeTenant && activeInstallation && <span className="active-installation-pill">{activeTenant.nombre} · {activeInstallation.nombre}</span>}
-              {!activeInstallation && activeTenant && <span className="active-installation-pill muted">Cliente: {activeTenant.nombre}</span>}
-            </div>
+            <WorkContextSelector
+              tenants={tenants}
+              activeTenantId={activeTenantId}
+              activeTenant={activeTenant}
+              installations={installations}
+              activeInstallationId={activeInstallationId}
+              activeInstallation={activeInstallation}
+              installationsLoading={installationsLoading}
+              onTenantChange={setActiveTenantId}
+              onInstallationChange={setActiveInstallationId}
+            />
           )}
           {useTechnicianMobileShell && !isGlobalWorkOrderView && (
             <div className="technician-topbar-summary">
@@ -241,8 +230,13 @@ export default function AppLayout() {
               )}
             </div>
           )}
-          {isGlobalWorkOrderView && <div className="topbar-global-context">Vista global OT · Sin filtro de cliente o instalacion</div>}
-          {!useTechnicianMobileShell && <GlobalSearch tenantId={activeTenantId} />}
+          {isGlobalWorkOrderView && (
+            <div className="topbar-global-context">
+              <strong>Vista global de órdenes de trabajo</strong>
+              <small>Incluye todos los clientes e instalaciones accesibles. Al abrir una OT se activará su contexto.</small>
+            </div>
+          )}
+          {!useTechnicianMobileShell && !isGlobalWorkOrderView && <GlobalSearch tenantId={activeTenantId} />}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <NotificationBell />
           <InstallAppButton />

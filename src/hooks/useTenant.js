@@ -2,18 +2,53 @@ import { createContext, createElement, useContext, useEffect, useMemo, useState 
 import { getCurrentTenantMember, listTenants } from '../services/tenantService';
 import { listInstallationsForTenant } from '../services/entityService';
 import { buildTenantPermissions, roleLabel } from '../utils/permissions';
+import {
+  installationSelectionStorageValue,
+  resolveInstallationSelection,
+  workContextLabel
+} from '../utils/workContext';
 import { useAuth } from './useAuth';
 
 const TenantContext = createContext(null);
+const ACTIVE_TENANT_STORAGE_KEY = 'activeTenantId';
 
 function installationStorageKey(tenantId) {
   return tenantId ? `activeInstallationId:${tenantId}` : 'activeInstallationId';
 }
 
+function readStoredValue(key) {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredValue(key, value) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value) {
+      window.localStorage.setItem(key, value);
+      window.sessionStorage.setItem(key, value);
+    } else {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // La aplicacion sigue funcionando aunque el navegador bloquee el almacenamiento.
+  }
+}
+
+function persistInstallationSelection(tenantId, installationId) {
+  if (!tenantId) return;
+  writeStoredValue(installationStorageKey(tenantId), installationSelectionStorageValue(installationId));
+}
+
 export function TenantProvider({ children }) {
   const { isAuthenticated, isSuperAdmin, loading: authLoading } = useAuth();
   const [tenants, setTenants] = useState([]);
-  const [activeTenantId, setActiveTenantIdState] = useState(sessionStorage.getItem('activeTenantId'));
+  const [activeTenantId, setActiveTenantIdState] = useState(() => readStoredValue(ACTIVE_TENANT_STORAGE_KEY));
   const [activeMember, setActiveMember] = useState(undefined);
   const [installations, setInstallations] = useState([]);
   const [activeInstallationId, setActiveInstallationIdState] = useState(null);
@@ -39,7 +74,6 @@ export function TenantProvider({ children }) {
       setInstallationsLoading(false);
       setLoading(false);
       setTenantResolved(true);
-      sessionStorage.removeItem('activeTenantId');
       return;
     }
 
@@ -48,14 +82,13 @@ export function TenantProvider({ children }) {
     listTenants()
       .then((items) => {
         setTenants(items);
-        const storedTenantId = sessionStorage.getItem('activeTenantId');
+        const storedTenantId = readStoredValue(ACTIVE_TENANT_STORAGE_KEY);
         const storedIsValid = items.some((tenant) => tenant.id === storedTenantId);
         const currentIsValid = items.some((tenant) => tenant.id === activeTenantId);
         const nextTenantId = storedIsValid ? storedTenantId : currentIsValid ? activeTenantId : items[0]?.id || null;
         setActiveMember(undefined);
         setActiveTenantIdState(nextTenantId);
-        if (nextTenantId) sessionStorage.setItem('activeTenantId', nextTenantId);
-        else sessionStorage.removeItem('activeTenantId');
+        writeStoredValue(ACTIVE_TENANT_STORAGE_KEY, nextTenantId);
       })
       .catch((error) => {
         console.error('No se pudieron cargar tenants', error);
@@ -101,13 +134,14 @@ export function TenantProvider({ children }) {
     listInstallationsForTenant(activeTenantId)
       .then((items) => {
         setInstallations(items);
-        const storedInstallationId = sessionStorage.getItem(installationStorageKey(activeTenantId));
-        const storedIsValid = items.some((installation) => installation.id === storedInstallationId);
-        const currentIsValid = items.some((installation) => installation.id === activeInstallationId);
-        const nextInstallationId = storedIsValid ? storedInstallationId : currentIsValid ? activeInstallationId : items[0]?.id || null;
+        const storedInstallationId = readStoredValue(installationStorageKey(activeTenantId));
+        const nextInstallationId = resolveInstallationSelection({
+          installations: items,
+          storedValue: storedInstallationId,
+          currentValue: activeInstallationId
+        });
         setActiveInstallationIdState(nextInstallationId);
-        if (nextInstallationId) sessionStorage.setItem(installationStorageKey(activeTenantId), nextInstallationId);
-        else sessionStorage.removeItem(installationStorageKey(activeTenantId));
+        persistInstallationSelection(activeTenantId, nextInstallationId);
       })
       .catch((error) => {
         console.error('No se pudieron cargar instalaciones del cliente activo', error);
@@ -136,22 +170,45 @@ export function TenantProvider({ children }) {
     installations,
     activeInstallation,
     activeInstallationId,
+    isAllInstallations: Boolean(activeTenantId && installations.length > 1 && !activeInstallationId),
+    contextLabel: workContextLabel({
+      tenant: activeTenant,
+      installation: activeInstallation,
+      installationCount: installations.length
+    }),
     ...permissions,
     isTechnician: permissions.isInternalTechnician || permissions.isExternalTechnician,
     loading: authLoading || loading || !tenantResolved,
     roleLoading,
     installationsLoading,
     setActiveTenantId: (tenantId) => {
+      const nextTenantId = tenantId || null;
+      if (nextTenantId === activeTenantId) return;
       setActiveMember(undefined);
-      setActiveTenantIdState(tenantId);
+      setActiveTenantIdState(nextTenantId);
+      setInstallations([]);
       setActiveInstallationIdState(null);
-      if (tenantId) sessionStorage.setItem('activeTenantId', tenantId);
-      else sessionStorage.removeItem('activeTenantId');
+      setInstallationsLoading(Boolean(nextTenantId));
+      writeStoredValue(ACTIVE_TENANT_STORAGE_KEY, nextTenantId);
     },
     setActiveInstallationId: (installationId) => {
-      setActiveInstallationIdState(installationId || null);
-      if (activeTenantId && installationId) sessionStorage.setItem(installationStorageKey(activeTenantId), installationId);
-      else if (activeTenantId) sessionStorage.removeItem(installationStorageKey(activeTenantId));
+      const nextInstallationId = installationId || null;
+      if (nextInstallationId === activeInstallationId) return;
+      setActiveInstallationIdState(nextInstallationId);
+      persistInstallationSelection(activeTenantId, nextInstallationId);
+    },
+    setWorkContext: ({ tenantId, installationId = null }) => {
+      const nextTenantId = tenantId || null;
+      const nextInstallationId = installationId || null;
+      if (nextTenantId !== activeTenantId) {
+        setActiveMember(undefined);
+        setInstallations([]);
+        setInstallationsLoading(Boolean(nextTenantId));
+      }
+      setActiveTenantIdState(nextTenantId);
+      setActiveInstallationIdState(nextInstallationId);
+      writeStoredValue(ACTIVE_TENANT_STORAGE_KEY, nextTenantId);
+      if (nextTenantId) persistInstallationSelection(nextTenantId, nextInstallationId);
     },
     refreshTenants: async () => {
       const items = await listTenants();
@@ -160,9 +217,21 @@ export function TenantProvider({ children }) {
     },
     refreshInstallations: async () => {
       if (!activeTenantId) return [];
-      const items = await listInstallationsForTenant(activeTenantId);
-      setInstallations(items);
-      return items;
+      setInstallationsLoading(true);
+      try {
+        const items = await listInstallationsForTenant(activeTenantId);
+        setInstallations(items);
+        const nextInstallationId = resolveInstallationSelection({
+          installations: items,
+          storedValue: readStoredValue(installationStorageKey(activeTenantId)),
+          currentValue: activeInstallationId
+        });
+        setActiveInstallationIdState(nextInstallationId);
+        persistInstallationSelection(activeTenantId, nextInstallationId);
+        return items;
+      } finally {
+        setInstallationsLoading(false);
+      }
     }
   }), [tenants, activeTenant, activeTenantId, activeMember, activeRole, isSuperAdmin, installations, activeInstallation, activeInstallationId, permissions, authLoading, loading, tenantResolved, roleLoading, installationsLoading]);
 

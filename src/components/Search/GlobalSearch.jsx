@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, ClipboardCheck, Loader2, MapPin, Search, Wrench, X } from 'lucide-react';
+import { useTenant } from '../../hooks/useTenant';
 import { globalSearch } from '../../services/searchService';
 
 const ICONS = {
@@ -19,6 +20,7 @@ const TYPE_LABELS = {
 
 export default function GlobalSearch({ tenantId }) {
   const navigate = useNavigate();
+  const { activeInstallationId } = useTenant();
   const wrapperRef = useRef(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -55,7 +57,7 @@ export default function GlobalSearch({ tenantId }) {
     setError('');
     const timer = window.setTimeout(async () => {
       try {
-        const data = await globalSearch(tenantId, trimmed);
+        const data = await globalSearch(tenantId, trimmed, { installationId: activeInstallationId });
         if (!cancelled) {
           setResults(data);
           setOpen(true);
@@ -75,7 +77,7 @@ export default function GlobalSearch({ tenantId }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [tenantId, query]);
+  }, [tenantId, activeInstallationId, query]);
 
   if (!tenantId) return null;
 
@@ -95,7 +97,7 @@ export default function GlobalSearch({ tenantId }) {
         <input
           value={query}
           type="search"
-          placeholder="Buscar OT, activo, instalacion..."
+          placeholder={activeInstallationId ? 'Buscar en la instalación activa...' : 'Buscar OT, activo, instalacion...'}
           aria-label="Buscar en la aplicacion"
           onFocus={() => setOpen(true)}
           onChange={(event) => setQuery(event.target.value)}
