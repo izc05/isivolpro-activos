@@ -24,7 +24,7 @@ const LIVE_STATUS_COLUMNS = OFFICIAL_WORK_ORDER_STATUSES;
 
 export default function WorkOrderControl() {
   const navigate = useNavigate();
-  const { tenants, setActiveTenantId } = useTenant();
+  const { tenants, setWorkContext } = useTenant();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,7 +142,7 @@ export default function WorkOrderControl() {
   }
 
   function openOrder(row) {
-    setActiveTenantId(row.tenant_id);
+    setWorkContext({ tenantId: row.tenant_id, installationId: row.instalacion_id || null });
     navigate(`/ots/${row.id}`);
   }
 
