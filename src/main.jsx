@@ -9,6 +9,7 @@ import './styles/workflow.css';
 import './styles/workOrderPolish.css';
 import './styles/finalReview.css';
 import './styles/activeInstallation.css';
+import './styles/workContext.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
