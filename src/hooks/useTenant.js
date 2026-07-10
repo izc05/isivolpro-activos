@@ -183,20 +183,28 @@ export function TenantProvider({ children }) {
     installationsLoading,
     setActiveTenantId: (tenantId) => {
       const nextTenantId = tenantId || null;
+      if (nextTenantId === activeTenantId) return;
       setActiveMember(undefined);
       setActiveTenantIdState(nextTenantId);
+      setInstallations([]);
       setActiveInstallationIdState(null);
+      setInstallationsLoading(Boolean(nextTenantId));
       writeStoredValue(ACTIVE_TENANT_STORAGE_KEY, nextTenantId);
     },
     setActiveInstallationId: (installationId) => {
       const nextInstallationId = installationId || null;
+      if (nextInstallationId === activeInstallationId) return;
       setActiveInstallationIdState(nextInstallationId);
       persistInstallationSelection(activeTenantId, nextInstallationId);
     },
     setWorkContext: ({ tenantId, installationId = null }) => {
       const nextTenantId = tenantId || null;
       const nextInstallationId = installationId || null;
-      setActiveMember(undefined);
+      if (nextTenantId !== activeTenantId) {
+        setActiveMember(undefined);
+        setInstallations([]);
+        setInstallationsLoading(Boolean(nextTenantId));
+      }
       setActiveTenantIdState(nextTenantId);
       setActiveInstallationIdState(nextInstallationId);
       writeStoredValue(ACTIVE_TENANT_STORAGE_KEY, nextTenantId);
