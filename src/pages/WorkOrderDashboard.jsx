@@ -11,7 +11,7 @@ import { formatDateTime } from '../utils/dateUtils';
 import { ACTIVE_WORK_ORDER_STATUSES, FINISHED_WORK_ORDER_STATUSES, normalizedStatus } from '../utils/workOrderLifecycle';
 
 export default function WorkOrderDashboard() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId, activeInstallation } = useTenant();
   const [orders, setOrders] = useState([]);
   const [visits, setVisits] = useState([]);
   const [error, setError] = useState('');
@@ -49,20 +49,32 @@ export default function WorkOrderDashboard() {
     };
   }, [activeTenantId]);
 
-  const metrics = useMemo(() => {
-    const open = orders.filter((order) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))).length;
-    const inProgress = orders.filter((order) => normalizedStatus(order.estado) === 'EN_CURSO').length;
-    const pending = orders.filter((order) => ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(normalizedStatus(order.estado))).length;
-    const finished = orders.filter((order) => FINISHED_WORK_ORDER_STATUSES.includes(order.estado) || normalizedStatus(order.estado) === 'FINALIZADA').length;
-    const validated = orders.filter((order) => normalizedStatus(order.estado) === 'VALIDADA').length;
-    const unassigned = orders.filter((order) => !order.assigned_to && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
-    const activeVisits = visits.filter((visit) => visit.estado === 'EN_CURSO').length;
-    const overdue = orders.filter((order) => order.fecha_limite && new Date(order.fecha_limite) < new Date() && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
-    return { open, inProgress, pending, finished, validated, unassigned, activeVisits, overdue };
-  }, [orders, visits]);
+  const scopedOrders = useMemo(
+    () => activeInstallationId ? orders.filter((order) => order.instalacion_id === activeInstallationId) : orders,
+    [orders, activeInstallationId]
+  );
 
-  const recentOrders = useMemo(() => orders.slice(0, 8), [orders]);
-  const recentVisits = useMemo(() => visits.slice(0, 6), [visits]);
+  const scopedOrderIds = useMemo(() => new Set(scopedOrders.map((order) => order.id)), [scopedOrders]);
+
+  const scopedVisits = useMemo(
+    () => activeInstallationId ? visits.filter((visit) => scopedOrderIds.has(visit.ot_id)) : visits,
+    [visits, activeInstallationId, scopedOrderIds]
+  );
+
+  const metrics = useMemo(() => {
+    const open = scopedOrders.filter((order) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(order.estado))).length;
+    const inProgress = scopedOrders.filter((order) => normalizedStatus(order.estado) === 'EN_CURSO').length;
+    const pending = scopedOrders.filter((order) => ['PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(normalizedStatus(order.estado))).length;
+    const finished = scopedOrders.filter((order) => FINISHED_WORK_ORDER_STATUSES.includes(order.estado) || normalizedStatus(order.estado) === 'FINALIZADA').length;
+    const validated = scopedOrders.filter((order) => normalizedStatus(order.estado) === 'VALIDADA').length;
+    const unassigned = scopedOrders.filter((order) => !order.assigned_to && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
+    const activeVisits = scopedVisits.filter((visit) => visit.estado === 'EN_CURSO').length;
+    const overdue = scopedOrders.filter((order) => order.fecha_limite && new Date(order.fecha_limite) < new Date() && !['VALIDADA', 'CANCELADA'].includes(normalizedStatus(order.estado))).length;
+    return { open, inProgress, pending, finished, validated, unassigned, activeVisits, overdue };
+  }, [scopedOrders, scopedVisits]);
+
+  const recentOrders = useMemo(() => scopedOrders.slice(0, 8), [scopedOrders]);
+  const recentVisits = useMemo(() => scopedVisits.slice(0, 6), [scopedVisits]);
 
   if (loading) {
     return (
@@ -80,7 +92,9 @@ export default function WorkOrderDashboard() {
     <>
       <PageHeader
         title="Dashboard OT"
-        subtitle="Seguimiento global de OT por instalaciones: nuevas, asignadas, en curso, pendientes, finalizadas y validadas."
+        subtitle={activeInstallation
+          ? `Seguimiento de órdenes e intervenciones de ${activeInstallation.nombre}.`
+          : 'Seguimiento agregado de todas las instalaciones del cliente activo.'}
         action={<Link className="primary-button" to="/ots">Gestionar OT</Link>}
       />
       <div className="tabs workorder-tabs">
@@ -94,7 +108,7 @@ export default function WorkOrderDashboard() {
       </div>
       {error && <p className="error-text">{error}</p>}
 
-      <WorkOrderStatusOverview orders={orders} />
+      <WorkOrderStatusOverview orders={scopedOrders} />
 
       <div className="grid metrics ot-metrics">
         <Metric icon={<ClipboardCheck size={22} />} label="OT abiertas" value={metrics.open} />
@@ -121,24 +135,26 @@ export default function WorkOrderDashboard() {
               { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> }
             ]}
             rows={recentOrders}
-            empty="Sin OT registradas"
+            empty="Sin OT registradas en este contexto"
           />
         </section>
 
         <section className="ot-dashboard-panel">
           <div className="section-title">
-            <h2>Actividad de campo</h2>
-            <Link className="secondary-button" to="/mis-ots">OT asignadas</Link>
+            <h2>Intervenciones recientes</h2>
+            <Link className="secondary-button" to="/ots-agenda">Ver agenda</Link>
           </div>
           <DataTable
             columns={[
+              { key: 'ot', label: 'OT', render: (row) => row.orden?.codigo_ot || row.ot_id?.slice(0, 8) || '-' },
+              { key: 'trabajo', label: 'Trabajo', render: (row) => row.orden?.titulo || '-' },
               { key: 'fecha_inicio', label: 'Inicio', render: (row) => row.fecha_inicio ? formatDateTime(row.fecha_inicio) : '-' },
               { key: 'fecha_fin', label: 'Fin', render: (row) => row.fecha_fin ? formatDateTime(row.fecha_fin) : '-' },
               { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${row.estado === 'EN_CURSO' ? 'warn' : 'ok'}`}>{row.estado}</span> },
-              { key: 'ot_id', label: 'OT', render: (row) => <Link to={`/ots/${row.ot_id}/visita`}>Abrir</Link> }
+              { key: 'ot_id', label: 'Accion', render: (row) => <Link to={`/ots/${row.ot_id}/visita`}>Ver</Link> }
             ]}
             rows={recentVisits}
-            empty="Sin visitas registradas"
+            empty="Sin intervenciones registradas en este contexto"
           />
         </section>
       </div>
