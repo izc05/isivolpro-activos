@@ -42,7 +42,7 @@ function buildMonthCells(monthDate) {
 }
 
 export default function MaintenanceCalendar() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId } = useTenant();
   const [rows, setRows] = useState([]);
   const [view, setView] = useState('mes');
   const [error, setError] = useState('');
@@ -54,7 +54,7 @@ export default function MaintenanceCalendar() {
     setError('');
     setSchemaPending(false);
     try {
-      setRows(await listScheduledMaintenances(activeTenantId));
+      setRows(await listScheduledMaintenances(activeTenantId, { instalacion_id: activeInstallationId || undefined }));
     } catch (err) {
       if (isMaintenanceSchemaMissing(err)) {
         setRows([]);
@@ -65,7 +65,7 @@ export default function MaintenanceCalendar() {
     }
   }
 
-  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId]);
+  useEffect(() => { refresh().catch((err) => setError(err.message)); }, [activeTenantId, activeInstallationId]);
 
   const visibleRows = useMemo(() => {
     const today = new Date();
@@ -122,7 +122,7 @@ function MaintenanceTable({ rows, onGenerate }) {
       { key: 'tecnico', label: 'Técnico', render: (row) => row.assigned?.nombre || row.assigned?.email || '-' },
       { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${maintenanceStatusClass(row.estado_visual || row.estado)}`}>{maintenanceStatusLabel(row.estado_visual || row.estado)}</span> },
       { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions">{row.ot_id ? <Link className="secondary-button table-action" to={`/ots/${row.ot_id}`}>Abrir OT</Link> : <button className="secondary-button table-action" onClick={() => onGenerate(row)}>Generar OT</button>}</div> }
-    ]} rows={rows} empty="No hay actuaciones en esta vista." />
+    ]} rows={rows} empty="No hay actuaciones en esta vista y contexto." />
   );
 }
 
