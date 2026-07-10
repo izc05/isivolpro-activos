@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
+  getWorkOrderChecklistProgress,
   isWorkOrderClosed,
   isWorkOrderReadOnly,
   normalizedStatus,
@@ -28,6 +29,32 @@ test('una OT finalizada ya es de solo lectura operativa', () => {
   assert.equal(isWorkOrderReadOnly('FINALIZADA'), true);
   assert.equal(isWorkOrderReadOnly('VALIDADA'), true);
   assert.equal(isWorkOrderReadOnly('EN_CURSO'), false);
+});
+
+test('una OT sin checklist obligatorio puede finalizar con lista vacia', () => {
+  assert.deepEqual(getWorkOrderChecklistProgress({ configuracion: { requiere_checklist: false } }, []), {
+    required: false,
+    available: false,
+    completed: 0,
+    total: 0,
+    complete: true
+  });
+});
+
+test('una OT con checklist obligatorio exige todos los puntos completos', () => {
+  const incomplete = getWorkOrderChecklistProgress(
+    { configuracion: { requiere_checklist: true } },
+    [{ resultado: 'ok' }, { resultado: 'pendiente' }]
+  );
+  assert.equal(incomplete.available, true);
+  assert.equal(incomplete.completed, 1);
+  assert.equal(incomplete.complete, false);
+
+  const complete = getWorkOrderChecklistProgress(
+    { configuracion: { requiere_checklist: true } },
+    [{ resultado: 'ok' }, { resultado: 'no_aplica' }]
+  );
+  assert.equal(complete.complete, true);
 });
 
 test('una OT finalizada solo permite validar o reabrir', () => {
