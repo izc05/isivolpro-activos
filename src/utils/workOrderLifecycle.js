@@ -172,6 +172,21 @@ export function isWorkOrderReadOnly(rowOrStatus) {
   return READ_ONLY_WORK_ORDER_STATUSES.includes(normalizedStatus(status));
 }
 
+export function getWorkOrderChecklistProgress(workOrder = {}, checklistItems = []) {
+  const required = Boolean(workOrder?.configuracion?.requiere_checklist);
+  const items = Array.isArray(checklistItems) ? checklistItems : [];
+  const completed = items.filter((item) => item?.resultado && item.resultado !== 'pendiente').length;
+  const total = items.length;
+
+  return {
+    required,
+    available: required || total > 0,
+    completed,
+    total,
+    complete: !required || (total > 0 && completed === total)
+  };
+}
+
 export function validNextActions(row = {}) {
   const status = normalizedStatus(row.estado);
   if (!status) return [];

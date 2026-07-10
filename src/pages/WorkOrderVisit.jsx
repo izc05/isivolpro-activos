@@ -28,7 +28,7 @@ import {
 import { updateWorkOrderLifecycleStatus } from '../services/workOrderLifecycleService';
 import { formatDateTime } from '../utils/dateUtils';
 import { buildMapsEmbedUrl, buildMapsUrl } from '../utils/mapUtils';
-import { normalizedStatus } from '../utils/workOrderLifecycle';
+import { getWorkOrderChecklistProgress, normalizedStatus } from '../utils/workOrderLifecycle';
 
 function getBrowserLocation() {
   return new Promise((resolve) => {
@@ -147,8 +147,10 @@ export default function WorkOrderVisit() {
   const canAcceptWorkOrder = Boolean(workOrder && needsAcceptance && !activeVisit);
   const canStartVisit = useMemo(() => !activeVisit && workOrder && ['ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'].includes(status), [activeVisit, workOrder, status]);
   const hasPreviousVisits = visits.some((visit) => visit.estado === 'FINALIZADA');
-  const checklistComplete = checklistItems.length > 0 && checklistItems.every((item) => item.resultado && item.resultado !== 'pendiente');
-  const checklistDone = checklistItems.filter((item) => item.resultado && item.resultado !== 'pendiente').length;
+  const checklistProgress = getWorkOrderChecklistProgress(workOrder, checklistItems);
+  const checklistComplete = checklistProgress.complete;
+  const checklistAvailable = checklistProgress.available;
+  const checklistDone = checklistProgress.completed;
 
   async function acceptWorkOrder() {
     if (!workOrder) return;
@@ -367,7 +369,7 @@ export default function WorkOrderVisit() {
               </FormField>
               <div className="form-actions">
                 <button className="secondary-button" type="button" disabled={saving} onClick={saveVisit}><Save size={18} /> Guardar visita</button>
-                <Link className="primary-button ot-important-action" to={`/ots/${workOrder.id}/checklist`}><CheckCircle2 size={18} /> Continuar checklist</Link>
+                {checklistAvailable && <Link className="primary-button ot-important-action" to={`/ots/${workOrder.id}/checklist`}><CheckCircle2 size={18} /> Continuar checklist</Link>}
                 <button className="primary-button ot-finish-action" type="button" disabled={saving || !checklistComplete} onClick={() => setFinishOpen(true)}><StopCircle size={18} /> Finalizar intervención</button>
               </div>
               {!checklistComplete && (
@@ -441,7 +443,7 @@ export default function WorkOrderVisit() {
         />
       </WorkOrderSection>
 
-      {!isReadOnly && <WorkOrderSection title="Checklist de visita" subtitle="Continuación natural de la intervención" icon={Save} defaultOpen={false}>
+      {!isReadOnly && checklistAvailable && <WorkOrderSection title="Checklist de visita" subtitle="Continuación natural de la intervención" icon={Save} defaultOpen={false}>
         <p className="muted">Rellena los puntos de revision con OK, No OK o No aplica. Puedes adjuntar fotos por punto y continuar con firma/PDF cuando corresponda.</p>
         <div className="quick-actions">
           <Link className="secondary-button" to={`/ots/${workOrder.id}`}>Ver detalle OT</Link>
