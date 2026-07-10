@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { statusForScheduledDate } from '../constants/maintenance';
 
-export async function loadMaintenanceDashboard(tenantId) {
+export async function loadMaintenanceDashboard(tenantId, installationId = null) {
   if (!tenantId) return emptyDashboard();
   const today = new Date().toISOString().slice(0, 10);
   const in7 = addDays(7);
@@ -10,11 +10,22 @@ export async function loadMaintenanceDashboard(tenantId) {
   monthStart.setDate(1);
   const monthStartIso = monthStart.toISOString().slice(0, 10);
 
+  let scheduledQuery = supabase.from('mantenimientos_programados').select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre,criticidad,estado), ordenes_trabajo(id,codigo_ot,estado), assigned:profiles!mantenimientos_programados_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).is('deleted_at', null);
+  let plansQuery = supabase.from('planes_mantenimiento').select('*, activos(id,nombre)').eq('tenant_id', tenantId).is('deleted_at', null);
+  let assetsQuery = supabase.from('activos').select('id,nombre,estado,criticidad,instalacion_id').eq('tenant_id', tenantId).is('deleted_at', null);
+  let historyQuery = supabase.from('historial_mantenimiento').select('*, activos(nombre,instalacion_id), tecnico:profiles!historial_mantenimiento_tecnico_id_fkey(nombre,email)').eq('tenant_id', tenantId).is('deleted_at', null).order('fecha', { ascending: false }).limit(40);
+
+  if (installationId) {
+    scheduledQuery = scheduledQuery.eq('instalacion_id', installationId);
+    plansQuery = plansQuery.eq('instalacion_id', installationId);
+    assetsQuery = assetsQuery.eq('instalacion_id', installationId);
+  }
+
   const [scheduledResult, plansResult, assetsResult, historyResult] = await Promise.all([
-    supabase.from('mantenimientos_programados').select('*, instalaciones(nombre), ubicaciones(nombre), activos(nombre,criticidad,estado), ordenes_trabajo(id,codigo_ot,estado), assigned:profiles!mantenimientos_programados_assigned_to_fkey(nombre,email)').eq('tenant_id', tenantId).is('deleted_at', null),
-    supabase.from('planes_mantenimiento').select('*, activos(id,nombre)').eq('tenant_id', tenantId).is('deleted_at', null),
-    supabase.from('activos').select('id,nombre,estado,criticidad').eq('tenant_id', tenantId).is('deleted_at', null),
-    supabase.from('historial_mantenimiento').select('*, activos(nombre), tecnico:profiles!historial_mantenimiento_tecnico_id_fkey(nombre,email)').eq('tenant_id', tenantId).is('deleted_at', null).order('fecha', { ascending: false }).limit(12)
+    scheduledQuery,
+    plansQuery,
+    assetsQuery,
+    historyQuery
   ]);
   if (scheduledResult.error) throw scheduledResult.error;
   if (plansResult.error) throw plansResult.error;
@@ -24,7 +35,9 @@ export async function loadMaintenanceDashboard(tenantId) {
   const scheduled = scheduledResult.data || [];
   const plans = plansResult.data || [];
   const assets = assetsResult.data || [];
-  const history = historyResult.data || [];
+  const history = (historyResult.data || [])
+    .filter((item) => !installationId || item.activos?.instalacion_id === installationId)
+    .slice(0, 12);
   const activePlans = plans.filter((plan) => plan.activo);
   const plannedAssetIds = new Set(activePlans.map((plan) => plan.activo_id));
   const currentScheduled = scheduled.map((item) => ({ ...item, estado_calculado: item.estado === 'completado' ? item.estado : statusForScheduledDate(item.fecha_programada) }));
