@@ -46,7 +46,7 @@ function buildMonthCells(monthDate) {
 
 export default function WorkOrderAgenda() {
   const navigate = useNavigate();
-  const { tenants, setActiveTenantId } = useTenant();
+  const { tenants, setWorkContext } = useTenant();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -183,7 +183,7 @@ export default function WorkOrderAgenda() {
           monthDate={currentMonth}
           orders={filteredOrders}
           monthOrders={monthOrders}
-          onOpenOrder={(order) => openOrder(order, setActiveTenantId, navigate)}
+          onOpenOrder={(order) => openOrder(order, setWorkContext, navigate)}
           onNext={() => setCurrentMonth((date) => addMonths(date, 1))}
           onPrev={() => setCurrentMonth((date) => addMonths(date, -1))}
         />
@@ -212,7 +212,7 @@ export default function WorkOrderAgenda() {
             </header>
             <div className="ot-agenda-unscheduled">
               {unscheduledOrders.map((order) => (
-                <button key={order.id} type="button" onClick={() => openOrder(order, setActiveTenantId, navigate)}>
+                <button key={order.id} type="button" onClick={() => openOrder(order, setWorkContext, navigate)}>
                   <span>{order.codigo_ot || order.id.slice(0, 8)}</span>
                   <strong>{order.titulo || 'OT sin titulo'}</strong>
                   <small>{order.tenant_nombre || '-'} · {order.instalaciones?.nombre || 'Sin instalacion'} · {order.assigned?.nombre || order.assigned?.email || 'Sin tecnico'}</small>
@@ -282,8 +282,10 @@ function AgendaMonthCalendar({ monthDate, orders, monthOrders, onOpenOrder, onPr
   );
 }
 
-function openOrder(order, setActiveTenantId, navigate) {
-  if (order.tenant_id) setActiveTenantId(order.tenant_id);
+function openOrder(order, setWorkContext, navigate) {
+  if (order.tenant_id) {
+    setWorkContext({ tenantId: order.tenant_id, installationId: order.instalacion_id || null });
+  }
   navigate(`/ots/${order.id}`);
 }
 
