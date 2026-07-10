@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { BarChart3, Building2, CalendarClock, ChevronDown, ClipboardCheck, FileText, History, Home, ListChecks, MapPin, PanelLeftClose, PanelLeftOpen, PenLine, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle, FileWarning } from 'lucide-react';
+import { BarChart3, Building2, CalendarClock, ChevronDown, ClipboardCheck, FileText, History, Home, ListChecks, MapPin, PanelLeftClose, PanelLeftOpen, QrCode, Settings, ShieldCheck, Users, Wrench, AlertTriangle, Image, Video, UserCircle, FileWarning } from 'lucide-react';
 import { signOut } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useTenant } from '../../hooks/useTenant';
@@ -28,14 +28,54 @@ const inventoryNavItems = [
 ];
 
 const workOrderNavItems = [
-  { to: '/ots-dashboard', label: 'Panel OT', icon: BarChart3, permission: 'workorders_manage' },
-  { to: '/ots-control', label: 'Control OT', icon: ClipboardCheck, permission: 'workorders_manage' },
-  { to: '/ots-agenda', label: 'Agenda OT', icon: CalendarClock, permission: 'workorders_manage' },
-  { to: '/ots', label: 'Todas las OT', icon: ClipboardCheck, permission: 'workorders_manage' },
-  { to: '/ots-realizadas', label: 'OT realizadas', icon: CheckIcon, permission: 'workorders_manage' },
-  { to: '/mis-ots', label: 'Mis OT asignadas', mobileLabel: 'Mis OT', icon: ListChecks, permission: 'workorders' },
-  { to: '/ots-creadas', label: 'OT creadas por mi', icon: PenLine, permission: 'workorders_manage' },
-  { to: '/incidencias', label: 'Incidencias', mobileLabel: 'Avisos', icon: AlertTriangle, permission: 'incidents' }
+  {
+    to: '/ots-dashboard',
+    label: 'Panel OT',
+    icon: BarChart3,
+    permission: 'workorders_manage',
+    activePaths: ['/ots-dashboard']
+  },
+  {
+    to: '/ots',
+    label: 'Órdenes de trabajo',
+    icon: ClipboardCheck,
+    permission: 'workorders_manage',
+    activePaths: ['/ots', '/ots-realizadas', '/mis-ots', '/ots-creadas']
+  },
+  {
+    to: '/ots-control',
+    label: 'Planificación',
+    icon: CalendarClock,
+    permission: 'workorders_manage',
+    activePaths: ['/ots-control', '/ots-agenda']
+  },
+  {
+    to: '/incidencias',
+    label: 'Incidencias',
+    mobileLabel: 'Avisos',
+    icon: AlertTriangle,
+    permission: 'incidents',
+    activePaths: ['/incidencias']
+  }
+];
+
+const technicianNavItems = [
+  {
+    to: '/mis-ots',
+    label: 'Mis OT',
+    mobileLabel: 'Mis OT',
+    icon: ListChecks,
+    permission: 'workorders',
+    activePaths: ['/mis-ots', '/ots']
+  },
+  {
+    to: '/incidencias',
+    label: 'Incidencias',
+    mobileLabel: 'Avisos',
+    icon: AlertTriangle,
+    permission: 'incidents',
+    activePaths: ['/incidencias']
+  }
 ];
 
 const maintenanceNavItems = [
@@ -81,8 +121,9 @@ function UserIcon(props) {
   return <Users {...props} />;
 }
 
-function CheckIcon(props) {
-  return <ClipboardCheck {...props} />;
+function matchesNavItem(pathname, item) {
+  const paths = item.activePaths || [item.to];
+  return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 export default function AppLayout() {
@@ -136,18 +177,19 @@ export default function AppLayout() {
   };
 
   const toggleGroup = (group) => setOpenGroups((current) => ({ ...current, [group]: !current[group] }));
-  const groupActive = (items) => items.some((item) => location.pathname.startsWith(item.to));
+  const groupActive = (items) => items.some((item) => matchesNavItem(location.pathname, item));
 
   const visibleMainNavItems = mainNavItems.filter(canSeeItem);
   const visibleInventoryNavItems = inventoryNavItems.filter(canSeeItem);
   const visibleMaintenanceNavItems = maintenanceNavItems.filter(canSeeItem);
   const visibleOcaNavItems = ocaNavItems.filter(canSeeItem);
   const visibleWorkOrderNavItems = workOrderNavItems.filter(canSeeItem);
+  const visibleTechnicianNavItems = technicianNavItems.filter(canSeeItem);
   const visibleUserNavItems = userNavItems.filter(canSeeItem);
 
   const showFullNavigation = isTenantAdmin || isCoordinator || canViewInventory || canManageWorkOrders || canManageUsers || canViewOca;
   const useTechnicianMobileShell = isTechnician && !isTenantAdmin && !canManageWorkOrders && !canManageUsers;
-  const fallbackNavItems = [...visibleWorkOrderNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
+  const fallbackNavItems = [...visibleTechnicianNavItems, ...visibleUserNavItems].filter((item) => ['/mis-ots', '/incidencias', '/ajustes'].includes(item.to));
   const desktopNavItems = showFullNavigation ? null : [...visibleMainNavItems, ...fallbackNavItems];
   const allMobileNavItems = showFullNavigation
     ? [...visibleMainNavItems, ...visibleInventoryNavItems, ...visibleMaintenanceNavItems, ...visibleOcaNavItems, ...visibleWorkOrderNavItems, ...visibleUserNavItems]
@@ -236,7 +278,7 @@ export default function AppLayout() {
               <small>Incluye todos los clientes e instalaciones accesibles. Al abrir una OT se activará su contexto.</small>
             </div>
           )}
-          {!useTechnicianMobileShell && !isGlobalWorkOrderView && <GlobalSearch tenantId={activeTenantId} />}
+          {!useTechnicianMobileShell && !isGlobalWorkOrderView && <GlobalSearch tenantId={activeTenantId} installationId={activeInstallationId} />}
           <NavLink className="primary-button topbar-scan-button" to="/scanner"><QrCode size={18} /> Escanear QR</NavLink>
           <NotificationBell />
           <InstallAppButton />
@@ -273,8 +315,10 @@ function NavGroup({ title, items, open, active, onToggle }) {
 
 function NavItem({ item, compact = false }) {
   const Icon = item.icon;
+  const location = useLocation();
+  const active = matchesNavItem(location.pathname, item);
   return (
-    <NavLink to={item.to} className={({ isActive }) => `nav-item ${compact ? 'compact' : ''} ${isActive ? 'active' : ''}`}>
+    <NavLink to={item.to} className={`nav-item ${compact ? 'compact' : ''} ${active ? 'active' : ''}`}>
       <Icon size={20} />
       <span>{compact ? item.mobileLabel || item.label : item.label}</span>
     </NavLink>
