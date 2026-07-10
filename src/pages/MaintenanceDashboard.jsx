@@ -11,7 +11,7 @@ import { formatDate } from '../utils/dateUtils';
 import { maintenanceStatusClass, maintenanceStatusLabel, maintenanceTypeLabel } from '../constants/maintenance';
 
 export default function MaintenanceDashboard() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, activeInstallationId } = useTenant();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [schemaPending, setSchemaPending] = useState(false);
@@ -21,7 +21,8 @@ export default function MaintenanceDashboard() {
     let mounted = true;
     setError('');
     setSchemaPending(false);
-    loadMaintenanceDashboard(activeTenantId)
+    setData(null);
+    loadMaintenanceDashboard(activeTenantId, activeInstallationId)
       .then((result) => { if (mounted) setData(result); })
       .catch((err) => {
         if (!mounted) return;
@@ -33,7 +34,7 @@ export default function MaintenanceDashboard() {
         setError(err.message);
       });
     return () => { mounted = false; };
-  }, [activeTenantId]);
+  }, [activeTenantId, activeInstallationId]);
 
   const metrics = data?.metrics || {};
   const cards = useMemo(() => [
@@ -56,7 +57,7 @@ export default function MaintenanceDashboard() {
     <>
       <PageHeader
         title="Panel mantenimiento"
-        subtitle="Planificación, seguimiento y resultado técnico de activos."
+        subtitle="Planificación, seguimiento y resultado técnico dentro del contexto activo."
         action={<div className="button-row"><Link className="secondary-button" to="/mantenimiento/planes">Planes</Link><Link className="primary-button" to="/mantenimiento/correctivos">Crear correctivo</Link></div>}
       />
       {schemaPending && <MaintenanceSchemaNotice />}
