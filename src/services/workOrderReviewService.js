@@ -88,14 +88,15 @@ export async function validateWorkOrderAsAdmin(workOrder, reviewItems, notes = '
   if (!finalReviewCanValidate(reviewItems)) {
     throw new Error('No se puede validar la OT. Hay requisitos obligatorios pendientes.');
   }
-  const { data, error } = await supabase.rpc('review_work_order', { work_order_uuid: workOrder.id, decision_text: 'validada', notes_text: notes });
+  const { data, error } = await supabase.rpc('review_work_order', { work_order_uuid: workOrder.id, decision_text: 'validada', notes_text: notes.trim() || 'Revisión administrativa conforme' });
   if (error) throw error;
   return data;
 }
 
 export async function requestWorkOrderCorrections(workOrder, notes = '') {
-  if (!notes.trim()) throw new Error('Indica claramente qué debe corregir el técnico.');
-  const { data, error } = await supabase.rpc('review_work_order', { work_order_uuid: workOrder.id, decision_text: 'correccion_solicitada', notes_text: notes });
+  const cleanNotes = notes.trim();
+  if (!cleanNotes) throw new Error('Indica claramente qué debe corregir el técnico.');
+  const { data, error } = await supabase.rpc('review_work_order', { work_order_uuid: workOrder.id, decision_text: 'correccion_solicitada', notes_text: cleanNotes });
   if (error) throw error;
   return data;
 }
