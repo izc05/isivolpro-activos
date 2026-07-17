@@ -1,0 +1,259 @@
+.technician-page-actions {
+  justify-content: flex-end;
+}
+
+.technician-workbench--visible {
+  display: grid;
+}
+
+.technician-workbench {
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.technician-workbench-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.technician-workbench-head span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.technician-workbench-head strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.technician-kpi-grid--filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.technician-kpi-grid--filters button {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--primary);
+  padding: 12px;
+  text-align: left;
+}
+
+.technician-kpi-grid--filters button svg {
+  color: #647086;
+}
+
+.technician-kpi-grid--filters button span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.technician-kpi-grid--filters button strong {
+  color: var(--primary-2);
+  font-size: 24px;
+}
+
+.technician-kpi-grid--filters button.active {
+  border-color: #f0aaa3;
+  background: #fff3f1;
+  box-shadow: inset 4px 0 0 var(--primary-2);
+}
+
+.technician-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.technician-ot-card {
+  position: relative;
+  overflow: hidden;
+  border-left: 5px solid #9aa7b5;
+}
+
+.technician-ot-card--correction {
+  border-left-color: var(--danger);
+  background: linear-gradient(90deg, #fff7f7, #ffffff 42%);
+}
+
+.technician-ot-card--en_curso,
+.technician-ot-card--pausada {
+  border-left-color: var(--ok);
+}
+
+.technician-ot-card--pendiente_material {
+  border-left-color: var(--warning);
+  background: linear-gradient(90deg, #fffbeb, #ffffff 44%);
+}
+
+.technician-ot-card--asignada,
+.technician-ot-card--aceptada {
+  border-left-color: #2563eb;
+}
+
+.technician-ot-card--finalizada {
+  border-left-color: #7c3aed;
+}
+
+.technician-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.technician-correction-box {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: var(--danger);
+  padding: 10px 12px;
+}
+
+.technician-correction-box strong {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.technician-correction-box span {
+  color: #7f1d1d;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.technician-card-actions {
+  align-items: stretch;
+}
+
+.technician-action-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.technician-action-button--warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.technician-action-button--success {
+  background: #0f766e;
+  border-color: #0f766e;
+}
+
+.assigned-ot-empty {
+  margin-top: 12px;
+}
+
+@media (max-width: 920px) {
+  .technician-page-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .technician-page-actions > * {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .technician-workbench-head {
+    display: grid;
+  }
+
+  .technician-kpi-grid--filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assigned-ot-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .assigned-ot-card.technician-ot-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .assigned-ot-card.technician-ot-card > .workorder-thumb,
+  .assigned-ot-card.technician-ot-card > .workorder-thumbnail {
+    justify-self: start;
+  }
+
+  .assigned-ot-contact {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .technician-card-actions > * {
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 560px) {
+  .technician-workbench,
+  .assigned-ot-filter-panel,
+  .assigned-ot-card.technician-ot-card {
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .technician-kpi-grid--filters {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .technician-kpi-grid--filters button {
+    min-height: 68px;
+    grid-template-columns: auto 1fr;
+  }
+
+  .technician-kpi-grid--filters button strong {
+    grid-column: 1 / -1;
+    font-size: 22px;
+  }
+
+  .assigned-ot-card h2 {
+    font-size: 17px;
+  }
+
+  .assigned-ot-meta,
+  .quick-actions.technician-card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .technician-action-button,
+  .quick-actions.technician-card-actions a,
+  .quick-actions.technician-card-actions button {
+    width: 100%;
+  }
+}
