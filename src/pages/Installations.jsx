@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import FormField from '../components/Forms/FormField';
@@ -9,15 +9,51 @@ import { useTenant } from '../hooks/useTenant';
 import { createInstallation, softDeleteEntity, updateInstallation } from '../services/entityService';
 import EntityImageViewer from '../components/Media/EntityImageViewer';
 import { buildMapsUrl } from '../utils/mapUtils';
+import { fvInstallationRisk, isFvInstallation, sortFvInstallations, summarizeFvInstallation } from '../services/installationFvService';
 
 export default function Installations() {
   const { tenants, activeTenantId, setActiveTenantId } = useTenant();
   const { rows, refresh } = useTenantRows('instalaciones', '*, tenants(nombre)', { order: 'created_at' });
+  const { rows: locations } = useTenantRows('ubicaciones', 'id,instalacion_id,nombre,tipo,planta,zona', { order: 'created_at' });
+  const { rows: assets } = useTenantRows('activos', 'id,instalacion_id,nombre,tipo,marca,modelo,referencia,estado,criticidad,fecha_proxima_revision,observaciones', { order: 'created_at' });
+  const { rows: workOrders } = useTenantRows('ordenes_trabajo', 'id,instalacion_id,titulo,estado,prioridad,fecha_prevista,fecha_limite', { order: 'created_at' });
+  const { rows: plans } = useTenantRows('planes_mantenimiento', 'id,instalacion_id,nombre,activo,fecha_proxima_realizacion', { order: 'fecha_proxima_realizacion' });
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('todas');
   const emptyForm = { tenant_id: activeTenantId || '', nombre: '', codigo: '', tipo: '', direccion: '', latitud: '', longitud: '', maps_url: '', contacto_nombre: '', contacto_telefono: '', contacto_email: '', descripcion: '', image_file: null };
   const [form, setForm] = useState(emptyForm);
   const [editingRow, setEditingRow] = useState(null);
   const [error, setError] = useState('');
+
+  const enrichedRows = useMemo(() => rows.map((row) => {
+    const fvSummary = summarizeFvInstallation(row, assets, locations, workOrders, plans);
+    return { ...row, fvSummary };
+  }), [rows, assets, locations, workOrders, plans]);
+
+  const visibleRows = useMemo(() => {
+    const filtered = enrichedRows.filter((row) => {
+      if (filter === 'fv') return row.fvSummary.isFv;
+      if (filter === 'fv_riesgo') return row.fvSummary.isFv && (row.fvSummary.duePlans > 0 || row.fvSummary.pendingAssets > 0 || row.fvSummary.validationOrders > 0);
+      if (filter === 'fv_ot') return row.fvSummary.isFv && row.fvSummary.openOrders > 0;
+      return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (a.fvSummary.isFv || b.fvSummary.isFv) return sortFvInstallations(a, b);
+      return 0;
+    });
+  }, [enrichedRows, filter]);
+
+  const fvSummary = useMemo(() => {
+    const fvRows = enrichedRows.filter((row) => row.fvSummary.isFv);
+    return {
+      installations: fvRows.length,
+      assets: fvRows.reduce((sum, row) => sum + row.fvSummary.fvAssets, 0),
+      openOrders: fvRows.reduce((sum, row) => sum + row.fvSummary.openOrders, 0),
+      validationOrders: fvRows.reduce((sum, row) => sum + row.fvSummary.validationOrders, 0),
+      duePlans: fvRows.reduce((sum, row) => sum + row.fvSummary.duePlans, 0),
+      criticalAssets: fvRows.reduce((sum, row) => sum + row.fvSummary.criticalAssets, 0)
+    };
+  }, [enrichedRows]);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -88,10 +124,12 @@ export default function Installations() {
   }
 
   function installationName(row) {
+    const risk = fvInstallationRisk(row.fvSummary);
     return (
       <div className="installation-text-cell">
         <Link to={`/instalaciones/${row.id}`}><strong>{row.nombre}</strong></Link>
         <span>{row.direccion || row.tipo || 'Sin direccion'}</span>
+        {row.fvSummary.isFv && <small className={`badge ${risk.tone}`}>FV · {risk.label}</small>}
       </div>
     );
   }
@@ -99,12 +137,30 @@ export default function Installations() {
   return (
     <>
       <PageHeader title="Instalaciones" subtitle="Cada instalacion queda vinculada obligatoriamente a un cliente." action={<button className="primary-button" onClick={startCreate}>Nueva instalacion</button>} />
+
+      <div className="grid metrics ot-metrics">
+        <section className="metric-card"><small>Instalaciones FV</small><strong>{fvSummary.installations}</strong></section>
+        <section className="metric-card"><small>Activos FV</small><strong>{fvSummary.assets}</strong></section>
+        <section className="metric-card warn"><small>OT FV abiertas</small><strong>{fvSummary.openOrders}</strong></section>
+        <section className="metric-card warn"><small>Pendiente validar</small><strong>{fvSummary.validationOrders}</strong></section>
+        <section className="metric-card danger"><small>Preventivos vencidos</small><strong>{fvSummary.duePlans}</strong></section>
+        <section className="metric-card ok"><small>Activos criticos FV</small><strong>{fvSummary.criticalAssets}</strong></section>
+      </div>
+
+      <div className="quick-actions user-filter-actions">
+        <button className={filter === 'todas' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('todas')}>Todas</button>
+        <button className={filter === 'fv' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('fv')}>Solo FV</button>
+        <button className={filter === 'fv_riesgo' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('fv_riesgo')}>FV con riesgo</button>
+        <button className={filter === 'fv_ot' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('fv_ot')}>FV con OT abiertas</button>
+      </div>
+
       <DataTable columns={[
         { key: 'foto', label: 'Foto', render: (row) => <EntityImageViewer row={row} entityType="instalacion" title={row.nombre} className="installation-main-photo" /> },
         { key: 'nombre', label: 'Nombre', render: installationName },
         { key: 'cliente', label: 'Cliente', render: (row) => row.tenants?.nombre || tenants.find((tenant) => tenant.id === row.tenant_id)?.nombre || row.tenant_id },
         { key: 'codigo', label: 'Codigo' },
-        { key: 'tipo', label: 'Tipo' },
+        { key: 'tipo', label: 'Tipo', render: (row) => <span className={`badge ${isFvInstallation(row) ? 'ok' : ''}`}>{row.tipo || '-'}</span> },
+        { key: 'fv', label: 'FV', render: (row) => row.fvSummary.isFv ? <span className="badge ok">{row.fvSummary.fvAssets} activos · {row.fvSummary.openOrders} OT</span> : <span className="muted">-</span> },
         { key: 'mapa', label: 'Mapa', render: (row) => buildMapsUrl(row) ? <a className="secondary-button table-action action-map" href={buildMapsUrl(row)} target="_blank" rel="noreferrer">Abrir mapa</a> : <span className="muted">Sin mapa</span> },
         { key: 'estado', label: 'Estado', render: (row) => <span className="badge ok">{row.estado}</span> },
         {
@@ -112,12 +168,13 @@ export default function Installations() {
           label: 'Acciones',
           render: (row) => (
             <div className="inline-actions">
+              <Link className="secondary-button table-action" to={`/instalaciones/${row.id}`}>Abrir</Link>
               <button className="secondary-button table-action action-edit" onClick={() => startEdit(row)}>Editar</button>
               <button className="danger-button table-action action-delete" onClick={() => remove(row)}>Baja</button>
             </div>
           )
         }
-      ]} rows={rows} />
+      ]} rows={visibleRows} />
       <Modal title={editingRow ? 'Editar instalacion' : 'Nueva instalacion'} open={open} onClose={closeModal}>
         <form className="form-grid" onSubmit={submit}>
           <FormField label="Cliente">
