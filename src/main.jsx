@@ -7,6 +7,7 @@ import { TenantProvider } from './hooks/useTenant';
 import './styles/global.css';
 import './styles/workflow.css';
 import './styles/workOrderPolish.css';
+import './styles/technicianWorkOrderDetail.css';
 import './styles/finalReview.css';
 import './styles/activeInstallation.css';
 import './styles/workContext.css';
