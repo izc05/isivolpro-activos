@@ -52,6 +52,7 @@ export default function WorkOrderDetail() {
   const [materialOpen, setMaterialOpen] = useState(false);
   const [materialDraft, setMaterialDraft] = useState(EMPTY_MATERIAL);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewNoteError, setReviewNoteError] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -78,6 +79,7 @@ export default function WorkOrderDetail() {
       setRow(data);
       setReviewData(finalReview);
       setReviewNotes(data.revision_admin_notas || '');
+      setReviewNoteError('');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -95,6 +97,7 @@ export default function WorkOrderDetail() {
 
   const isClosed = row ? isWorkOrderClosed(row) : false;
   const currentStatus = normalizedStatus(row?.estado);
+  const correctionRequested = row?.revision_admin_estado === 'correccion_solicitada';
   const technicianReadOnly = !canManageWorkOrders && ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(currentStatus);
   const materials = reviewData.materials || [];
   const reviewItems = useMemo(() => (row ? buildFinalReviewItems(row, reviewData) : []), [row, reviewData]);
@@ -108,6 +111,7 @@ export default function WorkOrderDetail() {
     }
     setError('');
     setMessage('');
+    setReviewNoteError('');
     setValidating(true);
     try {
       const updated = await validateWorkOrderAsAdmin(row, reviewItems, reviewNotes);
@@ -143,13 +147,21 @@ export default function WorkOrderDetail() {
 
   async function requestCorrections() {
     if (!row) return;
+    const trimmedNotes = reviewNotes.trim();
+    if (!trimmedNotes) {
+      setError('');
+      setMessage('');
+      setReviewNoteError('Indica claramente qué debe corregir el técnico.');
+      return;
+    }
     setRequestingCorrection(true);
+    setReviewNoteError('');
     setError('');
     setMessage('');
     try {
-      const updated = await requestWorkOrderCorrections(row, reviewNotes);
+      const updated = await requestWorkOrderCorrections(row, trimmedNotes);
       setRow((current) => ({ ...current, ...updated }));
-      setMessage('Correcciones enviadas al técnico. La OT vuelve a estar en curso.');
+      setMessage('Correcciones enviadas al técnico. La OT vuelve a estar en curso y verá la nota indicada.');
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -208,7 +220,7 @@ export default function WorkOrderDetail() {
       {error && <p className="error-text">{error}</p>}
       {message && <p className="success-text">{message}</p>}
 
-      {row.revision_admin_estado === 'correccion_solicitada' && (
+      {correctionRequested && (
         <div className="workorder-alert warning" role="alert">
           <AlertTriangle size={20} />
           <p><strong>Corrección solicitada por administración.</strong> {row.revision_admin_notas || 'Revisa la intervención y vuelve a finalizarla cuando esté corregida.'}</p>
@@ -272,8 +284,20 @@ export default function WorkOrderDetail() {
           {!isClosed && (
             <div className="form-grid" style={{ marginTop: 14 }}>
               <FormField label="Notas de revision del administrador">
-                <textarea rows="3" value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="Ej. Revisado informe, fotos y firma. Se valida cierre." />
+                <textarea
+                  rows="3"
+                  value={reviewNotes}
+                  onChange={(event) => {
+                    setReviewNotes(event.target.value);
+                    if (reviewNoteError) setReviewNoteError('');
+                  }}
+                  placeholder="Para validar: revisado y conforme. Para corrección: explica exactamente qué debe corregir el técnico."
+                />
               </FormField>
+              {reviewNoteError && <p className="error-text">{reviewNoteError}</p>}
+              {pendingReviewItems.length > 0 && row.estado === 'FINALIZADA' && (
+                <p className="muted">Para devolver la OT al técnico, escribe una nota concreta y pulsa Solicitar correcciones. No se borrarán checklist, fotos, materiales ni informes.</p>
+              )}
               <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
                 <button className="primary-button" type="button" disabled={!canValidateReview || validating} onClick={validateFinalReview}>
                   {validating ? 'Validando...' : 'Validar OT'}
@@ -357,6 +381,8 @@ export default function WorkOrderDetail() {
         <p className="ot-field-work-note">
           {canManageWorkOrders
             ? 'Accesos rápidos para revisar o continuar el trabajo de campo asociado a esta OT.'
+            : correctionRequested
+            ? 'Administración ha solicitado correcciones. Revisa la nota, corrige la intervención y vuelve a finalizar la OT.'
             : currentStatus === 'ASIGNADA'
             ? 'Primero acepta la OT para confirmar que la has recibido. Después podrás iniciar la intervención al llegar a la instalación.'
             : 'Continúa la visita, registra observaciones, materiales, fotos y resultado antes de cerrar.'}
@@ -368,7 +394,7 @@ export default function WorkOrderDetail() {
             {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Consultar informe</Link>}
           </> : <>
             <Link className={row.configuracion?.requiere_verificacion_qr ? 'primary-button' : 'secondary-button'} to={`/scanner?ot=${row.id}&return=${encodeURIComponent(`/ots/${row.id}`)}`}>{row.configuracion?.requiere_verificacion_qr ? 'Verificar QR obligatorio' : 'Escanear QR'}</Link>
-            {!isClosed && <Link className="primary-button" to={`/ots/${row.id}/visita`}>{currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
+            {!isClosed && <Link className="primary-button" to={correctionRequested ? `/ots/${row.id}/checklist` : `/ots/${row.id}/visita`}>{correctionRequested ? 'Corregir OT' : currentStatus === 'ASIGNADA' ? 'Aceptar OT' : currentStatus === 'ACEPTADA' ? 'Iniciar intervención' : 'Continuar intervención'}</Link>}
             {row.configuracion?.requiere_checklist && <Link className="secondary-button" to={`/ots/${row.id}/checklist`}>Checklist</Link>}
             {row.configuracion?.requiere_firma_cliente && <Link className="secondary-button" to={`/ots/${row.id}/firma`}>Firma cliente</Link>}
             {row.configuracion?.requiere_informe && <Link className="secondary-button" to={`/ots/${row.id}/informe`}>Informe PDF</Link>}
