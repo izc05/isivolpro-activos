@@ -21,6 +21,8 @@ import {
   workOrderStatusLabel
 } from '../utils/workOrderLifecycle';
 
+const CORRECTION_FILTER = 'correccion_solicitada';
+
 function dayStart(date) {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
@@ -41,6 +43,20 @@ function scheduleCue(value) {
   if (diffDays === 1) return { label: 'Mañana', tone: 'ok' };
   if (diffDays <= 7) return { label: `En ${diffDays} días`, tone: '' };
   return { label: 'Próxima', tone: '' };
+}
+
+function isCorrectionRequested(row) {
+  return row?.revision_admin_estado === CORRECTION_FILTER;
+}
+
+function workOrderSortRank(row) {
+  if (isCorrectionRequested(row)) return 0;
+  const status = normalizedStatus(row.estado);
+  if (status === 'EN_CURSO') return 1;
+  if (status === 'PENDIENTE_MATERIAL') return 2;
+  if (['ASIGNADA', 'ACEPTADA'].includes(status)) return 3;
+  if (status === 'FINALIZADA') return 4;
+  return 5;
 }
 
 export default function MyWorkOrders({ mode = 'mine' }) {
@@ -69,29 +85,38 @@ export default function MyWorkOrders({ mode = 'mine' }) {
   const isTechnicianView = !canManageWorkOrders && !isCreated;
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
-    return rows.filter((row) => {
-      const searchable = [
-        row.codigo_ot,
-        row.titulo,
-        row.descripcion,
-        row.instalaciones?.nombre,
-        row.instalaciones?.direccion,
-        row.instalaciones?.contacto_nombre,
-        row.instalaciones?.contacto_telefono,
-        row.ubicaciones?.nombre,
-        row.activos?.nombre
-      ].filter(Boolean).join(' ').toLowerCase();
-      const matchesSearch = !text || searchable.includes(text);
-      const matchesStatus = filters.status === 'todas' || normalizedStatus(row.estado) === filters.status;
-      const matchesPriority = filters.priority === 'todas' || (row.prioridad || 'normal') === filters.priority;
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
+    return rows
+      .filter((row) => {
+        const searchable = [
+          row.codigo_ot,
+          row.titulo,
+          row.descripcion,
+          row.revision_admin_notas,
+          row.instalaciones?.nombre,
+          row.instalaciones?.direccion,
+          row.instalaciones?.contacto_nombre,
+          row.instalaciones?.contacto_telefono,
+          row.ubicaciones?.nombre,
+          row.activos?.nombre
+        ].filter(Boolean).join(' ').toLowerCase();
+        const matchesSearch = !text || searchable.includes(text);
+        const matchesStatus = filters.status === 'todas'
+          || (filters.status === CORRECTION_FILTER ? isCorrectionRequested(row) : normalizedStatus(row.estado) === filters.status);
+        const matchesPriority = filters.priority === 'todas' || (row.prioridad || 'normal') === filters.priority;
+        return matchesSearch && matchesStatus && matchesPriority;
+      })
+      .sort((a, b) => {
+        const rank = workOrderSortRank(a) - workOrderSortRank(b);
+        if (rank !== 0) return rank;
+        return new Date(a.fecha_prevista || a.created_at || 0) - new Date(b.fecha_prevista || b.created_at || 0);
+      });
   }, [rows, filters]);
 
   const summary = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return {
       open: rows.filter((row) => ACTIVE_WORK_ORDER_STATUSES.includes(normalizedStatus(row.estado))).length,
+      corrections: rows.filter(isCorrectionRequested).length,
       urgent: rows.filter((row) => ['urgente', 'critica'].includes(row.prioridad)).length,
       today: rows.filter((row) => row.fecha_prevista?.slice(0, 10) === today).length,
       done: rows.filter((row) => [...FINISHED_WORK_ORDER_STATUSES, ...CLOSED_WORK_ORDER_STATUSES].includes(normalizedStatus(row.estado))).length
@@ -150,12 +175,14 @@ export default function MyWorkOrders({ mode = 'mine' }) {
           </div>
           <div className="technician-kpi-grid">
             <article><ListChecks size={18} /><span>Abiertas</span><strong>{summary.open}</strong></article>
+            <article className={summary.corrections ? 'warn' : ''}><AlertTriangle size={18} /><span>Corrección</span><strong>{summary.corrections}</strong></article>
             <article><Clock3 size={18} /><span>Hoy</span><strong>{summary.today}</strong></article>
             <article className={summary.urgent ? 'warn' : ''}><AlertTriangle size={18} /><span>Urgentes</span><strong>{summary.urgent}</strong></article>
             <article><CheckCircle2 size={18} /><span>Cerradas</span><strong>{summary.done}</strong></article>
           </div>
           <div className="technician-quick-actions">
             <Link className="primary-button" to="/scanner"><QrCode size={18} /> Escanear QR</Link>
+            <button className="secondary-button" type="button" onClick={() => updateFilter('status', CORRECTION_FILTER)}>Correcciones</button>
             <button className="secondary-button" type="button" onClick={() => updateFilter('status', 'EN_CURSO')}>En curso</button>
             <button className="secondary-button" type="button" onClick={() => updateFilter('priority', 'urgente')}>Urgentes</button>
           </div>
@@ -177,6 +204,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
             <span><Filter size={15} /> Estado</span>
             <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
               <option value="todas">Todos</option>
+              <option value={CORRECTION_FILTER}>Corrección solicitada</option>
               {OFFICIAL_WORK_ORDER_STATUSES.map((status) => <option key={status} value={status}>{workOrderStatusLabel(status)}</option>)}
             </select>
           </label>
@@ -193,6 +221,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
             </select>
           </label>
           <div className="assigned-ot-filter-actions">
+            <button className="secondary-button" type="button" onClick={() => updateFilter('status', CORRECTION_FILTER)}>Correcciones</button>
             <button className="secondary-button" type="button" onClick={() => updateFilter('status', 'EN_CURSO')}>En curso</button>
             <button className="secondary-button" type="button" onClick={() => updateFilter('priority', 'urgente')}>Urgentes</button>
             <button className="ghost-button" type="button" onClick={resetFilters}>Limpiar</button>
@@ -232,11 +261,12 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
         const phone = row.instalaciones?.contacto_telefono;
         const cue = scheduleCue(row.fecha_prevista);
         const status = normalizedStatus(row.estado);
+        const correctionRequested = isCorrectionRequested(row);
         const needsAcceptance = status === 'ASIGNADA';
         const isAccepted = status === 'ACEPTADA';
-        const isReadOnly = ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(status);
+        const isReadOnly = ['FINALIZADA', 'VALIDADA', 'CANCELADA'].includes(status) && !correctionRequested;
         return (
-          <article className="assigned-ot-card" key={row.id}>
+          <article className={`assigned-ot-card ${correctionRequested ? 'correction-requested' : ''}`} key={row.id}>
             <WorkOrderThumbnail row={row} compact />
             <div className="assigned-ot-main">
               <div className="assigned-ot-heading">
@@ -244,13 +274,20 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
                 <WorkOrderStatusBadge status={row.estado} />
               </div>
               <h2>{row.titulo}</h2>
+              {correctionRequested && (
+                <div className="workorder-alert warning" role="alert">
+                  <AlertTriangle size={18} />
+                  <p><strong>Corrección solicitada por administración.</strong> {row.revision_admin_notas || 'Revisa la intervención y vuelve a finalizarla.'}</p>
+                </div>
+              )}
               <ol className="assigned-ot-steps" aria-label="Pasos de la OT">
                 <li className={needsAcceptance ? 'active' : 'done'}>1. Aceptar</li>
                 <li className={isAccepted ? 'active' : ['EN_CURSO', 'FINALIZADA', 'VALIDADA'].includes(status) ? 'done' : ''}>2. Iniciar</li>
-                <li className={status === 'EN_CURSO' ? 'active' : ['FINALIZADA', 'VALIDADA'].includes(status) ? 'done' : ''}>3. Completar</li>
+                <li className={status === 'EN_CURSO' || correctionRequested ? 'active' : ['FINALIZADA', 'VALIDADA'].includes(status) ? 'done' : ''}>3. Completar</li>
               </ol>
               <div className="assigned-ot-meta">
                 <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad || 'normal')}</span>
+                {correctionRequested && <span className="badge warn">Corrección</span>}
                 <span className={`assigned-ot-time-cue ${cue.tone}`}>{cue.label}</span>
                 <span>{row.fecha_prevista ? formatDateTime(row.fecha_prevista) : 'Sin fecha prevista'}</span>
               </div>
@@ -274,7 +311,9 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
                 ) : <>
                 {mapsUrl && <a className="secondary-button" href={mapsUrl} target="_blank" rel="noreferrer"><Navigation size={18} /> Ruta</a>}
                 {phone && <a className="secondary-button" href={`tel:${phone}`}><Phone size={18} /> Llamar</a>}
-                {needsAcceptance ? (
+                {correctionRequested ? (
+                  <Link className="primary-button" to={`/ots/${row.id}/checklist`}>Corregir OT</Link>
+                ) : needsAcceptance ? (
                   <button className="primary-button" type="button" disabled={savingId === row.id} onClick={() => onAccept?.(row)}>
                     {savingId === row.id ? 'Aceptando...' : 'Aceptar OT'}
                   </button>
