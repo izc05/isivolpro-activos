@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Building2, CheckCircle2, FileText, HelpCircle, KeyRound, LifeBuoy, LockKeyhole, LogOut, QrCode, ShieldCheck, UserRound, Wrench } from 'lucide-react';
+import { BookOpen, Building2, CheckCircle2, Database, FileText, HelpCircle, KeyRound, LifeBuoy, LockKeyhole, LogOut, QrCode, ShieldCheck, UserRound, Wrench } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useTenant } from '../hooks/useTenant';
 import { signOut } from '../services/authService';
+import { FV_MASTER_CATALOGS, flattenCatalogs } from '../services/catalogFvService';
 
 const ROLE_LABELS = {
   admin_cliente: 'Administrador',
@@ -80,6 +81,21 @@ function DocumentationSection({ section }) {
   );
 }
 
+function CatalogSection({ catalog }) {
+  return (
+    <article className="settings-doc-card">
+      <span className="settings-card-icon"><Database size={20} /></span>
+      <div>
+        <h3>{catalog.title}</h3>
+        <p className="muted">{catalog.description}</p>
+        <div className="requirement-grid">
+          {catalog.values.map((value) => <span className="badge" key={value}>{value}</span>)}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function LogoutButton() {
   return (
     <button className="secondary-button" type="button" onClick={signOut}>
@@ -92,6 +108,7 @@ export default function Settings() {
   const { profile } = useAuth();
   const { activeTenant, activeRole, isTechnician } = useTenant();
   const [activeTab, setActiveTab] = useState('resumen');
+  const catalogItems = flattenCatalogs();
 
   if (!activeTenant) {
     return (
@@ -160,6 +177,7 @@ export default function Settings() {
 
       <div className="settings-tabs" role="tablist" aria-label="Secciones de ajustes">
         <button className={activeTab === 'resumen' ? 'active' : ''} type="button" onClick={() => setActiveTab('resumen')}><Building2 size={18} /> Resumen</button>
+        <button className={activeTab === 'catalogos' ? 'active' : ''} type="button" onClick={() => setActiveTab('catalogos')}><Database size={18} /> Catalogos</button>
         <button className={activeTab === 'documentacion' ? 'active' : ''} type="button" onClick={() => setActiveTab('documentacion')}><BookOpen size={18} /> Documentacion</button>
         <button className={activeTab === 'seguridad' ? 'active' : ''} type="button" onClick={() => setActiveTab('seguridad')}><ShieldCheck size={18} /> Seguridad</button>
         <button className={activeTab === 'soporte' ? 'active' : ''} type="button" onClick={() => setActiveTab('soporte')}><LifeBuoy size={18} /> Soporte</button>
@@ -196,6 +214,18 @@ export default function Settings() {
               <Link className="secondary-button" to="/auditoria"><ShieldCheck size={18} /> Auditoria</Link>
             </div>
           </section>
+        </div>
+      )}
+
+      {activeTab === 'catalogos' && (
+        <div className="settings-doc-grid">
+          <section className="card settings-panel settings-wide">
+            <span className="settings-card-icon"><Database size={20} /></span>
+            <h2>Catalogos maestros FV</h2>
+            <p>Valores recomendados para mantener coherencia entre instalaciones, activos, OT, plantillas, materiales y requisitos de cierre.</p>
+            <p className="muted">Total referencias preparadas: {catalogItems.length}. Esta PR no cambia base de datos; deja los catálogos centralizados para usarlos en formularios y futuras tablas maestras.</p>
+          </section>
+          {FV_MASTER_CATALOGS.map((catalog) => <CatalogSection catalog={catalog} key={catalog.title} />)}
         </div>
       )}
 
