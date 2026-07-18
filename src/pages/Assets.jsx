@@ -10,13 +10,26 @@ import { formatDate } from '../utils/dateUtils';
 import { createAsset, softDeleteEntity, updateAsset } from '../services/entityService';
 import { usePermissions } from '../hooks/usePermissions';
 import EntityIdentity from '../components/Cards/EntityIdentity';
+import { FV_ASSET_TYPE_LABELS, fvAssetRisk, fvAssetType, fvAssetTypeLabel, isFvAsset, sortFvAssets, summarizeFvAssets } from '../services/assetFvService';
+
+const QUICK_FV_ASSETS = [
+  { label: 'Inversor FV', tipo: 'inversor_fotovoltaico', criticidad: 'alta' },
+  { label: 'Campo FV / strings', tipo: 'campo_fotovoltaico', criticidad: 'alta' },
+  { label: 'Cuadro DC FV', tipo: 'cuadro_dc_fv', criticidad: 'alta' },
+  { label: 'Cuadro AC FV', tipo: 'cuadro_ac_fv', criticidad: 'alta' },
+  { label: 'Contador / vertido cero', tipo: 'contador_fv', criticidad: 'media' },
+  { label: 'Seccionador bomberos FV', tipo: 'seguridad_fv', criticidad: 'alta' }
+];
 
 export default function Assets() {
   const { activeInstallationId, activeInstallation } = useTenant();
   const { rows, activeTenantId, refresh } = useTenantRows('activos', '*, instalaciones(nombre), ubicaciones(nombre)', { order: 'created_at' });
   const { rows: installations } = useTenantRows('instalaciones', 'id,nombre', { order: 'nombre', ascending: true });
   const { rows: locations } = useTenantRows('ubicaciones', 'id,nombre,instalacion_id', { order: 'nombre', ascending: true });
+  const { rows: workOrders } = useTenantRows('ordenes_trabajo', 'id,activo_id,estado,prioridad,fecha_prevista,fecha_limite', { order: 'created_at' });
+  const { rows: plans } = useTenantRows('planes_mantenimiento', 'id,activo_id,activo,fecha_proxima_realizacion', { order: 'fecha_proxima_realizacion' });
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('todos');
   const [error, setError] = useState('');
   const emptyForm = {
     instalacion_id: activeInstallationId || '',
@@ -46,10 +59,26 @@ export default function Assets() {
     permissions.canManageTenant().then(setCanManage).catch(() => setCanManage(false));
   }, [permissions]);
 
-  const visibleRows = useMemo(
+  const scopedRows = useMemo(
     () => activeInstallationId ? rows.filter((row) => row.instalacion_id === activeInstallationId) : rows,
     [rows, activeInstallationId]
   );
+
+  const visibleRows = useMemo(() => {
+    const filtered = scopedRows.filter((row) => {
+      if (filter === 'fv') return isFvAsset(row);
+      if (filter === 'riesgo') return isFvAsset(row) && ['danger', 'warn'].includes(fvAssetRisk(row, workOrders, plans).tone);
+      if (filter === 'criticos') return isFvAsset(row) && ['alta', 'critica'].includes(row.criticidad);
+      if (filter.startsWith('tipo:')) return isFvAsset(row) && fvAssetType(row) === filter.replace('tipo:', '');
+      return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (isFvAsset(a) || isFvAsset(b)) return sortFvAssets(a, b, workOrders, plans);
+      return 0;
+    });
+  }, [scopedRows, filter, workOrders, plans]);
+
+  const fvSummary = useMemo(() => summarizeFvAssets(scopedRows, workOrders, plans), [scopedRows, workOrders, plans]);
 
   const visibleInstallations = useMemo(
     () => activeInstallationId ? installations.filter((item) => item.id === activeInstallationId) : installations,
@@ -71,6 +100,17 @@ export default function Assets() {
       if (field === 'instalacion_id') next.ubicacion_id = '';
       return next;
     });
+  }
+
+  function applyQuickFvAsset(template) {
+    setForm((current) => ({
+      ...current,
+      tipo: template.tipo,
+      criticidad: template.criticidad,
+      nombre: current.nombre || template.label,
+      referencia: current.referencia || template.tipo.toUpperCase(),
+      observaciones: current.observaciones || `Ficha técnica FV: ${template.label}. Registrar potencia, strings, protecciones, comunicaciones y próximas revisiones.`
+    }));
   }
 
   async function submit(event) {
@@ -154,16 +194,36 @@ export default function Assets() {
       />
       {activeInstallation && <p className="active-filter-note">Filtro activo: {activeInstallation.nombre}</p>}
       {success && <p className="success-text">{success}</p>}
+
+      <div className="grid metrics ot-metrics">
+        <section className="metric-card"><small>Equipos FV</small><strong>{fvSummary.total}</strong></section>
+        <section className="metric-card"><small>Inversores</small><strong>{fvSummary.inverters}</strong></section>
+        <section className="metric-card"><small>Campos / strings</small><strong>{fvSummary.fields}</strong></section>
+        <section className="metric-card"><small>Cuadros DC</small><strong>{fvSummary.dcBoards}</strong></section>
+        <section className="metric-card warn"><small>FV con riesgo</small><strong>{fvSummary.risk}</strong></section>
+        <section className="metric-card ok"><small>Críticos FV</small><strong>{fvSummary.critical}</strong></section>
+      </div>
+
+      <div className="quick-actions user-filter-actions">
+        <button className={filter === 'todos' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('todos')}>Todos</button>
+        <button className={filter === 'fv' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('fv')}>Solo FV</button>
+        <button className={filter === 'riesgo' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('riesgo')}>FV con riesgo</button>
+        <button className={filter === 'criticos' ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter('criticos')}>Críticos FV</button>
+        {Object.entries(FV_ASSET_TYPE_LABELS).map(([key, label]) => <button key={key} className={filter === `tipo:${key}` ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setFilter(`tipo:${key}`)}>{label}</button>)}
+      </div>
+
       <DataTable columns={[
-        { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}><EntityIdentity row={row} entityType="activo" title={row.nombre} subtitle={row.tipo || row.modelo} /></Link> },
+        { key: 'nombre', label: 'Activo', render: (row) => <Link to={`/activos/${row.id}`}><EntityIdentity row={row} entityType="activo" title={row.nombre} subtitle={isFvAsset(row) ? fvAssetTypeLabel(row) : row.tipo || row.modelo} /></Link> },
         { key: 'instalacion', label: 'Instalacion', render: (row) => row.instalaciones?.nombre || '-' },
         { key: 'ubicacion', label: 'Ubicacion', render: (row) => row.ubicaciones?.nombre || '-' },
-        { key: 'tipo', label: 'Tipo' },
+        { key: 'tipo', label: 'Tipo', render: (row) => isFvAsset(row) ? <span className="badge ok">{fvAssetTypeLabel(row)}</span> : row.tipo },
         { key: 'estado', label: 'Estado', render: (row) => <span className={`badge ${row.estado === 'correcto' ? 'ok' : 'warn'}`}>{row.estado}</span> },
         { key: 'criticidad', label: 'Criticidad' },
+        { key: 'fv_riesgo', label: 'Riesgo FV', render: (row) => isFvAsset(row) ? <span className={`badge ${fvAssetRisk(row, workOrders, plans).tone}`}>{fvAssetRisk(row, workOrders, plans).label}</span> : <span className="muted">-</span> },
         { key: 'fecha_proxima_revision', label: 'Proxima revision', render: (row) => formatDate(row.fecha_proxima_revision) },
         { key: 'actions', label: 'Acciones', render: (row) => canManage ? (
           <div className="inline-actions">
+            <Link className="secondary-button" to={`/activos/${row.id}`}>Abrir</Link>
             <button className="secondary-button" onClick={() => startEdit(row)}>Editar</button>
             <button className="danger-button" onClick={() => remove(row)}>Baja</button>
           </div>
@@ -171,6 +231,7 @@ export default function Assets() {
       ]} rows={visibleRows} empty="Sin activos para la instalación activa" />
       <Modal title={editingRow ? 'Editar activo' : 'Nuevo activo'} open={open} onClose={closeModal}>
         <form className="form-grid" onSubmit={submit}>
+          {!editingRow && <div className="quick-actions user-filter-actions">{QUICK_FV_ASSETS.map((template) => <button key={template.tipo} className="secondary-button" type="button" onClick={() => applyQuickFvAsset(template)}>{template.label}</button>)}</div>}
           <FormField label="Instalacion">
             <select value={form.instalacion_id} onChange={(event) => updateField('instalacion_id', event.target.value)} required disabled={Boolean(activeInstallationId && !editingRow)}>
               <option value="">Seleccionar</option>
@@ -214,7 +275,7 @@ export default function Assets() {
             </FormField>
             <FormField label="Proxima revision"><input type="date" value={form.fecha_proxima_revision} onChange={(event) => updateField('fecha_proxima_revision', event.target.value)} /></FormField>
           </div>
-          <FormField label="Observaciones"><textarea rows="3" value={form.observaciones} onChange={(event) => updateField('observaciones', event.target.value)} /></FormField>
+          <FormField label="Observaciones"><textarea rows="3" value={form.observaciones} onChange={(event) => updateField('observaciones', event.target.value)} placeholder="Potencia kWp/kW, nº strings, protecciones DC/AC, comunicaciones, vertido cero, estado de producción..." /></FormField>
           <FormField label="Foto del activo">
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => updateField('image_file', event.target.files?.[0] || null)} disabled={saving} />
           </FormField>
