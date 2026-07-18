@@ -2,6 +2,8 @@ import { supabase } from './supabaseClient';
 import { logAudit } from './auditService';
 import { nextDateFrom, statusForScheduledDate } from '../constants/maintenance';
 
+const CLOSED_SCHEDULED_STATES = ['cancelado', 'no_aplica'];
+
 async function currentUserId() {
   const { data } = await supabase.auth.getUser();
   return data.user?.id || null;
@@ -75,7 +77,7 @@ export async function createMaintenancePlan(tenantId, payload) {
     .select()
     .single();
   if (error) throw error;
-  await logAudit({ tenantId, action: 'create_maintenance_plan', entityType: 'plan_mantenimiento', entityId: data.id, metadata: { tipo: data.tipo } });
+  await logAudit({ tenantId, action: 'create_maintenance_plan', entityType: 'plan_mantenimiento', entityId: data.id, metadata: { tipo: data.tipo, categoria: data.categoria } });
   return data;
 }
 
@@ -165,8 +167,25 @@ export async function recalculateMaintenancePlanNextDate(plan, baseDate = null) 
   return data;
 }
 
+async function assertNoOpenScheduledMaintenance(plan) {
+  const { data, error } = await supabase
+    .from('mantenimientos_programados')
+    .select('id,estado,fecha_programada,ot_id')
+    .eq('tenant_id', plan.tenant_id)
+    .eq('plan_id', plan.id)
+    .eq('fecha_programada', plan.fecha_proxima_realizacion)
+    .is('deleted_at', null);
+  if (error) throw error;
+  const duplicated = (data || []).find((item) => !CLOSED_SCHEDULED_STATES.includes(item.estado));
+  if (duplicated) {
+    throw new Error('Ya existe una actuación abierta para este plan y esta fecha. Abre la actuación existente o cancélala antes de generar otra.');
+  }
+}
+
 export async function generateScheduledFromPlan(plan) {
   if (!plan?.fecha_proxima_realizacion) throw new Error('El plan no tiene próxima fecha calculada.');
+  if (plan.activo === false) throw new Error('No se puede generar actuación desde un plan inactivo.');
+  await assertNoOpenScheduledMaintenance(plan);
   const userId = await currentUserId();
   const fechaLimite = plan.tolerancia_dias
     ? nextDateFrom(plan.fecha_proxima_realizacion, plan.tolerancia_dias, 'dias')
@@ -190,6 +209,6 @@ export async function generateScheduledFromPlan(plan) {
   };
   const { data, error } = await supabase.from('mantenimientos_programados').insert(payload).select().single();
   if (error) throw error;
-  await logAudit({ tenantId: plan.tenant_id, action: 'generate_scheduled_maintenance', entityType: 'mantenimiento_programado', entityId: data.id, metadata: { planId: plan.id } });
+  await logAudit({ tenantId: plan.tenant_id, action: 'generate_scheduled_maintenance', entityType: 'mantenimiento_programado', entityId: data.id, metadata: { planId: plan.id, categoria: plan.categoria } });
   return data;
 }
