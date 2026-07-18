@@ -1,0 +1,397 @@
+/* PR 2 - Detalle tecnico guiado
+   Refuerza la pantalla /ots/:id/checklist como flujo movil por pasos sin tocar base de datos. */
+
+.ot-checklist-workspace {
+  position: relative;
+  border: 1px solid #e2e8f0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)),
+    radial-gradient(circle at top right, rgba(229,72,63,.11), transparent 32%);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
+}
+
+.ot-checklist-toolbar {
+  border: 1px solid #e6ebf2;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: clamp(14px, 2vw, 20px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+}
+
+.ot-checklist-toolbar .eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #a9362f;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ot-checklist-toolbar h2 {
+  margin-top: 8px;
+  font-size: clamp(24px, 4vw, 34px);
+}
+
+.ot-checklist-toolbar p {
+  max-width: 920px;
+}
+
+.ot-checklist-toolbar-actions,
+.ot-close-actions,
+.ot-checklist-complete-actions,
+.ot-guided-actions,
+.ot-return-visit {
+  touch-action: manipulation;
+}
+
+.ot-checklist-workspace .workorder-progress.compact {
+  height: 14px;
+  border: 1px solid #d9e4ef;
+  background: #eef3f8;
+}
+
+.ot-subscreen-tabs {
+  position: sticky;
+  top: 8px;
+  z-index: 8;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(248,250,252,.94);
+  padding: 8px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .07);
+}
+
+.ot-subscreen-tabs button {
+  min-height: 72px;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.ot-subscreen-tabs button.active {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(229,72,63,.12), inset 4px 0 0 var(--primary-2);
+}
+
+.ot-subscreen-panel {
+  animation: technicianDetailEnter .18s ease-out;
+}
+
+.ot-panel-heading {
+  border-left: 5px solid var(--primary-2);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+}
+
+.ot-panel-heading h3 {
+  font-size: clamp(19px, 2.7vw, 24px);
+}
+
+.ot-panel-heading .badge,
+.ot-checklist-card .badge {
+  white-space: nowrap;
+}
+
+.ot-summary-grid > div {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+}
+
+.ot-checklist-jump {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.ot-checklist-jump strong {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ot-checklist-jump > div {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.ot-checklist-jump button {
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border: 1px solid #dbe3ee;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.ot-checklist-jump button.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.ot-checklist-jump button.pending {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.ot-checklist-jump button.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: var(--danger);
+}
+
+.checklist-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.ot-checklist-card {
+  border-radius: 14px;
+  border-left: 5px solid #cbd5e1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+}
+
+.ot-checklist-card.open {
+  border-left-color: var(--primary-2);
+}
+
+.ot-checklist-card.collapsed {
+  background: #ffffff;
+}
+
+.ot-checklist-point-number {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--primary-2);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.ot-checklist-fields {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.ot-checklist-fields .form-actions,
+.workorder-photo-block .form-actions,
+.ot-checklist-complete-actions {
+  justify-content: flex-start;
+}
+
+.workorder-photo-block {
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.workorder-photo-block .section-heading {
+  margin: 0 0 10px;
+  color: var(--primary);
+}
+
+.ot-checklist-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ot-checklist-photo-card {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
+}
+
+.ot-checklist-photo-card img,
+.ot-checklist-photo-loading {
+  width: 100%;
+  min-height: 132px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: #eef6f8;
+}
+
+.ot-checklist-photo-loading {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.ot-checklist-photo-card div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.ot-checklist-photo-card small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.ot-guided-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ot-guided-actions button {
+  min-height: 108px;
+  align-items: start;
+  justify-content: start;
+  border-radius: 12px;
+  padding: 13px;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  white-space: normal;
+}
+
+.ot-guided-actions button span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255,255,255,.28);
+  font-weight: 900;
+}
+
+.ot-guided-actions button small {
+  opacity: .88;
+  font-weight: 800;
+}
+
+.ot-guided-actions button.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.ot-guided-actions button.current {
+  box-shadow: 0 14px 28px rgba(229,72,63,.2);
+}
+
+.ot-return-visit {
+  width: fit-content;
+}
+
+.ot-signature-overlay,
+.ot-pdf-overlay {
+  gap: 14px;
+}
+
+@keyframes technicianDetailEnter {
+  from { opacity: .4; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 860px) {
+  .ot-checklist-toolbar {
+    align-items: stretch;
+  }
+
+  .ot-checklist-toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .ot-subscreen-tabs {
+    grid-template-columns: 1fr;
+    position: static;
+  }
+
+  .ot-subscreen-tabs button {
+    min-height: 58px;
+  }
+
+  .ot-panel-heading {
+    display: grid;
+  }
+
+  .ot-guided-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .ot-guided-actions button {
+    min-height: 78px;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+
+  .ot-guided-actions button small {
+    grid-column: 2;
+  }
+
+  .ot-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-uploader {
+    grid-template-columns: 72px 1fr;
+  }
+
+  .photo-uploader img,
+  .photo-uploader-icon {
+    width: 72px;
+    height: 66px;
+  }
+}
+
+@media (max-width: 540px) {
+  .ot-checklist-workspace {
+    padding: 12px;
+  }
+
+  .ot-checklist-toolbar h2 {
+    font-size: 23px;
+  }
+
+  .ot-checklist-jump > div {
+    margin-inline: -2px;
+  }
+
+  .ot-checklist-card {
+    padding: 12px;
+  }
+
+  .ot-checklist-point-number {
+    width: 28px;
+    height: 28px;
+  }
+
+  .workorder-photo-block {
+    padding: 12px;
+  }
+
+  .ot-checklist-photo-grid {
+    grid-template-columns: 1fr;
+  }
+}
