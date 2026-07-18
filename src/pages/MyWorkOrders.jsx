@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Clock3, Filter, ListChecks, MapPin, Navigation, Phone, QrCode, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Filter, ListChecks, MapPin, Navigation, Phone, QrCode, RefreshCw, Search } from 'lucide-react';
 import PageHeader from '../components/Layout/PageHeader';
 import DataTable from '../components/Cards/DataTable';
 import WorkOrderStatusBadge from '../components/WorkOrders/WorkOrderStatusBadge';
@@ -40,6 +40,8 @@ const STATUS_ORDER = {
   CANCELADA: 90
 };
 
+const MUTABLE_CORRECTION_STATUSES = ['ACEPTADA', 'EN_CURSO', 'PAUSADA', 'PENDIENTE_MATERIAL', 'PENDIENTE_CLIENTE'];
+
 function dayStart(date) {
   const copy = new Date(date);
   copy.setHours(0, 0, 0, 0);
@@ -62,29 +64,34 @@ function scheduleCue(value) {
   return { label: 'Próxima', tone: '' };
 }
 
-function isCorrectionRequested(row) {
+function hasCorrectionRequested(row) {
   return row?.revision_admin_estado === 'correccion_solicitada';
+}
+
+function isCorrectionActionable(row) {
+  return hasCorrectionRequested(row) && MUTABLE_CORRECTION_STATUSES.includes(normalizedStatus(row.estado));
 }
 
 function matchesQuickFilter(row, quickFilter) {
   if (quickFilter === 'todas') return true;
   const status = normalizedStatus(row.estado);
-  if (quickFilter === 'correccion') return isCorrectionRequested(row);
-  if (quickFilter === 'asignadas') return ['ASIGNADA', 'ACEPTADA'].includes(status) && !isCorrectionRequested(row);
-  if (quickFilter === 'en_curso') return ['EN_CURSO', 'PAUSADA'].includes(status) && !isCorrectionRequested(row);
-  if (quickFilter === 'pendiente_material') return status === 'PENDIENTE_MATERIAL' && !isCorrectionRequested(row);
+  const actionableCorrection = isCorrectionActionable(row);
+  if (quickFilter === 'correccion') return actionableCorrection;
+  if (quickFilter === 'asignadas') return ['ASIGNADA', 'ACEPTADA'].includes(status) && !actionableCorrection;
+  if (quickFilter === 'en_curso') return ['EN_CURSO', 'PAUSADA'].includes(status) && !actionableCorrection;
+  if (quickFilter === 'pendiente_material') return status === 'PENDIENTE_MATERIAL' && !actionableCorrection;
   if (quickFilter === 'finalizadas') return FINISHED_WORK_ORDER_STATUSES.includes(status);
   return true;
 }
 
 function technicianSortValue(row) {
-  if (isCorrectionRequested(row)) return 0;
+  if (isCorrectionActionable(row)) return 0;
   return STATUS_ORDER[normalizedStatus(row.estado)] ?? 50;
 }
 
 function getTechnicianPrimaryAction(row) {
   const status = normalizedStatus(row.estado);
-  if (isCorrectionRequested(row)) {
+  if (isCorrectionActionable(row)) {
     return { label: 'Corregir OT', to: `/ots/${row.id}/visita`, tone: 'danger', type: 'link' };
   }
   if (['ASIGNADA'].includes(status)) {
@@ -113,8 +120,9 @@ function actionClassName(action) {
 }
 
 function statusCopy(row) {
-  if (isCorrectionRequested(row)) return 'Corrección solicitada por administración';
   const status = normalizedStatus(row.estado);
+  if (isCorrectionActionable(row)) return 'Corrección solicitada por administración';
+  if (hasCorrectionRequested(row) && status === 'FINALIZADA') return 'Finalizada tras corrección, pendiente de revisión';
   if (['ASIGNADA', 'ACEPTADA'].includes(status)) return 'Pendiente de iniciar';
   if (['EN_CURSO', 'PAUSADA'].includes(status)) return 'Intervención en curso';
   if (status === 'PENDIENTE_MATERIAL') return 'Pendiente de material';
@@ -277,7 +285,7 @@ export default function MyWorkOrders({ mode = 'mine' }) {
           <div className="technician-quick-actions">
             <button className="secondary-button" type="button" onClick={() => setQuickFilter('todas')}>Todas</button>
             <button className="secondary-button" type="button" onClick={() => setQuickFilter('finalizadas')}><CheckCircle2 size={18} /> Finalizadas</button>
-            <span className="muted">Orden de prioridad: corrección, en curso, material, asignadas y finalizadas.</span>
+            <span className="muted">Orden de prioridad: corrección activa, en curso, material, asignadas y finalizadas.</span>
           </div>
         </section>
       )}
@@ -372,7 +380,8 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
         const status = normalizedStatus(row.estado);
         const action = getTechnicianPrimaryAction(row);
         const readOnly = ['VALIDADA', 'CERRADA', 'CANCELADA'].includes(status);
-        const cardTone = isCorrectionRequested(row) ? 'correction' : status.toLowerCase();
+        const actionableCorrection = isCorrectionActionable(row);
+        const cardTone = actionableCorrection ? 'correction' : status.toLowerCase();
         return (
           <article className={`assigned-ot-card technician-ot-card technician-ot-card--${cardTone}`} key={row.id}>
             <WorkOrderThumbnail row={row} compact />
@@ -385,10 +394,10 @@ function AssignedWorkOrderCards({ rows, savingId = '', onAccept }) {
               <div className="technician-status-line">
                 <span>{statusCopy(row)}</span>
               </div>
-              {isCorrectionRequested(row) && (
+              {hasCorrectionRequested(row) && (
                 <div className="technician-correction-box">
-                  <strong>Corrección solicitada por administración</strong>
-                  <span>{row.revision_admin_notas || 'Revisa la OT y completa los requisitos pendientes antes de volver a finalizar.'}</span>
+                  <strong>{actionableCorrection ? 'Corrección solicitada por administración' : 'Corrección reenviada a revisión'}</strong>
+                  <span>{row.revision_admin_notas || (actionableCorrection ? 'Revisa la OT y completa los requisitos pendientes antes de volver a finalizar.' : 'La OT ya está finalizada. Espera la revisión administrativa.')}</span>
                 </div>
               )}
               <div className="assigned-ot-meta">
