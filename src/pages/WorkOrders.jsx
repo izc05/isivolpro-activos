@@ -11,6 +11,12 @@ import WorkOrderSection from '../components/WorkOrders/WorkOrderSection';
 import { useTenantRows } from '../hooks/useTenantRows';
 import { useTenant } from '../hooks/useTenant';
 import { createWorkOrder, defaultRequirementsForType, listWorkOrders, REQUIREMENT_FIELDS } from '../services/workOrderService';
+import {
+  applyFvWorkOrderTemplateToDraft,
+  createWorkOrderFromTemplate,
+  FV_WORK_ORDER_TEMPLATE_OPTIONS,
+  getFvWorkOrderTemplate
+} from '../services/workOrderFvTemplateService';
 import { softDeleteWorkOrder } from '../services/workOrderDeleteService';
 import { listTenantMembers } from '../services/tenantService';
 import { formatDateTime } from '../utils/dateUtils';
@@ -46,6 +52,7 @@ function buildInitialForm(activeInstallationId = '') {
     ubicacion_id: '',
     activo_id: '',
     activos_relacionados: [],
+    template_key: '',
     titulo: '',
     descripcion: '',
     tipo,
@@ -146,6 +153,8 @@ export default function WorkOrders() {
     [assets, form.instalacion_id, form.ubicacion_id, activeInstallationId]
   );
 
+  const selectedTemplate = useMemo(() => getFvWorkOrderTemplate(form.template_key), [form.template_key]);
+
   const filteredRows = useMemo(() => {
     const text = filters.search.trim().toLowerCase();
     return visibleRows.filter((row) => {
@@ -177,6 +186,7 @@ export default function WorkOrders() {
   function updateType(value) {
     setForm((current) => ({
       ...current,
+      template_key: '',
       tipo: value,
       tipo_ot: value,
       configuracion: {
@@ -184,6 +194,10 @@ export default function WorkOrders() {
         ...Object.fromEntries(Object.entries(current.configuracion || {}).filter(([, enabled]) => enabled))
       }
     }));
+  }
+
+  function applyTemplate(templateKey) {
+    setForm((current) => applyFvWorkOrderTemplateToDraft(current, templateKey));
   }
 
   function updateRequirement(field, checked) {
@@ -206,14 +220,18 @@ export default function WorkOrders() {
     try {
       const finalStatus = status || (form.assigned_to ? 'ASIGNADA' : 'NUEVA');
       const payload = { ...form, instalacion_id: form.instalacion_id || activeInstallationId, estado: finalStatus };
-      const created = await createWorkOrder(activeTenantId, payload);
+      const created = form.template_key
+        ? await createWorkOrderFromTemplate(activeTenantId, payload, form.template_key)
+        : await createWorkOrder(activeTenantId, payload);
       setForm(buildInitialForm(activeInstallationId));
       setOpen(false);
       await refresh().catch((refreshError) => {
         console.warn('No se pudo refrescar el listado de OT tras crear la orden', refreshError);
       });
       const successMessage = options.destination === 'checklist'
-        ? 'Orden de trabajo creada. Prepara el checklist antes de enviarla al técnico.'
+        ? form.template_key
+          ? 'Orden de trabajo FV creada con plantilla y checklist técnico preparado.'
+          : 'Orden de trabajo creada. Prepara el checklist antes de enviarla al técnico.'
         : finalStatus === 'BORRADOR' ? 'Borrador de OT guardado correctamente.' : 'Orden de trabajo creada y asignada correctamente.';
       setMessage(successMessage);
       navigate(options.destination === 'checklist' ? `/ots/${created.id}/checklist` : `/ots/${created.id}`, { state: { message: successMessage } });
@@ -328,6 +346,12 @@ export default function WorkOrders() {
 
           <WorkOrderSection title="2. Trabajo" subtitle="Tipo, prioridad, fechas y descripción" icon={Wrench} defaultOpen>
             <div className="grid two">
+              <FormField label="Plantilla FV opcional">
+                <select value={form.template_key} onChange={(event) => applyTemplate(event.target.value)}>
+                  <option value="">Sin plantilla FV</option>
+                  {FV_WORK_ORDER_TEMPLATE_OPTIONS.map((template) => <option key={template.key} value={template.key}>{template.label} · {template.periodicidad}</option>)}
+                </select>
+              </FormField>
               <FormField label="Titulo"><input value={form.titulo} onChange={(event) => updateField('titulo', event.target.value)} placeholder="Ej. Revision preventiva de bomba" required /></FormField>
               <FormField label="Tipo de OT"><select value={form.tipo_ot} onChange={(event) => updateType(event.target.value)}>{OFFICIAL_WORK_ORDER_TYPES.map((type) => <option key={type} value={type}>{workOrderTypeLabel(type)}</option>)}</select></FormField>
               {form.tipo_ot === 'otro' && <FormField label="Descripcion de otro tipo"><input value={form.tipo_ot_detalle} onChange={(event) => updateField('tipo_ot_detalle', event.target.value)} required /></FormField>}
@@ -336,6 +360,11 @@ export default function WorkOrders() {
               <FormField label="Fecha limite"><input type="datetime-local" value={form.fecha_limite} onChange={(event) => updateField('fecha_limite', event.target.value)} /></FormField>
               <FormField label="Duracion estimada (min)"><input type="number" min="0" value={form.duracion_estimada_minutos} onChange={(event) => updateField('duracion_estimada_minutos', event.target.value)} /></FormField>
             </div>
+            {selectedTemplate && (
+              <p className="ot-context-note">
+                <strong>{selectedTemplate.nombre}</strong> · Activo recomendado: {selectedTemplate.tipo_activo_recomendado} · Periodicidad: {selectedTemplate.periodicidad}. Se crearán {selectedTemplate.items.length} puntos de checklist FV con requisitos de cierre.
+              </p>
+            )}
             <FormField label="Descripcion"><textarea rows="3" value={form.descripcion} onChange={(event) => updateField('descripcion', event.target.value)} /></FormField>
             <FormField label="Sintomas o situacion comunicada"><textarea rows="2" value={form.sintomas} onChange={(event) => updateField('sintomas', event.target.value)} /></FormField>
             <FormField label="Trabajo solicitado"><textarea rows="2" value={form.trabajo_solicitado} onChange={(event) => updateField('trabajo_solicitado', event.target.value)} /></FormField>
@@ -357,7 +386,7 @@ export default function WorkOrders() {
             <button className="ghost-button" type="button" disabled={saving} onClick={() => setOpen(false)}>Cancelar</button>
             <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, 'BORRADOR')}>Guardar borrador</button>
             <button className="secondary-button" type="button" disabled={saving} onClick={(event) => submit(event, form.assigned_to ? 'ASIGNADA' : 'NUEVA')}>{saving ? 'Guardando...' : form.assigned_to ? 'Crear y enviar al tecnico' : 'Crear sin tecnico'}</button>
-            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear borrador y preparar checklist'}</button>
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Guardando...' : form.template_key ? 'Crear OT FV con checklist' : 'Crear borrador y preparar checklist'}</button>
           </div>
         </form>
       </Modal>
