@@ -41,6 +41,8 @@ const REQUIREMENT_TYPE_MAP = {
   otro: 'otro'
 };
 
+const ANNUL_BLOCKED_STATUSES = new Set(['FINALIZADA', 'VALIDADA', 'CERRADA', 'CANCELADA']);
+
 function requirementsForType(type) {
   return defaultRequirementsForType(REQUIREMENT_TYPE_MAP[type] || type);
 }
@@ -77,6 +79,14 @@ function friendlyCreateError(error) {
   return 'No se ha podido completar la creación de la orden de trabajo. Revise los datos o inténtelo nuevamente.';
 }
 
+function canAnnulWorkOrder(row) {
+  return Boolean(row?.id && !row.deleted_at && !ANNUL_BLOCKED_STATUSES.has(normalizedStatus(row.estado)));
+}
+
+function workOrderLabel(row) {
+  return row?.codigo_ot || row?.titulo || row?.id?.slice(0, 8) || 'OT';
+}
+
 export default function WorkOrders() {
   const { activeTenantId, activeInstallationId } = useTenant();
   const navigate = useNavigate();
@@ -90,6 +100,8 @@ export default function WorkOrders() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState('');
+  const [annulDraft, setAnnulDraft] = useState({ open: false, row: null, reason: '' });
+  const [annulError, setAnnulError] = useState('');
   const [form, setForm] = useState(() => buildInitialForm(activeInstallationId));
   const [filters, setFilters] = useState({ search: '', status: 'todos', priority: 'todas', type: 'todos' });
 
@@ -242,18 +254,40 @@ export default function WorkOrders() {
     }
   }
 
-  async function deleteOrder(row) {
-    const label = row.codigo_ot || row.titulo || row.id.slice(0, 8);
-    if (!window.confirm(`Vas a cancelar/borrar logicamente la OT ${label}. Quedara registrada en auditoria. ¿Continuar?`)) return;
+  function openAnnulOrder(row) {
     setError('');
     setMessage('');
+    setAnnulError('');
+    setAnnulDraft({ open: true, row, reason: '' });
+  }
+
+  function closeAnnulOrder() {
+    if (deletingId) return;
+    setAnnulDraft({ open: false, row: null, reason: '' });
+    setAnnulError('');
+  }
+
+  async function confirmAnnulOrder(event) {
+    event.preventDefault();
+    const row = annulDraft.row;
+    const reason = annulDraft.reason.trim();
+    if (!row) return;
+    if (!reason) {
+      setAnnulError('Indica el motivo de anulación.');
+      return;
+    }
+    const label = workOrderLabel(row);
+    setError('');
+    setMessage('');
+    setAnnulError('');
     setDeletingId(row.id);
     try {
-      await softDeleteWorkOrder(row);
+      await softDeleteWorkOrder(row, { reason });
       await refresh();
-      setMessage(`OT ${label} cancelada correctamente.`);
+      setAnnulDraft({ open: false, row: null, reason: '' });
+      setMessage(`OT ${label} anulada correctamente.`);
     } catch (err) {
-      setError(err.message);
+      setAnnulError(err.message || 'No se ha podido anular la OT.');
     } finally {
       setDeletingId('');
     }
@@ -320,12 +354,58 @@ export default function WorkOrders() {
           { key: 'prioridad', label: 'Prioridad', render: (row) => <span className={`badge ${priorityTone(row.prioridad)}`}>{priorityLabel(row.prioridad)}</span> },
           { key: 'estado', label: 'Estado', render: (row) => <WorkOrderStatusBadge status={row.estado} /> },
           { key: 'fecha_prevista', label: 'Prevista', render: (row) => row.fecha_prevista ? formatDateTime(row.fecha_prevista) : '-' },
-          { key: 'actions', label: 'Acciones', render: (row) => <div className="quick-actions"><Link className="secondary-button" to={`/ots/${row.id}`}>Ver</Link><button className="danger-button" type="button" disabled={deletingId === row.id} onClick={() => deleteOrder(row)}>{deletingId === row.id ? 'Borrando...' : 'Cancelar'}</button></div> }
+          { key: 'actions', label: 'Acciones', render: (row) => {
+            const annulAllowed = canAnnulWorkOrder(row);
+            const blockedTitle = row.deleted_at ? 'La OT ya está anulada.' : 'Las OT finalizadas, validadas, cerradas o canceladas quedan solo lectura.';
+            return (
+              <div className="quick-actions">
+                <Link className="secondary-button" to={`/ots/${row.id}`}>Ver</Link>
+                {annulAllowed ? (
+                  <button className="danger-button" type="button" disabled={deletingId === row.id} onClick={() => openAnnulOrder(row)}>
+                    {deletingId === row.id ? 'Anulando...' : 'Anular OT'}
+                  </button>
+                ) : (
+                  <button className="ghost-button" type="button" disabled title={blockedTitle}>Solo lectura</button>
+                )}
+              </div>
+            );
+          } }
         ]}
         rows={filteredRows}
         empty="Sin ordenes de trabajo en el contexto seleccionado"
       />
       </div>
+
+      <Modal title="Anular orden de trabajo" open={annulDraft.open} onClose={closeAnnulOrder}>
+        <form className="form-grid" onSubmit={confirmAnnulOrder}>
+          <div className="workorder-alert warning">
+            <p><strong>Vas a anular esta OT.</strong> No se borrará el historial, pero dejará de estar activa.</p>
+          </div>
+          {annulDraft.row && (
+            <div className="ot-info-group">
+              <h3>{workOrderLabel(annulDraft.row)}</h3>
+              <p className="muted">{annulDraft.row.titulo || 'Orden de trabajo sin título'}</p>
+            </div>
+          )}
+          <FormField label="Motivo de anulación">
+            <textarea
+              rows="4"
+              value={annulDraft.reason}
+              onChange={(event) => {
+                setAnnulDraft((current) => ({ ...current, reason: event.target.value }));
+                if (annulError) setAnnulError('');
+              }}
+              placeholder="Ej. OT duplicada, creada por error, trabajo no procedente..."
+              required
+            />
+          </FormField>
+          {annulError && <p className="error-text">{annulError}</p>}
+          <div className="form-actions">
+            <button className="ghost-button" type="button" disabled={Boolean(deletingId)} onClick={closeAnnulOrder}>No, volver</button>
+            <button className="danger-button" type="submit" disabled={Boolean(deletingId)}>{deletingId ? 'Anulando...' : 'Sí, anular OT'}</button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal title="Nueva orden de trabajo" open={open} onClose={() => setOpen(false)}>
         <form className="form-grid workorder-form" onSubmit={(event) => submit(event, 'BORRADOR', { destination: 'checklist' })}>
